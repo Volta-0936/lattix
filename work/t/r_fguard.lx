@@ -1,0 +1,7 @@
+table e = (0,1,4), (0,2,1), (2,1,2), (1,3,5)
+field d : min bound 16
+d[0] <- 0
+d[j] <- d[i] + w   for (i,j,w) in e
+field far : or bound 16
+far[k] <- true   for (k) in 0 .. 5 if d[k] >= 3
+print far

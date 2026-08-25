@@ -1,0 +1,12 @@
+# 到達可能性は単調、到達不能性は非単調。
+# 人間は seal を書かない。処理系が層を導出する。
+table edge = (0,1), (1,2), (2,3), (3,1), (4,5), (5,4)
+table node = (0), (1), (2), (3), (4), (5)
+
+field tc : or
+tc[i,j] <- true   for (i,j) in edge
+tc[i,k] <- true   for (i,j) in edge for (k) in node if tc[j,k]
+
+field unreachable_from_0 : set
+unreachable_from_0[] <- {b}   for (b) in node if not tc[0,b]
+print unreachable_from_0

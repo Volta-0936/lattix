@@ -1,0 +1,72 @@
+# 字句解析器（完全版）—— コメントと文字列リテラルも自分で飛ばす。
+#
+# 16_lex.lx はホストが前処理でコメントと文字列を剥がしていた。ここでは剥がさない。
+#
+#   コメント : `#` から行末まで。**鎖の不動点**（否定も剰余も要らない）
+#   文字列   : 引用符の個数の **偶奇**。ここで初めて剰余が要る
+#
+# 「文字列型が無いから字句解析は書けない」から始まって、
+# 最後に足りなかったのは演算子ひとつだった。
+
+table ch = (0,97),(1,32),(2,35),(3,120),(4,10),(5,98),(6,32)
+
+# ── コメント: `#` から行末まで ────────────────────────────────────────
+# 単調な鎖。`#` で始まり、改行でない限り伝わる。否定を一度も使わない。
+field incomment : or
+incomment[i] <- true      for (i,c) in ch if c == 35
+incomment[i] <- true      for (i,c) in ch if c != 10 if incomment[i-1]
+
+# ── 文字列: 引用符の偶奇 ──────────────────────────────────────────────
+# 引用符をここまでに何個見たか。開いた引用符の後だけが奇数になる。
+field quotes : max
+quotes[0] <- 0
+quotes[i] <- quotes[i-1] + 1   for (i,c) in ch if c == 34
+quotes[i] <- quotes[i-1]       for (i,c) in ch if c != 34
+
+field instring : or
+instring[i] <- true       for (i,c) in ch if quotes[i] % 2 == 1
+instring[i] <- true       for (i,c) in ch if c == 34      # 閉じ引用符も中に入れる
+
+# 飛ばす文字 = コメントの中か、文字列の中
+field skip : or
+skip[i] <- true           for (i,c) in ch if incomment[i]
+skip[i] <- true           for (i,c) in ch if instring[i]
+
+# ── ここから先は 16_lex と同じ。飛ばす文字は空白と同じ扱いにする ────────
+field cls : flat
+cls[i] <- 3        for (i,c) in ch if skip[i]
+cls[i] <- 1        for (i,c) in ch if c >= 97 if c <= 122 if not skip[i]
+cls[i] <- 1        for (i,c) in ch if c >= 65 if c <= 90  if not skip[i]
+cls[i] <- 1        for (i,c) in ch if c == 95             if not skip[i]
+cls[i] <- 2        for (i,c) in ch if c >= 48 if c <= 57  if not skip[i]
+cls[i] <- 3        for (i,c) in ch if c == 32
+cls[i] <- 3        for (i,c) in ch if c == 9
+cls[i] <- 3        for (i,c) in ch if c == 10
+cls[i] <- 100 + i  for (i,c) in ch if c >= 33 if c <= 47  if not skip[i]
+cls[i] <- 100 + i  for (i,c) in ch if c >= 58 if c <= 64  if not skip[i]
+cls[i] <- 100 + i  for (i,c) in ch if c >= 91 if c <= 96  if not skip[i]
+cls[i] <- 100 + i  for (i,c) in ch if c >= 123 if c <= 126 if not skip[i]
+
+field brk : or
+brk[0] <- true
+brk[i] <- true     for (i,c) in ch if cls[i] != cls[i-1]
+
+field owner : max
+owner[i] <- i          for (i,c) in ch if brk[i]
+owner[i] <- owner[i-1] for (i,c) in ch if not brk[i]
+
+field last : or
+last[i] <- true    for (i,c) in ch if brk[i+1]
+
+constructor cons(head, tail) bound 256
+
+field text : flat
+text[i] <- cons(c, 0)          for (i,c) in ch if last[i]
+                               if c != 32 if c != 9 if c != 10 if not skip[i]
+text[i] <- cons(c, text[i+1])  for (i,c) in ch if not last[i]
+                               if c != 32 if c != 9 if c != 10 if not skip[i]
+
+field token : flat
+token[s] <- text[s]            for (s,c) in ch if brk[s]
+
+print token

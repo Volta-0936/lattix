@@ -1,0 +1,7 @@
+table e = (0,1), (1,2), (2,3)
+field a : or bound 16
+a[0] <- true
+a[j] <- true   for (i,j) in e if a[i]
+field b : or bound 16
+b[j] <- true   for (i,j) in e if not a[i]
+print b

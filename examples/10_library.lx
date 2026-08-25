@@ -1,0 +1,23 @@
+# ライブラリを使う。use は部品を実体化し、出力場に接頭辞を付ける。
+# 処理系は展開後のプログラム全体で深度を計算し直すので、
+# 合成が順序を隠すことはできない。
+
+include "lib/graph.lx"
+
+table road = (0,1,4), (0,2,1), (2,1,2), (1,3,5), (3,4,3), (4,5,2)
+table rail = (0,3,20), (3,5,1), (5,4,1)
+table nodes = (0), (1), (2), (3), (4), (5), (6)
+
+use sssp(road, 0)              as byroad
+use sssp(rail, 0)              as byrail
+use unreachable(road, nodes, 0) as roadgap
+
+# 二つの経路網の良い方。部品の出力を普通の場として合成できる。
+field best : min
+best[v] <- byroad_dist[v]      for (v) in nodes
+best[v] <- byrail_dist[v]      for (v) in nodes
+
+print byroad_dist
+print byrail_dist
+print best
+print roadgap_out

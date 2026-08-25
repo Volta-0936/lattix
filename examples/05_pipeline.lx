@@ -1,0 +1,13 @@
+table sales  = (tokyo, 120), (osaka, 90), (tokyo, 45), (nagoya, 70), (osaka, 30)
+table stock  = (tokyo, 200), (osaka, 100), (nagoya, 60)
+table cities = (tokyo), (osaka), (nagoya)
+
+field demand : max
+demand[c] <- q               for (c,q) in sales
+
+field supply : max
+supply[c] <- s               for (c,s) in stock
+
+field shortage : set
+shortage[] <- {c}            for (c) in cities if supply[c] < demand[c]
+print shortage

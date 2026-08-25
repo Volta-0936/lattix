@@ -1,0 +1,25 @@
+# 外界。入力は単調な観測、出力は場の成長。
+#
+# ここで処理系が出す数値が本命である:
+#   逐次深度 = 外界との往復回数
+# 独立な呼び出しは深度を上げない。依存する呼び出しだけが上げる。
+
+table users = (1), (2), (3), (4), (5)
+
+# --- 独立な呼び出し 5 本。どれも他の応答を待たない。
+emit "fetch" <- u                for (u) in users
+source profile : flat from "fetch"
+
+# --- 応答に依存する 2 段目。ここで初めて往復が発生する。
+emit "geo" <- profile[u]         for (u) in users
+source region : flat from "geo"
+
+# --- さらに依存する 3 段目。
+emit "tax" <- region[profile[u]] for (u) in users
+source rate : flat from "tax"
+
+field total : sum
+total[u] <- rate[region[profile[u]]]   for (u) in users
+
+emit "report" <- u               for (u) in users if total[u] is 1
+print total

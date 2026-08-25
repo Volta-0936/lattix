@@ -1,0 +1,311 @@
+# **NOEMA — Lattix-native deliberative AI.**
+#
+# ニューラルネットではない。逐次探索器でもない。
+# 観測・仮説・推論・行動をすべて「ある事実を成立させる証明」とみなし、
+# その最小コスト証明を min-plus の最小不動点として同時に求める。
+#
+#     thought[f] = fact f を成立させる最小の認知/行動コスト
+#
+# deduction は cost 0 の規則、action は cost > 0 の規則。
+# したがって **考えることと行うことは同じ閉包の中にある**。
+# 違うのは証明の辺に kind=0/1 と書かれていることだけ。
+#
+# 第1層: 全事実の最小コスト閉包 + 到達可能性 + 矛盾の蓄積
+# 第2層: 最小コストの中で最小証明木、goal の効用選択
+# 第3層: 選ばれた goal の最適証明を逆向きに照らし、必要な行動/仮説を抽出
+#
+# これは STRIPS ではない。状態列を作らない。
+# 「未来」を時刻で並べず、goal を支える因果証明 DAG として持つ。
+# 独立な行動には順序が存在しない。必要な順序だけが依存として残る。
+
+# ── seed: すでに成立している事実 / 仮説 ───────────────────────────
+# (kind, fact, cost)
+# kind 0 = observation / resource
+# kind 1 = assumable hypothesis（使えば認知コストを払う）
+table seed =
+  (0, "battery_charged",   0),
+  (0, "coolant_canister",  0),
+  (0, "map_fragment",      0),
+  (0, "toolkit",           0),
+  (0, "storage_module",    0),
+
+  # 二つのセンサが矛盾している。NOEMA は爆発せず、そのまま保持する。
+  (0, "sensor_hot",        0),
+  (0, "sensor_cold",       0),
+
+  # 使うこともできる仮説。今回は実測/行動経路の方が安いので選ばれない。
+  (1, "east_route_clear",  7)
+
+# ── unary rule ───────────────────────────────────────────────────
+# (rule, kind, out, in, cost)
+# kind 0 = deduction / interpretation
+# kind 1 = action
+#
+# cost 0 の辺は「思考」、正の cost の辺は「仕事」だが、意味論は同じ。
+table unary =
+  # sensor interpretation
+  (0,  0, "reactor_hot",       "sensor_hot",        0),
+  (1,  0, "reactor_cold",      "sensor_cold",       0),
+
+  # actions
+  (10, 1, "power",             "battery_charged",   3),   # start backup
+  (11, 1, "diagnostics",       "power",             2),   # run diagnostics
+  (12, 1, "coolant_ready",     "coolant_canister",  1),   # prime coolant
+  (13, 1, "route_known",       "map_fragment",      4),   # reconstruct map
+  (14, 1, "route_known",       "east_route_clear",  0),   # trust hypothesis
+  (15, 1, "antenna_ready",     "toolkit",           2),   # deploy antenna
+  (16, 1, "survived",          "safe_path",         1),   # walk out
+  (17, 1, "survived",          "toolkit",          18)    # brute-force hatch
+
+# ── binary rule ──────────────────────────────────────────────────
+# (rule, kind, out, left, right, cost)
+table binary =
+  # deductions: inferred capabilities/world facts
+  (20, 0, "reactor_stable", "diagnostics",    "coolant_ready", 0),
+  (21, 0, "safe_path",      "reactor_stable", "route_known",   0),
+
+  # actions
+  (30, 1, "beacon_sent",     "power",          "antenna_ready", 1),
+  (31, 1, "logs_archived",   "diagnostics",    "storage_module",2)
+
+# ── drives / candidate goals ─────────────────────────────────────
+# (goal, drive)
+# score = cost_to_realize(goal) - drive
+# 最小 score の goal が「いま最もやる価値がある」。
+table goal =
+  ("survived",      25),
+  ("beacon_sent",   15),
+  ("logs_archived", 6)
+
+# ── 矛盾を束の衝突として観測するための射影 ────────────────────────
+# (literal, proposition, value)
+# 同じ proposition に 0 と 1 が届けば flat は ⊤。
+table polarity =
+  ("reactor_hot",  "reactor_temperature", 1),
+  ("reactor_cold", "reactor_temperature", 0)
+
+# ═══════════════════════════════════════════════════════════════════
+# 第1層 — THOUGHT
+# ═══════════════════════════════════════════════════════════════════
+
+# fact f を成立させる最小コスト。
+# これが NOEMA の中心。探索アルゴリズムは書かない。
+field thought : min
+
+thought[f] <- c
+      for (k,f,c) in seed
+
+thought[o] <- thought[i] + c
+      for (r,k,o,i,c) in unary
+
+thought[o] <- thought[a] + thought[b] + c
+      for (r,k,o,a,b,c) in binary
+
+# コストと独立した「導出可能か」。矛盾/可視化用。
+field reachable : or
+
+reachable[f] <- true
+      for (k,f,c) in seed
+
+reachable[o] <- true
+      for (r,k,o,i,c) in unary
+      if reachable[i]
+
+reachable[o] <- true
+      for (r,k,o,a,b,c) in binary
+      if reachable[a]
+      if reachable[b]
+
+# sensor_hot と sensor_cold は両方届く。
+# flat なので reactor_temperature = ⊤ になる。
+# しかし他の fact へ「爆発」しない。矛盾は局所的な情報である。
+field belief : flat
+
+belief[p] <- v
+      for (lit,p,v) in polarity
+      if reachable[lit]
+
+# ═══════════════════════════════════════════════════════════════════
+# 第2層 — MINIMAL PROOF + DESIRE
+# ═══════════════════════════════════════════════════════════════════
+
+# 同じ最小 cost の実現方法が複数あるなら、より小さな証明木を選ぶ。
+# thought の最終値を見るので一段深い。
+field steps : min
+
+steps[f] <- 0
+      for (k,f,c) in seed
+      if thought[f] == c
+
+steps[o] <- steps[i] + 1
+      for (r,k,o,i,c) in unary
+      if thought[o] == thought[i] + c
+
+steps[o] <- steps[a] + steps[b] + 1
+      for (r,k,o,a,b,c) in binary
+      if thought[o] == thought[a] + thought[b] + c
+
+# goal の効用。drive は「欲しさ」、thought は「世界が要求する代価」。
+field desire : min
+field best_desire : min
+
+desire[g] <- thought[g] - d
+      for (g,d) in goal
+
+best_desire[] <- desire[g]
+      for (g,d) in goal
+
+# equality は完成した min を読むので、ここで goal が一意/複数に決まる。
+field chosen_goal : or
+chosen_goal[g] <- true
+      for (g,d) in goal
+      if desire[g] == best_desire[]
+
+# ═══════════════════════════════════════════════════════════════════
+# 第3層 — ATTENTION / PLAN EXTRACTION / EXPLANATION
+# ═══════════════════════════════════════════════════════════════════
+
+# 選ばれた goal から、最小 cost + 最小 steps の証明を逆向きに照らす。
+# need[f] は「この事実が最適計画のどこかで必要」。
+# ここにもスタックも再帰関数もない。逆向きの不動点である。
+field need : or
+
+need[g] <- true
+      for (g,d) in goal
+      if chosen_goal[g]
+
+need[i] <- true
+      for (r,k,o,i,c) in unary
+      if need[o]
+      if thought[o] == thought[i] + c
+      if steps[o] == steps[i] + 1
+
+need[a] <- true
+      for (r,k,o,a,b,c) in binary
+      if need[o]
+      if thought[o] == thought[a] + thought[b] + c
+      if steps[o] == steps[a] + steps[b] + 1
+
+need[b] <- true
+      for (r,k,o,a,b,c) in binary
+      if need[o]
+      if thought[o] == thought[a] + thought[b] + c
+      if steps[o] == steps[a] + steps[b] + 1
+
+# 最適証明に実際に現れる行動。
+field chosen_action : or
+
+chosen_action[r] <- true
+      for (r,k,o,i,c) in unary
+      if k == 1
+      if need[o]
+      if thought[o] == thought[i] + c
+      if steps[o] == steps[i] + 1
+
+chosen_action[r] <- true
+      for (r,k,o,a,b,c) in binary
+      if k == 1
+      if need[o]
+      if thought[o] == thought[a] + thought[b] + c
+      if steps[o] == steps[a] + steps[b] + 1
+
+# 最適証明で使われた「思考規則」。
+field chosen_thought : or
+
+chosen_thought[r] <- true
+      for (r,k,o,i,c) in unary
+      if k == 0
+      if need[o]
+      if thought[o] == thought[i] + c
+      if steps[o] == steps[i] + 1
+
+chosen_thought[r] <- true
+      for (r,k,o,a,b,c) in binary
+      if k == 0
+      if need[o]
+      if thought[o] == thought[a] + thought[b] + c
+      if steps[o] == steps[a] + steps[b] + 1
+
+# どの観測/資源/仮説に計画が依存しているか。
+field needed_seed : or
+field chosen_hypothesis : or
+
+needed_seed[f] <- true
+      for (k,f,c) in seed
+      if need[f]
+      if thought[f] == c
+      if steps[f] == 0
+
+chosen_hypothesis[f] <- true
+      for (k,f,c) in seed
+      if k == 1
+      if need[f]
+      if thought[f] == c
+      if steps[f] == 0
+
+# 局所的な「なぜ」。同じ最適 fact に異なる同格の理由が来ると ⊤。
+# つまり曖昧性を例外にせず、知識として残す。
+constructor because_seed(kind, fact) bound 4
+constructor because_unary(rule, input) bound 4
+constructor because_binary(rule, left, right) bound 4
+
+field why : flat
+
+why[f] <- because_seed(k,f)
+      for (k,f,c) in seed
+      if thought[f] == c
+      if steps[f] == 0
+
+why[o] <- because_unary(r,i)
+      for (r,k,o,i,c) in unary
+      if thought[o] == thought[i] + c
+      if steps[o] == steps[i] + 1
+
+why[o] <- because_binary(r,a,b)
+      for (r,k,o,a,b,c) in binary
+      if thought[o] == thought[a] + thought[b] + c
+      if steps[o] == steps[a] + steps[b] + 1
+
+budget depth <= 3
+budget top <= 8       # 矛盾/曖昧性は許す。ただし無制限には増やさない。
+
+# ── 観測 ──────────────────────────────────────────────────────────
+print belief
+print thought
+print desire
+print best_desire
+print chosen_goal
+print chosen_action
+print chosen_thought
+print needed_seed
+print chosen_hypothesis
+print why
+
+# sample で期待される概形:
+#
+# reactor_temperature = ⊤
+#   sensor_hot / sensor_cold が矛盾。しかし推論全体は壊れない。
+#
+# survived:
+#   battery_charged --action10(+3)--> power
+#   power           --action11(+2)--> diagnostics
+#   coolant_canister--action12(+1)--> coolant_ready
+#   diagnostics + coolant_ready --rule20--> reactor_stable
+#   map_fragment    --action13(+4)--> route_known
+#   reactor_stable + route_known --rule21--> safe_path
+#   safe_path       --action16(+1)--> survived
+#
+# thought["survived"] = 11
+# desire["survived"] = 11 - 25 = -14
+#
+# beacon_sent = 3 + 2 + 1 = 6, desire = -9
+# logs_archived = 5 + 0 + 2 = 7, desire = 1
+#
+# chosen_goal = survived
+# chosen_action = {10,11,12,13,16}
+# chosen_hypothesis = ∅
+#
+# 重要なのは action の列に実行順が書かれていないこと。
+# 10→11 だけは依存で順序が強制される。
+# 12 と 13 は独立なので、同時でも逆順でも答えは同じ。
+# NOEMA の「計画」は時系列ではなく、最小証明の半順序である。

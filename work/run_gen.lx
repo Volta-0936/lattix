@@ -1,0 +1,63 @@
+table fld = (0,1,1)
+table seed = (0,0,0,0)
+table rrule = (0,0,1,3,0,1)
+table trm = (0,0,0,3,0,0,0,0), (1,0,1,2,0,2,0,2), (2,0,2,1,0,0,1,2)
+table crd = (0,0,0,0,0,0,0,0,0), (1,1,0,0,0,0,1,0,0)
+table lop = (0,0,0,0,0,0,3,0,0)
+table dat = (0,0,0), (0,1,1), (0,2,4), (1,0,0), (1,1,2), (1,2,1), (2,0,2), (2,1,1), (2,2,2), (3,0,1), (3,1,3), (3,2,5)
+
+# ── 地上データを場に開く ──────────────────────────────────────────
+field d : min bound 256 8
+d[row,col] <- v                for (row,col,v) in dat
+
+# ── 座標の記述（所有者ごと）────────────────────────────────────────
+field ocol : max bound 256
+ocol[ow] <- col                for (gc,ow,r,dm,src,f,col,sk,sh) in crd
+field tcol : max bound 256
+tcol[gt] <- ocol[ow]           for (gt,r,t,kd,f,col,v,ow) in trm
+field hcol : max bound 256
+hcol[r] <- ocol[ow]            for (r,st,lat,tar,wf,ow) in rrule
+field lastt : max bound 256
+lastt[r] <- gt                 for (gt,r,t,kd,f,col,v,ow) in trm
+field rlat : max bound 256
+rlat[r] <- lat                 for (r,st,lat,tar,wf,ow) in rrule
+
+# ── 対象の場の値。**束ごとに面を分ける** —— join がその束のものになる。
+#    途中の値（項・畳み）も同じ束の面に置く。min の面が育つ max の面を
+#    読むと単調でなくなる（気づき38）ので、面を跨がない。
+field vmin : min bound 16 256
+field vmax : max bound 16 256
+field vor  : or  bound 16 256
+vmin[f,c] <- v     for (s,f,c,v) in seed for (f2,lat,ar) in fld if f == f2 if lat == 1
+vmax[f,c] <- v     for (s,f,c,v) in seed for (f2,lat,ar) in fld if f == f2 if lat == 2
+vor[f,c]  <- true  for (s,f,c,v) in seed for (f2,lat,ar) in fld if f == f2 if lat == 3
+
+# ── min の規則 ────────────────────────────────────────────────────
+field tvn : min bound 256 256
+field acn : min bound 256 256
+tvn[gt,row] <- v                  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 1 if kd == 1
+tvn[gt,row] <- d[row,col]         for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 1 if kd == 2
+tvn[gt,row] <- vmin[f, d[row,tcol[gt]]]   for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 1 if kd == 3
+acn[gt,row] <- tvn[gt,row]                  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 1 if t == 0
+acn[gt,row] <- acn[gt-1,row] + tvn[gt,row]  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 1 if t >= 1
+vmin[wf, d[row,hcol[r]]] <- acn[lastt[r],row]
+      for (r,st,lat,tar,wf,ow) in rrule for (row) in 0 .. 3 if lat == 1
+
+# ── max の規則 ────────────────────────────────────────────────────
+field tvx : max bound 256 256
+field acx : max bound 256 256
+tvx[gt,row] <- v                  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 2 if kd == 1
+tvx[gt,row] <- d[row,col]         for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 2 if kd == 2
+tvx[gt,row] <- vmax[f, d[row,tcol[gt]]]   for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 2 if kd == 3
+acx[gt,row] <- tvx[gt,row]                  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 2 if t == 0
+acx[gt,row] <- acx[gt-1,row] + tvx[gt,row]  for (gt,r,t,kd,f,col,v,ow) in trm for (row) in 0 .. 3 if rlat[r] == 2 if t >= 1
+vmax[wf, d[row,hcol[r]]] <- acx[lastt[r],row]
+      for (r,st,lat,tar,wf,ow) in rrule for (row) in 0 .. 3 if lat == 2
+
+# ── or の規則（値を見ない。**火が点いたら true**）────────────────
+vor[wf, d[row,hcol[r]]] <- true
+      for (r,st,lat,tar,wf,ow) in rrule for (row) in 0 .. 3 if lat == 3
+
+print vmin
+print vmax
+print vor

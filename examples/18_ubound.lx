@@ -1,0 +1,21 @@
+# 上界（前線下界）で層を落とす —— 証明書はスケジューラを選ぶだけではなかった。
+#
+# `dist[v] > 6` は min 束への非単調な比較で、いままで層を一つ食っていた。
+# だが非負デルタの証明書があれば、Dijkstra の前線の値 B は
+# **まだ確定していない全セルの最終値の下界**である。つまり B は上界 U であり、
+#
+#     B > 6  ⟹  そのセルの最終値 > 6（真になったら二度と偽にならない）
+#
+# 待つ必要が無い。深度 2 → 1。答えは一文字も変わらない。
+# `python3 lattix.py examples/18_ubound.lx --plan` は緩和前の 2 を出す。
+# 緩和は L.relax(prog) で明示的に要求する（demo/ubound.py）。
+table edges = (0,1,4),(0,2,1),(2,1,2),(1,3,5),(3,4,3),(4,5,2)
+table node  = (0),(1),(2),(3),(4),(5)
+
+field dist : min
+dist[0] <- 0
+dist[j] <- dist[i] + w   for (i,j,w) in edges
+
+# 「遠い」= 閾値より大きい。min 束に対する非単調な比較。
+field far : or
+far[v] <- true   for (v) in node if dist[v] > 6

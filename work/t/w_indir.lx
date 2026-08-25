@@ -1,0 +1,9 @@
+# 多面体の道 —— **値で決まる座標**（`fp`）。
+# `val[idx[i]]` の `idx[i]` は点ごとに違うが、その値の置き場もまた空間である。
+field idx : max bound 2048
+field val : max bound 2048
+field out : max bound 2048
+idx[i] <- 1000 - i      for (i) in 0 .. 999
+val[i] <- i * 2         for (i) in 0 .. 999
+out[i] <- val[idx[i]]   for (i) in 0 .. 999
+print out

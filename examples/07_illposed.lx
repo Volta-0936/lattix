@@ -1,0 +1,7 @@
+# 「バリアを置き忘れた」のではなく「そもそも問いが自己矛盾している」場合。
+# v0.1 は "seal を挿入せよ" と言った。v0.2 はそれが不可能だと証明する。
+table node = (0), (1), (2)
+
+field alive : or
+alive[n] <- true    for (n) in node if not alive[n]
+print alive

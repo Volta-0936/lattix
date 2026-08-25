@@ -1,0 +1,8 @@
+# 破壊的代入 = 座標軸を一本足すこと。命令型の逐次深度18が、深度1になる。
+table steps = range(0, 18)
+
+field fib : flat
+fib[0]   <- 0
+fib[1]   <- 1
+fib[t+2] <- fib[t] + fib[t+1]   for (t) in steps
+print fib

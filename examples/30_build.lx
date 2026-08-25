@@ -1,0 +1,66 @@
+# ビルド系 —— **実ディレクトリを見て、何を作り直すかを決める。**
+#
+# make は「規則と順序」を書く言語である。ここには順序が一行も無い。
+# 書いてあるのは依存の半順序 D だけで、**段（level）は D から出てくる**。
+#
+# 効くのはそこである: `make -j` は並列度を人が推測して渡すが、
+# ここでは処理系が **ビルドする前に** 逐次深度を印字する ——
+# それがそのまま「何回待たされるか」であり、同じ段のものは全部同時に作れる。
+#
+#   逐次深度 = ビルドの段数
+#
+# 外界の観測は単調である。**touch は時刻を増やすだけ**なので成長であって、
+# 撤回ではない。だからビルド系は追加しかしない世界に自然に収まる。
+
+# ── 外界: ディレクトリを一度なめる ──────────────────────────────────
+# 走査は一度きり。返ってくるのは番号の付いたファイルと、その依存である。
+emit "scan" <- 0
+
+source nfile : max  from "scan"     # ファイルの本数
+source mtime : max  from "scan"     # mtime[i]  無いファイルは 0
+source ndep  : max  from "scan"     # ndep[i]   依存の本数
+source dep   : flat from "scan"     # dep[i,j]  i の j 番目の依存（ファイル番号）
+source made  : max  from "scan"     # made[i]   生成物なら 1、原本なら 0
+
+# ── 段。依存の最長路 —— これが逐次深度そのものである ────────────────
+# `max` 束の最長路。閉路があれば成長が止まらないので、予算で捕まえる。
+field level : max
+level[i] <- 0                       for (i) in 0 .. nfile[] - 1
+level[i] <- level[dep[i,j]] + 1     for (i) in 0 .. nfile[] - 1 for (j) in 0 .. ndep[i] - 1
+
+# ── 古いか。三つの理由があり、**どれも同じ or 束に落ちる** ────────────
+field stale : or
+
+# (1) 生成物なのに無い
+stale[i] <- true    for (i) in 0 .. nfile[] - 1 if made[i] == 1 if mtime[i] == 0
+
+# (2) 依存より古い
+stale[i] <- true    for (i) in 0 .. nfile[] - 1 for (j) in 0 .. ndep[i] - 1
+                    if made[i] == 1 if mtime[i] < mtime[dep[i,j]]
+
+# (3) 依存が古い（推移。ここが不動点で、make の再帰に当たる）
+stale[i] <- true    for (i) in 0 .. nfile[] - 1 for (j) in 0 .. ndep[i] - 1
+                    if made[i] == 1 if stale[dep[i,j]]
+
+# ── 作り直すものの段。**待ち行列ではなく座標である** ──────────────────
+field todo : max
+todo[i] <- level[i]                 for (i) in 0 .. nfile[] - 1 if stale[i]
+
+field maxlv : max
+maxlv[] <- todo[i]                  for (i) in 0 .. nfile[] - 1 if stale[i]
+
+field njobs : sum
+njobs[] <- 1                        for (i) in 0 .. nfile[] - 1 if stale[i]
+
+# ── 外へ。**効果は「何を」、順序は `todo` が言う** ────────────────────
+# 出すのは作り直すものの集合である（集合なので冪等 —— 何度実行しても、
+# どんな順序でも、レプリカが合流しても、同じものを二度は作らない）。
+# **順序はここに書かない。** `todo[i]` が段を持っているので、
+# 資源はそれを見て並べる。同じ段のものに順序は無い —— 好きに使ってよい。
+emit "build" <- i                       for (i) in 0 .. nfile[] - 1 if stale[i]
+
+print level
+print todo
+print stale
+print maxlv
+print njobs

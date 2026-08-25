@@ -1,0 +1,706 @@
+# Lattix の構文解析器を Lattix で書く（B2）。
+#
+# 表 tok は字句解析器の答えをそのまま地上データにしたもの:
+#   (トークン番号, 種別 0=識別子 1=整数 2=記号, 先頭文字, 二文字目, 行, 値)
+# 値は識別子・記号なら綴りの内容アドレス、整数ならその値。
+#
+# 中心にある考え: **スタックを時間ではなく座標に置く。**
+# 開き括弧の深さ d を座標にすると、押し出しも取り出しも消えて、ただの鎖になる。
+# 優先順位も同じで、原子・項・和・比較の「終端の鎖」だけで木が建つ。
+# 場所を三つ組 (a,m,b) で回す必要が無いので、仕事は O(トークン数) のままである。
+
+table tok = (1,0,97,0,1,0)
+# 括弧の最大の深さ。構成子の `bound N` と同じで、**有限の資源の宣言**である。
+table depths = (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),
+               (14),(15),(16),(17),(18),(19)
+
+constructor cons(head, tail) bound 512
+constructor eint(v) bound 512
+constructor ebool(v) bound 512
+constructor evar(name) bound 512
+constructor efref(name, args) bound 512
+constructor ector(name, args) bound 512
+constructor ebin(op, l, r) bound 512
+constructor ecmp(op, l, r) bound 512
+constructor egeq(l, r) bound 512
+constructor efn(op, a, b) bound 512
+constructor eset(items) bound 512
+constructor enot(x) bound 512
+constructor estr(text) bound 512
+constructor bind(src, pos) bound 512
+constructor usrc(src, vars) bound 512
+
+# ── 語彙（綴りは構成そのものである。記号表は要らない） ──────────────
+field W : flat
+W[1] <- cons(102,cons(111,cons(114,0)))                                 # for
+W[2] <- cons(105,cons(102,0))                                           # if
+W[3] <- cons(105,cons(110,0))                                           # in
+W[4] <- cons(105,cons(115,0))                                           # is
+W[5] <- cons(110,cons(111,cons(116,0)))                                 # not
+W[6] <- cons(116,cons(114,cons(117,cons(101,0))))                       # true
+W[7] <- cons(102,cons(97,cons(108,cons(115,cons(101,0)))))              # false
+W[8] <- cons(109,cons(105,cons(110,0)))                                 # min
+W[9] <- cons(109,cons(97,cons(120,0)))                                  # max
+W[10] <- cons(116,cons(97,cons(98,cons(108,cons(101,0)))))              # table
+W[11] <- cons(102,cons(105,cons(101,cons(108,cons(100,0)))))            # field
+W[12] <- cons(112,cons(114,cons(105,cons(110,cons(116,0)))))            # print
+W[13] <- cons(114,cons(101,cons(110,cons(100,cons(101,cons(114,0))))))  # render
+W[14] <- cons(99,cons(111,cons(110,cons(115,cons(116,cons(114,cons(117,cons(99,cons(116,cons(111,cons(114,0)))))))))))  # constructor
+W[15] <- cons(111,cons(114,0))                                                        # or
+W[16] <- cons(97,cons(110,cons(100,0)))                                               # and
+W[17] <- cons(115,cons(101,cons(116,0)))                                              # set
+W[18] <- cons(102,cons(108,cons(97,cons(116,0))))                                     # flat
+W[19] <- cons(102,cons(111,cons(117,cons(114,cons(118,0)))))                          # fourv
+W[20] <- cons(115,cons(117,cons(109,0)))                                              # sum
+W[21] <- cons(99,cons(111,cons(117,cons(110,cons(116,0)))))                           # count
+W[22] <- cons(98,cons(97,cons(103,0)))                                                # bag
+
+# ── トークンの属性を場に写す ────────────────────────────────────────
+field tkd : max
+tkd[k] <- kd for (k,kd,cc,c2,ln,v) in tok
+field tcc : max
+tcc[k] <- cc for (k,kd,cc,c2,ln,v) in tok
+field tc2 : max
+tc2[k] <- c2 for (k,kd,cc,c2,ln,v) in tok
+field tv : max
+tv[k] <- v   for (k,kd,cc,c2,ln,v) in tok
+field tl : max
+tl[k] <- ln  for (k,kd,cc,c2,ln,v) in tok
+# **⊥ と比べてはいけない。** 「次のトークンが `=` ではない」は、次が無いときも
+# 真であってほしい —— だが ⊥ と比べて真になる述語は単調でない（あとで値が
+# 入れば真が偽に変わる）。焼いた符号は ⊥ で火を噴かず次の行へ飛んでいた。
+# だから **端に定まった値 0 を置く**。無いことを ⊥ ではなく 0 で言う。
+field ptcc : max                       # 一つ前のトークンの先頭文字（無ければ 0）
+ptcc[k] <- 0        for (k,kd,cc,c2,ln,v) in tok
+ptcc[k] <- tcc[k-1] for (k,kd,cc,c2,ln,v) in tok
+field ntcc : max                       # 次のトークンの先頭文字（無ければ 0）
+ntcc[k] <- 0        for (k,kd,cc,c2,ln,v) in tok
+ntcc[k] <- tcc[k+1] for (k,kd,cc,c2,ln,v) in tok
+field ptl : max                        # 一つ前のトークンの行（無ければ 0）
+ptl[k] <- 0        for (k,kd,cc,c2,ln,v) in tok
+ptl[k] <- tl[k-1]  for (k,kd,cc,c2,ln,v) in tok
+field ntok : max
+ntok[] <- k  for (k,kd,cc,c2,ln,v) in tok
+
+# ── 括弧 ────────────────────────────────────────────────────────────
+field opn : or
+opn[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 40
+opn[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 91
+opn[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 123
+
+field cl : or
+cl[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 41
+cl[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 93
+cl[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 125
+
+field pre : flat
+pre[1] <- 0
+pre[k+1] <- pre[k] + 1 for (k,kd,cc,c2,ln,v) in tok if opn[k]
+pre[k+1] <- pre[k] - 1 for (k,kd,cc,c2,ln,v) in tok if cl[k]
+pre[k+1] <- pre[k]     for (k,kd,cc,c2,ln,v) in tok if not opn[k] if not cl[k]
+
+field oat : or
+oat[k, pre[k] + 1] <- true for (k,kd,cc,c2,ln,v) in tok if opn[k]
+
+field opos : max
+opos[k, d] <- opos[k-1, d] for (k,kd,cc,c2,ln,v) in tok for (d) in depths
+opos[k, d] <- k - 1        for (k,kd,cc,c2,ln,v) in tok for (d) in depths
+                           if oat[k-1, d]
+
+field match : max
+match[k] <- opos[k, pre[k]] for (k,kd,cc,c2,ln,v) in tok if cl[k]
+
+# ── 引数リスト: 区切りを右から左へ繋ぐ ──────────────────────────────
+field sepat : or
+sepat[k, pre[k]] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 44
+sepat[k, pre[k]] <- true for (k,kd,cc,c2,ln,v) in tok if cl[k]
+
+field nsep : min
+nsep[k, d] <- k          for (k,kd,cc,c2,ln,v) in tok for (d) in depths
+                         if sepat[k, d]
+nsep[k, d] <- nsep[k+1, d] for (k,kd,cc,c2,ln,v) in tok for (d) in depths
+
+# ── 文の区切り ──────────────────────────────────────────────────────
+field first : or
+first[1] <- true
+first[k] <- true for (k,kd,cc,c2,ln,v) in tok if ln != ptl[k]
+
+field cont : or
+cont[k] <- true for (k,kd,cc,c2,ln,v) in tok if first[k] if tcc[k-1] == 44
+cont[k] <- true for (k,kd,cc,c2,ln,v) in tok if first[k] if kd == 0 if v == W[1]
+cont[k] <- true for (k,kd,cc,c2,ln,v) in tok if first[k] if kd == 0 if v == W[2]
+
+field sbrk : or
+sbrk[1] <- true
+sbrk[k] <- true for (k,kd,cc,c2,ln,v) in tok if first[k] if not cont[k]
+
+field snum : max
+snum[0] <- 0
+snum[k] <- snum[k-1]     for (k,kd,cc,c2,ln,v) in tok
+snum[k] <- snum[k-1] + 1 for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+
+field sstart : max
+sstart[snum[k]] <- k for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+
+# ── 節（for / if）の区切り ──────────────────────────────────────────
+field cbrk : or
+cbrk[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if pre[k] == 0 if v == W[1]
+cbrk[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if pre[k] == 0 if v == W[2]
+
+field cnum : max
+cnum[0] <- 0
+cnum[k] <- cnum[k-1]     for (k,kd,cc,c2,ln,v) in tok if not sbrk[k]
+cnum[k] <- 0             for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+cnum[k] <- cnum[k-1] + 1 for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if not sbrk[k]
+
+field cend : max
+cend[snum[k], cnum[k]] <- k for (k,kd,cc,c2,ln,v) in tok
+field cbeg : min
+cbeg[snum[k], cnum[k]] <- k for (k,kd,cc,c2,ln,v) in tok
+field nclause : max
+nclause[snum[k]] <- cnum[k] for (k,kd,cc,c2,ln,v) in tok
+
+# 代入矢印 `<-`
+field arrow : max
+arrow[snum[k]] <- k for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 60 if c2 == 45
+
+field parw : max                       # 文の矢印の位置（無ければ 0）
+parw[snum[k]] <- 0              for (k,kd,cc,c2,ln,v) in tok
+parw[snum[k]] <- arrow[snum[k]] for (k,kd,cc,c2,ln,v) in tok
+
+# ── 構成子の名前（内容アドレスを座標にした「記号表」） ──────────────
+field isctor : or
+isctor[tv[sstart[snum[k]] + 1]] <- true
+    for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[14] if sbrk[k]
+
+# ── 演算子の分類 ────────────────────────────────────────────────────
+field opend : or                       # トークン k は被演算子の終わり
+opend[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0
+opend[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 1
+opend[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 3
+opend[k] <- true for (k,kd,cc,c2,ln,v) in tok if cl[k]
+
+field uminus : or
+uminus[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 45 if c2 == 0
+                                                if not opend[k-1]
+
+field mulop : or
+mulop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if c2 == 0 if cc == 42
+mulop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if c2 == 0 if cc == 47
+mulop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if c2 == 0 if cc == 37
+
+field addop : or
+addop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if c2 == 0 if cc == 43
+                                              if not uminus[k]
+addop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if c2 == 0 if cc == 45
+                                              if not uminus[k]
+
+field cmpop : or
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 60 if c2 == 0
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 62 if c2 == 0
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 60 if c2 == 61
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 62 if c2 == 61
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 61 if c2 == 61
+cmpop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 33 if c2 == 61
+
+field isop : or
+isop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[4]
+
+field prefixop : or
+prefixop[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[5]
+prefixop[k] <- true for (k,kd,cc,c2,ln,v) in tok if uminus[k]
+
+# ── 原子 ────────────────────────────────────────────────────────────
+# 呼び出しの `(` か、ただの括弧か
+field callopen : or
+callopen[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if isctor[tv[match[k]-1]]
+callopen[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if tv[match[k]-1] == W[8]
+callopen[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if tv[match[k]-1] == W[9]
+
+field astart : max
+astart[k] <- k for (k,kd,cc,c2,ln,v) in tok if kd == 0
+astart[k] <- k for (k,kd,cc,c2,ln,v) in tok if kd == 1
+astart[k] <- k for (k,kd,cc,c2,ln,v) in tok if kd == 3
+astart[k] <- match[k]     for (k,kd,cc,c2,ln,v) in tok if cc == 125
+astart[k] <- match[k]     for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k]
+astart[k] <- match[k] - 1 for (k,kd,cc,c2,ln,v) in tok if cc == 41 if callopen[k]
+astart[k] <- match[k] - 1 for (k,kd,cc,c2,ln,v) in tok if cc == 93
+
+field empty : or                       # 括弧の中身が空
+empty[k] <- true for (k,kd,cc,c2,ln,v) in tok if cl[k] if match[k] + 1 == k
+
+# 引数リスト（右から左へ）
+field al : flat
+al[k] <- cons(E[k-1], 0)              for (k,kd,cc,c2,ln,v) in tok if cl[k]
+                                      if not empty[k]
+al[k] <- cons(E[k-1], al[nsep[k+1, pre[k]]])
+                                      for (k,kd,cc,c2,ln,v) in tok
+                                      if kd == 2 if cc == 44
+
+field args : flat                      # 括弧 k（閉じ）の中の引数リスト
+args[k] <- 0                          for (k,kd,cc,c2,ln,v) in tok if cl[k] if empty[k]
+args[k] <- al[nsep[match[k]+1, pre[k]]]
+                                      for (k,kd,cc,c2,ln,v) in tok if cl[k]
+                                      if not empty[k]
+
+field A : flat
+A[k] <- eint(v)  for (k,kd,cc,c2,ln,v) in tok if kd == 1
+A[k] <- estr(v)  for (k,kd,cc,c2,ln,v) in tok if kd == 3
+A[k] <- ebool(1) for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[6]
+A[k] <- ebool(0) for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[7]
+A[k] <- evar(v)  for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v != W[6] if v != W[7]
+                 if not isvar[snum[k], v]
+A[k] <- vbind[snum[k], v]
+                 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v != W[6] if v != W[7]
+                 if isvar[snum[k], v]
+A[k] <- E[k-1]                      for (k,kd,cc,c2,ln,v) in tok if cc == 41
+                                      if not callopen[k]
+A[k] <- eset(args[k])                 for (k,kd,cc,c2,ln,v) in tok if cc == 125
+A[k] <- efref(tv[match[k]-1], args[k]) for (k,kd,cc,c2,ln,v) in tok if cc == 93
+A[k] <- ector(tv[match[k]-1], args[k]) for (k,kd,cc,c2,ln,v) in tok if cc == 41
+                                      if callopen[k] if isctor[tv[match[k]-1]]
+A[k] <- efn(0, E[nsep[match[k]+1, pre[k]] - 1], E[k-1])
+                                      for (k,kd,cc,c2,ln,v) in tok if cc == 41
+                                      if callopen[k] if tv[match[k]-1] == W[8]
+A[k] <- efn(1, E[nsep[match[k]+1, pre[k]] - 1], E[k-1])
+                                      for (k,kd,cc,c2,ln,v) in tok if cc == 41
+                                      if callopen[k] if tv[match[k]-1] == W[9]
+
+# 前置演算子
+field ast : max
+ast[k] <- astart[k]     for (k,kd,cc,c2,ln,v) in tok if not prefixop[astart[k]-1]
+ast[k] <- astart[k] - 1 for (k,kd,cc,c2,ln,v) in tok if prefixop[astart[k]-1]
+
+field P : flat
+P[k] <- A[k]                       for (k,kd,cc,c2,ln,v) in tok
+                                   if not prefixop[astart[k]-1]
+P[k] <- enot(A[k])                 for (k,kd,cc,c2,ln,v) in tok
+                                   if prefixop[astart[k]-1] if tv[astart[k]-1] == W[5]
+P[k] <- ebin(45, eint(0), A[k])    for (k,kd,cc,c2,ln,v) in tok
+                                   if prefixop[astart[k]-1] if uminus[astart[k]-1]
+
+# ── 項 → 和 → 比較（終端の鎖。左結合がそのまま出る） ────────────────
+field T : flat
+T[k] <- P[k]                                  for (k,kd,cc,c2,ln,v) in tok
+                                              if not mulop[ast[k]-1]
+T[k] <- ebin(tcc[ast[k]-1], T[ast[k]-2], P[k]) for (k,kd,cc,c2,ln,v) in tok
+                                              if mulop[ast[k]-1]
+field tst : max
+tst[k] <- ast[k]           for (k,kd,cc,c2,ln,v) in tok if not mulop[ast[k]-1]
+tst[k] <- tst[ast[k]-2]    for (k,kd,cc,c2,ln,v) in tok if mulop[ast[k]-1]
+
+field S : flat
+S[k] <- T[k]                                  for (k,kd,cc,c2,ln,v) in tok
+                                              if not addop[tst[k]-1]
+S[k] <- ebin(tcc[tst[k]-1], S[tst[k]-2], T[k]) for (k,kd,cc,c2,ln,v) in tok
+                                              if addop[tst[k]-1]
+field sst : max
+sst[k] <- tst[k]        for (k,kd,cc,c2,ln,v) in tok if not addop[tst[k]-1]
+sst[k] <- sst[tst[k]-2] for (k,kd,cc,c2,ln,v) in tok if addop[tst[k]-1]
+
+field E : flat
+E[k] <- S[k]                for (k,kd,cc,c2,ln,v) in tok if not cmpop[sst[k]-1]
+                            if not isop[sst[k]-1]
+E[k] <- ecmp(tcc[sst[k]-1] * 256 + tc2[sst[k]-1], S[sst[k]-2], S[k])
+                            for (k,kd,cc,c2,ln,v) in tok if cmpop[sst[k]-1]
+E[k] <- egeq(S[sst[k]-2], S[k])
+                            for (k,kd,cc,c2,ln,v) in tok if isop[sst[k]-1]
+
+# ── for 節 —— 変数は「束縛点の座標」で名づける ──────────────────────
+# 名前を traversal 順に付け替える必要が無い。束縛点そのものが座標なので、
+# α変換は **存在しない**。de Bruijn を数えずに済むのは、指標が座標だからである。
+field mclose : max
+mclose[match[k]] <- k for (k,kd,cc,c2,ln,v) in tok if cl[k]
+
+field clfor : or
+clfor[snum[k], cnum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[1]
+
+field clif : or
+clif[snum[k], cnum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[2]
+
+field infor : or
+infor[k] <- true for (k,kd,cc,c2,ln,v) in tok if clfor[snum[k], cnum[k]]
+
+field vpos : max
+vpos[k] <- 0 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+             if tcc[k-1] == 40
+vpos[k] <- vpos[k-2] + 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k]
+             if pre[k] == 1
+
+field ctab : max                       # 節が回している表の綴り
+ctab[snum[k], cnum[k]] <- v for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k]
+             if pre[k] == 0 if tv[k-1] == W[3]
+
+field isvar : or
+isvar[snum[k], v] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k]
+             if pre[k] == 1
+
+field vbind : flat
+vbind[snum[k], v] <- bind(ctab[snum[k], cnum[k]], vpos[k])
+             for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+
+field vl : flat                        # 組の残り
+vl[k] <- cons(bind(ctab[snum[k], cnum[k]], vpos[k]), 0)
+             for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+             if tcc[k+1] == 41
+vl[k] <- cons(bind(ctab[snum[k], cnum[k]], vpos[k]), vl[k+2])
+             for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+             if tcc[k+1] == 44
+
+# ── 規則の四つの部分 ────────────────────────────────────────────────
+field head : flat
+head[snum[k]] <- A[arrow[snum[k]] - 1] for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+             if arrow[snum[k]] > 0
+
+field body : flat
+body[snum[k]] <- E[cend[snum[k], 0]] for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+             if arrow[snum[k]] > 0
+
+# source と guard は「集合」ではない。**節番号という座標を持っている。**
+# 集合の束を使うのは、その座標を捨ててから束で拾い直すことだった。
+field srcof : flat
+srcof[snum[k], cnum[k]] <- usrc(ctab[snum[k], cnum[k]], vl[k])
+             for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+             if tcc[k-1] == 40
+
+field guardof : flat
+guardof[snum[k], cnum[k]] <- E[cend[snum[k], cnum[k]]]
+             for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[2]
+
+
+# ── 宣言 ────────────────────────────────────────────────────────────
+# 文の先頭の語が宣言の種類を決める。名前は綴りの内容アドレスそのもの。
+field kw : max                         # 文 s の先頭の語
+kw[snum[k]] <- v for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0
+
+field nm : max                         # 文 s が名づけるもの（先頭の次の語）
+nm[snum[k]] <- tv[k+1] for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0
+
+# `field 名 : 束`
+field flat_ : max                      # 場 -> 束の番号
+flat_[nm[snum[k]]] <- 1  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[8]  if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 2  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[9]  if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 3  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[15] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 4  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[16] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 5  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[17] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 6  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[18] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 7  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[19] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 8  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[20] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 9  for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[21] if pre[k]==0 if kw[snum[k]] == W[11]
+flat_[nm[snum[k]]] <- 10 for (k,kd,cc,c2,ln,v) in tok if kd==0 if v==W[22] if pre[k]==0 if kw[snum[k]] == W[11]
+
+# `print 名` / `render 名`
+field shown : max
+shown[nm[snum[k]]] <- 1 for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if v == W[12]
+shown[nm[snum[k]]] <- 2 for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if v == W[13]
+
+# `table 名 = (…),(…)` ──────────────────────────────────────────────
+field intable : or
+intable[k] <- true for (k,kd,cc,c2,ln,v) in tok if kw[snum[k]] == W[10]
+
+field rowopen : or                     # 深さ0で開く `(` = 行の始まり
+rowopen[k] <- true for (k,kd,cc,c2,ln,v) in tok if intable[k] if cc == 40 if pre[k] == 0
+
+field rn : max                         # 文の中で何行目か
+rn[k] <- 0                 for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+rn[k] <- rn[k-1]           for (k,kd,cc,c2,ln,v) in tok if not sbrk[k]
+rn[k] <- rn[k-1] + 1       for (k,kd,cc,c2,ln,v) in tok if rowopen[k] if not sbrk[k]
+
+field cn : max                         # 行の中で何列目か（深さ1のコンマを数える）
+cn[k] <- 0                 for (k,kd,cc,c2,ln,v) in tok if rowopen[k]
+cn[k] <- cn[k-1]           for (k,kd,cc,c2,ln,v) in tok if intable[k] if not rowopen[k]
+cn[k] <- cn[k-1] + 1       for (k,kd,cc,c2,ln,v) in tok if intable[k] if cc == 44
+                           if pre[k] == 1
+
+field trow : flat                      # trow[表, 行, 列] = 値
+trow[nm[snum[k]], rn[k], cn[k]] <- v
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 1 if pre[k] == 1
+      if ptcc[k] != 45
+trow[nm[snum[k]], rn[k], cn[k]] <- 0 - v
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 1 if pre[k] == 1
+      if tcc[k-1] == 45
+trow[nm[snum[k]], rn[k], cn[k]] <- 1
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 0 if pre[k] == 1 if v == W[6]
+trow[nm[snum[k]], rn[k], cn[k]] <- 0
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 0 if pre[k] == 1 if v == W[7]
+# 原子（`tokyo` や `"the"`）は **綴りの内容アドレスそのもの** が値である
+trow[nm[snum[k]], rn[k], cn[k]] <- v
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 0 if pre[k] == 1
+      if v != W[6] if v != W[7]
+trow[nm[snum[k]], rn[k], cn[k]] <- v
+      for (k,kd,cc,c2,ln,v) in tok if intable[k] if kd == 3 if pre[k] == 1
+
+# 構成子の引数の個数
+field ctorar : max
+ctorar[nm[snum[k]]] <- cn[k] + 1
+      for (k,kd,cc,c2,ln,v) in tok if kw[snum[k]] == W[14] if kd == 0 if pre[k] == 1
+
+
+# ══ 極性解析 ═════════════════════════════════════════════════════════
+# `classify` は木を降りる再帰である。だがここに木は要らない ——
+# **文脈は既に座標の鎖に入っている。**
+# 「必要な向き」「否定を越えたか」「比較の中か」の三つを、
+# 終端位置の上で親から子へ流すだけでよい。
+#
+# 最初は向きを 1/2/3 の *番号* で持った。すると反転に `flip[rq[..]]` が要り、
+# 場を座標に使う＝非単調になって、成層できなくなった。
+# **番号に見えていたものは旗だった。** 三つの `or` 場に分ければ、
+# 反転は「どちらに書くか」でしかなく、否定が一度も要らない。
+#
+#   段: 4=E（比較） 3=S（和） 2=T（項） 1=P（前置） 0=A（原子）
+field rqU : or                         # 上へ動かねばならない
+field rqD : or                         # 下へ動かねばならない
+field rqC : or                         # 値として使えない（座標）
+field nst : or                         # 否定を越えた
+field prd : or                         # 比較の中
+
+field sense : max                      # 束 -> 観測が動く向き（1 UP / 2 DOWN / 4 FLAT / 5 BELNAP）
+sense[1] <- 2                          # min
+sense[2] <- 1                          # max
+sense[3] <- 1                          # or
+sense[4] <- 2                          # and
+sense[5] <- 1                          # set
+sense[6] <- 4                          # flat
+sense[7] <- 5                          # fourv
+sense[8] <- 1                          # sum
+sense[9] <- 1                          # count
+sense[10] <- 1                         # bag
+
+field hf : max                         # 文 s が書く場
+hf[snum[k]] <- v for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0
+                if arrow[snum[k]] > 0
+
+# ── 根: 本体は目標の場の向きへ、ガードは上へ ────────────────────────
+rqU[4, cend[snum[k], 0]] <- true for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+     if arrow[snum[k]] > 0 if sense[flat_[hf[snum[k]]]] != 2
+rqD[4, cend[snum[k], 0]] <- true for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+     if arrow[snum[k]] > 0 if sense[flat_[hf[snum[k]]]] == 2
+rqU[4, cend[snum[k], cnum[k]]] <- true
+     for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[2]
+# 頭部の添字は座標である
+rqC[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if sepat[k, pre[k]]
+     if not empty[k] if grp[k] == arrow[snum[k]] - 1
+
+# ── E → S ───────────────────────────────────────────────────────
+field hascmp : or
+hascmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if cmpop[sst[k]-1]
+field hasis : or
+hasis[k] <- true for (k,kd,cc,c2,ln,v) in tok if isop[sst[k]-1]
+field lowcmp : or
+lowcmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if cmpop[k] if cc == 60
+# 等値は **どちらの向きにも単調でない**。育てば真になり、さらに育てば偽になる。
+field eqcmp : or
+eqcmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if cmpop[k] if cc == 61 if c2 == 61
+eqcmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if cmpop[k] if cc == 33 if c2 == 61
+field ordcmp : or                      # 順序の比較（等値でない）
+ordcmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if not eqcmp[sst[k]-1]
+                  if not rqC[4,k]
+
+field plain4 : or                      # 比較でも is でもない
+plain4[k] <- true for (k,kd,cc,c2,ln,v) in tok if not hascmp[k] if not hasis[k]
+rqU[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if plain4[k] if rqU[4, k]
+rqD[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if plain4[k] if rqD[4, k]
+rqC[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if plain4[k] if rqC[4, k]
+nst[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if plain4[k] if nst[4, k]
+prd[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if plain4[k] if prd[4, k]
+
+rqD[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if lowcmp[sst[k]-1] if rqU[4,k]
+rqU[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if lowcmp[sst[k]-1] if rqD[4,k]
+rqU[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if lowcmp[sst[k]-1] if rqU[4,k]
+rqD[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if lowcmp[sst[k]-1] if rqD[4,k]
+rqU[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if not lowcmp[sst[k]-1] if rqU[4,k]
+rqD[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if not lowcmp[sst[k]-1] if rqD[4,k]
+rqD[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if not lowcmp[sst[k]-1] if rqU[4,k]
+rqU[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if ordcmp[k] if not lowcmp[sst[k]-1] if rqD[4,k]
+rqC[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if rqC[4,k]
+rqC[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if rqC[4,k]
+rqC[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if eqcmp[sst[k]-1]
+rqC[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if eqcmp[sst[k]-1]
+nst[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if nst[4,k]
+nst[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k] if nst[4,k]
+prd[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k]
+prd[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hascmp[k]
+
+# `is` は **あらゆる束で単調**。右辺だけが座標になる。
+rqC[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasis[k]
+prd[3, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasis[k]
+nst[3, sst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasis[k] if nst[4,k]
+
+# ── S → T ───────────────────────────────────────────────────────
+field hasadd : or
+hasadd[k] <- true for (k,kd,cc,c2,ln,v) in tok if addop[tst[k]-1]
+field isminus : or
+isminus[k] <- true for (k,kd,cc,c2,ln,v) in tok if addop[k] if cc == 45
+rqU[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasadd[k] if rqU[3, k]
+rqD[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasadd[k] if rqD[3, k]
+rqC[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasadd[k] if rqC[3, k]
+nst[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasadd[k] if nst[3, k]
+prd[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasadd[k] if prd[3, k]
+
+rqU[3, tst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if rqU[3, k]
+rqD[3, tst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if rqD[3, k]
+rqC[3, tst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if rqC[3, k]
+nst[3, tst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if nst[3, k]
+prd[3, tst[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if prd[3, k]
+
+rqC[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if rqC[3, k]
+nst[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if nst[3, k]
+prd[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if prd[3, k]
+rqU[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if not isminus[tst[k]-1] if rqU[3, k]
+rqD[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if not isminus[tst[k]-1] if rqD[3, k]
+rqD[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if isminus[tst[k]-1] if rqU[3, k]
+rqU[2, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasadd[k] if isminus[tst[k]-1] if rqD[3, k]
+
+# ── T → P（積は非負リテラル相手のときだけ向きが通る。除算・剰余は座標）──
+field hasmul : or
+hasmul[k] <- true for (k,kd,cc,c2,ln,v) in tok if mulop[ast[k]-1]
+field ismul : or
+ismul[k] <- true for (k,kd,cc,c2,ln,v) in tok if mulop[k] if cc == 42
+field litnn : or
+litnn[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 1 if v >= 0 if ast[k] == k
+field mulok : or                       # 向きが通る積
+mulok[k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if ismul[ast[k]-1]
+            if litnn[ast[k]-2]
+mulok[k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if ismul[ast[k]-1]
+            if litnn[k]
+rqU[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasmul[k] if rqU[2, k]
+rqD[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasmul[k] if rqD[2, k]
+rqC[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasmul[k] if rqC[2, k]
+nst[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasmul[k] if nst[2, k]
+prd[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if not hasmul[k] if prd[2, k]
+
+rqU[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqU[2, k]
+rqU[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqU[2, k]
+rqD[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqD[2, k]
+rqD[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqD[2, k]
+rqC[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqC[2, k]
+rqC[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if rqC[2, k]
+nst[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if nst[2, k]
+nst[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if nst[2, k]
+prd[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if prd[2, k]
+prd[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if mulok[k] if prd[2, k]
+nst[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k] if nst[2, k]
+nst[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k] if nst[2, k]
+prd[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k] if prd[2, k]
+prd[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k] if prd[2, k]
+rqC[1, k] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k]
+rqC[2, ast[k]-2] <- true for (k,kd,cc,c2,ln,v) in tok if hasmul[k] if not mulok[k]
+
+# ── P → A（前置。`not` は向きを反転し strict を落とす）────────────
+field haspfx : or
+haspfx[k] <- true for (k,kd,cc,c2,ln,v) in tok if prefixop[astart[k]-1]
+field isnot : or
+isnot[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[5]
+field pfxnot : or
+pfxnot[k] <- true for (k,kd,cc,c2,ln,v) in tok if haspfx[k] if isnot[astart[k]-1]
+field pfxneg : or
+pfxneg[k] <- true for (k,kd,cc,c2,ln,v) in tok if haspfx[k] if uminus[astart[k]-1]
+rqU[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if not haspfx[k] if rqU[1, k]
+rqD[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if not haspfx[k] if rqD[1, k]
+rqC[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if not haspfx[k] if rqC[1, k]
+nst[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if not haspfx[k] if nst[1, k]
+prd[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if not haspfx[k] if prd[1, k]
+
+rqD[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxnot[k] if rqU[1, k]
+rqU[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxnot[k] if rqD[1, k]
+rqC[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxnot[k] if rqC[1, k]
+prd[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxnot[k] if prd[1, k]
+nst[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxnot[k]
+rqD[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxneg[k] if rqU[1, k]
+rqU[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxneg[k] if rqD[1, k]
+rqC[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxneg[k] if rqC[1, k]
+prd[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxneg[k] if prd[1, k]
+nst[0, k] <- true for (k,kd,cc,c2,ln,v) in tok if pfxneg[k] if nst[1, k]
+
+# ── A → 部分式 ──────────────────────────────────────────────────
+rqU[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k] if rqU[0, k]
+rqD[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k] if rqD[0, k]
+rqC[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k] if rqC[0, k]
+nst[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k] if nst[0, k]
+prd[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if not callopen[k] if prd[0, k]
+
+field isfref : or                      # 場の *読み*。頭部（書き先）は読みではない
+isfref[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 93
+             if k != parw[snum[k]] - 1
+field frname : max
+frname[k] <- tv[match[k]-1] for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+
+# 区切りの鎖をたどって、括弧の中の各部分式に文脈を配る
+field grp : max                        # 区切り k が属する閉じ括弧
+grp[k] <- k                            for (k,kd,cc,c2,ln,v) in tok if cl[k]
+grp[nsep[match[k]+1, pre[k]]] <- k     for (k,kd,cc,c2,ln,v) in tok if cl[k]
+                                       if not empty[k]
+grp[nsep[k+1, pre[k]]] <- grp[k]       for (k,kd,cc,c2,ln,v) in tok
+                                       if kd == 2 if cc == 44
+
+field argco : or                       # 中身は座標（添字・集合の要素）
+argco[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 93
+argco[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 125
+field argup : or                       # 中身は値として上へ（構成子の引数）
+argup[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if callopen[k]
+            if isctor[tv[match[k]-1]]
+field argthru : or                     # 中身に文脈をそのまま渡す（min/max）
+argthru[k] <- true for (k,kd,cc,c2,ln,v) in tok if cc == 41 if callopen[k]
+              if not isctor[tv[match[k]-1]]
+
+field issep : or
+issep[k] <- true for (k,kd,cc,c2,ln,v) in tok if sepat[k, pre[k]] if not empty[k]
+
+rqC[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argco[grp[k]]
+rqU[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argup[grp[k]]
+rqU[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argthru[grp[k]]
+                    if rqU[0, grp[k]]
+rqD[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argthru[grp[k]]
+                    if rqD[0, grp[k]]
+rqC[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argthru[grp[k]]
+                    if rqC[0, grp[k]]
+# **添字は否定の下でも添字である。** `not f[g[x]]` の `g` は否定されていない ——
+# 否定されるのは f の値だけで、⊥ の座標は「真に読まれる」ことがなく寄与を消す。
+# だから座標の括弧（`argco`）には否定を配らない。
+nst[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if nst[0, grp[k]]
+                    if argup[grp[k]]
+nst[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if nst[0, grp[k]]
+                    if argthru[grp[k]]
+prd[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argco[grp[k]]
+                    if prd[0, grp[k]]
+prd[4, k-1] <- true for (k,kd,cc,c2,ln,v) in tok if issep[k] if argthru[grp[k]]
+                    if prd[0, grp[k]]
+
+# ── 判定 ────────────────────────────────────────────────────────
+field nonmono : or
+# **flat / fourv の升は LVar である** —— ⊥ → v で止まる。だから座標に使っても
+# 述語に使っても単調で、層を食わない。育つ束（UP / DOWN）だけが座標を汚す。
+nonmono[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if rqC[0,k]
+              if sense[flat_[frname[k]]] == 1
+nonmono[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if rqC[0,k]
+              if sense[flat_[frname[k]]] == 2
+# 否定だけは別。`not f[…]` は ⊥ で **真**に読まれる —— ⊤ の話ではない。
+nonmono[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if nst[0,k]
+              if sense[flat_[frname[k]]] == 4
+nonmono[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if rqU[0,k]
+              if sense[flat_[frname[k]]] == 2
+nonmono[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if rqD[0,k]
+              if sense[flat_[frname[k]]] == 1
+
+# ══ 成層 ═════════════════════════════════════════════════════════
+# 辺の表は要らない: **場の名前を座標にして**書き手と読み手を繋ぐ。
+# 重み付き最長路がそのまま層になる。
+field wlev : max                       # 場 f を書く文の層の最大
+field level : max                      # 文 s の層
+
+level[snum[k]] <- 0 for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+wlev[hf[snum[k]]] <- level[snum[k]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+level[snum[k]] <- wlev[frname[k]]     for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+                                      if not nonmono[k]
+level[snum[k]] <- wlev[frname[k]] + 1 for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+                                      if nonmono[k]
+
+field strata : max
+strata[] <- level[snum[k]] + 1 for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+
+# 宣言した深さを超えたら、黙って壊れるのではなく **そう言う**
+field toodeep : or
+toodeep[] <- true for (k,kd,cc,c2,ln,v) in tok if pre[k] > 19
+
+print head

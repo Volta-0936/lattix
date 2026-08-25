@@ -1,0 +1,158 @@
+# Lattix で Lattix を **走らせる** —— メタ評価器。
+#
+# 前段（22_parse）を取り込む。だから項の DAG は *この同じプログラムの中で* 生きていて、
+# ホストが木を歩いて表に落とす必要が無い。構成子のアクセサ場
+# （`ebin_l` / `efref_args` / `cons_head` …）が、そのまま項の DAG である。
+#
+# 片割れの Relyth が教えてくれたこと: ノイマンの自己増殖の核心は
+# 「機械が自分を作れる」ことではなく **記述が二度使われること** ——
+# 解釈される経路と、解釈されずに運ばれる経路である。
+# ここではそれが座標に現れる:
+#
+#   ev[t, s, rw]   項 t の、文 s・行 rw における値
+#
+# t は解釈されるもの（子へ降りる）であると同時に、結果を置く **番地** でもある。
+# 内容アドレスだから、共有された部分式は一度しか評価されない。
+#
+# そして評価は二本に分かれる。**値として** 評価する経路と、**座標として**
+# 評価する経路。後者は地上データにしか依存しないので、答えの成長と循環しない。
+# 一つの場に混ぜると「値が座標になる」＝非単調で、処理系が正しく棄却する。
+# 二つに分けろと言っていたのは言語の方だった。
+#
+# いまの範囲: 深度1（協調不要）・min 束・一次の場・source ひとつ・ガード無し。
+# 深度2以上は対象の成層（22_parse が既に `level` として計算している）を
+# 層座標に持ち上げる必要がある。
+
+include "22_parse.lx"
+
+# ── 項の供給 ────────────────────────────────────────────────────
+# 部分式はすべて、どれかのトークンに **錨** を下ろしている（終端の鎖）。
+# だから項を歩き回る必要は無い。トークンを回れば全部の部分式に当たる。
+table lvl = (0),(1),(2),(3),(4)
+
+field term : flat
+term[k, 0] <- A[k] for (k,kd,cc,c2,ln,v) in tok
+term[k, 1] <- P[k] for (k,kd,cc,c2,ln,v) in tok
+term[k, 2] <- T[k] for (k,kd,cc,c2,ln,v) in tok
+term[k, 3] <- S[k] for (k,kd,cc,c2,ln,v) in tok
+term[k, 4] <- E[k] for (k,kd,cc,c2,ln,v) in tok
+
+# ── 対象プログラムの地上データ ──────────────────────────────────
+field nrow : max                       # 表 tb の最終行
+nrow[nm[snum[k]]] <- rn[k] for (k,kd,cc,c2,ln,v) in tok if intable[k]
+
+field stab : max                       # 文 s が回す表
+stab[snum[k]] <- ctab[snum[k], cnum[k]]
+      for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 0
+      if tv[k-1] == W[3]
+
+field nrs : max                        # 文 s の行数-1（源が無ければ 0）
+nrs[snum[k]] <- 0            for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+                             if arrow[snum[k]] > 0
+nrs[snum[k]] <- nrow[stab[snum[k]]]
+                             for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+                             if arrow[snum[k]] > 0 if stab[snum[k]] > 0
+
+# ── 評価: 座標の経路（地上データからしか来ない）──────────────────
+field evk : max
+evk[term[k,lv], snum[k], rw] <- eint_v[term[k,lv]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+evk[term[k,lv], snum[k], rw] <- trow[stab[snum[k]], rw, bind_pos[term[k,lv]]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+evk[term[k,lv], snum[k], rw] <- evk[ebin_l[term[k,lv]], snum[k], rw] + evk[ebin_r[term[k,lv]], snum[k], rw]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ebin_op[term[k,lv]] == 43
+
+# ── 評価: 値の経路 ──────────────────────────────────────────────
+field ev : min
+field val : min
+
+ev[term[k,lv], snum[k], rw] <- eint_v[term[k,lv]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+ev[term[k,lv], snum[k], rw] <- trow[stab[snum[k]], rw, bind_pos[term[k,lv]]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+ev[term[k,lv], snum[k], rw] <- ev[ebin_l[term[k,lv]], snum[k], rw] + ev[ebin_r[term[k,lv]], snum[k], rw]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ebin_op[term[k,lv]] == 43
+
+# 場の参照: 添字は **座標の経路** で評価し、対象の場を引く
+ev[term[k,lv], snum[k], rw] <- val[efref_name[term[k,lv]], evk[cons_head[efref_args[term[k,lv]]], snum[k], rw]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+
+# ── 寄与 —— 頭部の座標に本体の値を join する ────────────────────
+val[efref_name[head[snum[k]]], evk[cons_head[efref_args[head[snum[k]]]], snum[k], rw]] <- ev[body[snum[k]], snum[k], rw]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      for (rw) in 0 .. nrs[snum[k]]
+      if ok[snum[k], nclause[snum[k]], rw]
+
+print val
+
+# ══ 幅を広げる —— 三本目の経路（真理値）とガード ═══════════════════
+# 値の経路と座標の経路に続く三本目は **真理値** である。どの項がどの経路を
+# 通るかは、記述が既に言っている（対象の場の束）。**記述が三度使われる。**
+#
+# 対象が深度1（協調不要）である限り、ガードは単調である ——
+# 一度真になったら二度と偽にならない。だから `or` 束にちょうど乗る。
+
+field valb : or                        # 対象の `or` 束の場
+field evb : or                         # 真理値として評価される項
+
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ebool_v[term[k,lv]] == 1
+evb[term[k,lv], snum[k], rw] <- valb[efref_name[term[k,lv]], evk[cons_head[efref_args[term[k,lv]]], snum[k], rw]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+
+# 比較 —— 地上の値（座標の経路）の上でだけ。対象が深度1ならこれで足りる。
+field cmpop_ : max
+cmpop_[term[k,lv]] <- ecmp_op[term[k,lv]]
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 15360
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] < evk[ecmp_r[term[k,lv]], snum[k], rw]
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 15872
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] > evk[ecmp_r[term[k,lv]], snum[k], rw]
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 15421
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] <= evk[ecmp_r[term[k,lv]], snum[k], rw]
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 15933
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] >= evk[ecmp_r[term[k,lv]], snum[k], rw]
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 15677
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] == evk[ecmp_r[term[k,lv]], snum[k], rw]
+evb[term[k,lv], snum[k], rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok for (lv) in lvl for (rw) in 0 .. nrs[snum[k]]
+      if ecmp_op[term[k,lv]] == 8509
+      if evk[ecmp_l[term[k,lv]], snum[k], rw] != evk[ecmp_r[term[k,lv]], snum[k], rw]
+
+# ── ガードの連言 —— 節番号の鎖 ──────────────────────────────────
+# 「全部真」を数えて比べるのではなく、節の座標に沿って **伝える**。
+field ok : or
+ok[snum[k], 0, rw] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      for (rw) in 0 .. nrs[snum[k]]
+ok[snum[k], cnum[k], rw] <- true       # `for` 節はガードを持たない
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[1]
+      for (rw) in 0 .. nrs[snum[k]]
+      if ok[snum[k], cnum[k] - 1, rw]
+ok[snum[k], cnum[k], rw] <- true       # `if` 節は評価して通す
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if v == W[2]
+      for (rw) in 0 .. nrs[snum[k]]
+      if ok[snum[k], cnum[k] - 1, rw]
+      if evb[E[cend[snum[k], cnum[k]]], snum[k], rw]
+
+# ── 寄与（ガード付き）──────────────────────────────────────────
+valb[efref_name[head[snum[k]]], evk[cons_head[efref_args[head[snum[k]]]], snum[k], rw]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      for (rw) in 0 .. nrs[snum[k]]
+      if ok[snum[k], nclause[snum[k]], rw]
+      if evb[body[snum[k]], snum[k], rw]
+
+print valb

@@ -1,0 +1,5 @@
+table e = (0,1), (1,2), (2,3)
+field r : or bound 16
+r[0] <- true
+r[j] <- true   for (i,j) in e
+print r

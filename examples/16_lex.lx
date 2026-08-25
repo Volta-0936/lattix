@@ -1,0 +1,70 @@
+# 字句解析器 —— Lattix を Lattix で読む、その最初の一歩。
+#
+# 「文字列型が無いから字句解析は書けない」と思っていた。**書けた。**
+# 文字列は座標の列である。位置 i に文字コード c がある、という表でよい。
+#
+# そして一番の収穫は記号表（symbol table）である。字句解析器で人間が書く
+# コードの大半は「この綴りは前にも出たか」を答えるハッシュ表だが、
+# ここには一行も無い。**内容アドレスが同じ綴りに同じ名前を与えるから。**
+#
+#   ab _ cd _ ab      →  text[0] と text[6] が同じ 56 ビット値になる
+#
+# 別のマシンで字句解析しても同じ値になる。突き合わせも要らない。
+
+# 入力: (位置, 文字コード)。末尾に番兵の空白を置く。
+# "ab cd ab" + 番兵
+table ch = (0,97),(1,98),(2,32),(3,99),(4,100),(5,32),(6,97),(7,98),(8,32)
+
+# ── 文字クラス ────────────────────────────────────────────────────────
+# 記号は一文字で一トークンなので、**位置ごとに違うクラス**を与える。
+# そうすると「クラスが変われば境界」という規則だけで記号が単独トークンになる。
+field cls : flat
+cls[i] <- 1        for (i,c) in ch if c >= 97 if c <= 122      # 英小文字
+cls[i] <- 1        for (i,c) in ch if c >= 65 if c <= 90       # 英大文字
+cls[i] <- 1        for (i,c) in ch if c == 95                  # _
+cls[i] <- 2        for (i,c) in ch if c >= 48 if c <= 57       # 数字
+cls[i] <- 3        for (i,c) in ch if c == 32                  # 空白
+cls[i] <- 3        for (i,c) in ch if c == 9
+cls[i] <- 3        for (i,c) in ch if c == 10
+# 記号は一文字ずつ切りたい。**位置そのものをクラスにする**と、
+# 「クラスが変われば境界」の規則だけで単独トークンになる。
+# 「その他」を否定で書くと cls が自分を読むことになり成層できない ——
+# だから範囲を正で並べる。否定を避けられる場所では避ける。
+cls[i] <- 100 + i  for (i,c) in ch if c >= 33 if c <= 47
+cls[i] <- 100 + i  for (i,c) in ch if c >= 58 if c <= 64
+cls[i] <- 100 + i  for (i,c) in ch if c >= 91 if c <= 96
+cls[i] <- 100 + i  for (i,c) in ch if c >= 123 if c <= 126
+
+# ── トークン境界 ──────────────────────────────────────────────────────
+# クラスが左隣と違えば、そこが境界である。cls は flat なので比較は非単調 ——
+# 処理系が層を1つ増やす。増やすのは処理系であって、私ではない。
+field brk : or
+brk[0] <- true
+brk[i] <- true     for (i,c) in ch if cls[i] != cls[i-1]
+
+# 各文字が属するトークンの開始位置。鎖の不動点である。
+field owner : max
+owner[i] <- i          for (i,c) in ch if brk[i]
+owner[i] <- owner[i-1] for (i,c) in ch if not brk[i]
+
+# トークンの最後の文字（次が境界）
+field last : or
+last[i] <- true    for (i,c) in ch if brk[i+1]
+
+# ── 綴りを値にする ────────────────────────────────────────────────────
+# cons リストを右から作る。名前は内容アドレスなので、
+# **同じ綴りは必ず同じ値**になる。これが記号表である。
+constructor cons(head, tail) bound 256
+
+# 空白は綴りを持たない。持たせないので token にも現れない（⊥ は寄与しない）。
+field text : flat
+text[i] <- cons(c, 0)          for (i,c) in ch if last[i]
+                               if c != 32 if c != 9 if c != 10
+text[i] <- cons(c, text[i+1])  for (i,c) in ch if not last[i]
+                               if c != 32 if c != 9 if c != 10
+
+# トークン = 開始位置 s の綴り
+field token : flat
+token[s] <- text[s]            for (s,c) in ch if brk[s]
+
+print token

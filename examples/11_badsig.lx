@@ -1,0 +1,15 @@
+# 深度署名は飾りではなく契約である。
+# この部品は「深度1」と宣言しているが、否定を使っているので実際は2。
+# ライブラリが呼び出し側に、宣言より多くの逐次性を押し付けることはできない。
+
+component liar(edges, nodes, src) -> out : set  depth 1
+  local seen : or
+  seen[src] <- true
+  seen[j]   <- true    for (i,j,w) in edges if seen[i]
+  out[]     <- {v}     for (v) in nodes if not seen[v]
+end
+
+table e = (0,1,1), (1,2,1)
+table n = (0), (1), (2), (3)
+use liar(e, n, 0) as bad
+print bad_out

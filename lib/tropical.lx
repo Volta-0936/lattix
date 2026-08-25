@@ -1,0 +1,25 @@
+# ── 熱帯幾何 —— 最短経路はいつも幾何にある ───────────────────────────────
+#
+# min 束と + は熱帯半環（min-plus）である。最短経路は熱帯線形代数であり、
+# Bellman-Ford は熱帯行列ベクトル積の反復、不動点は Kleene 星である。
+#
+# この見方を取ると、最適化の意味が変わる。
+# 逐次言語の最適化は「命令を減らす」。ここでの最適化は **導出鎖を短くする**。
+#
+#   線形反復 : 一歩ずつ辿る。仕事量 O(E·d)、スパン O(d)   （d = 直径）
+#   二乗化   : 歩幅を倍にする。仕事量 O(n^3·log d)、スパン O(log d)
+#
+# 答えは同じ。変わるのは *幾何* —— 一歩の大きさである。
+
+# 一歩ずつ: 到達可能性を辺に沿って伝播させる
+component reach_linear(edge, node) -> r : or  depth 1
+  r[i,j] <- true      for (i,j) in edge
+  r[i,k] <- true      for (i,j) in edge for (k) in node if r[j,k]
+end
+
+# 歩幅を倍にする: 既に知っている経路どうしを繋ぐ（自己合成）
+component reach_double(edge, node) -> r : or  depth 1
+  r[i,j] <- true      for (i,j) in edge
+  r[i,k] <- true      for (i) in node for (j) in node for (k) in node
+                      if r[i,j] if r[j,k]
+end

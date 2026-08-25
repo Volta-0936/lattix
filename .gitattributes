@@ -1,0 +1,6 @@
+# 焼いた静的 ELF。テキストとして扱わない。
+lattix binary
+*.lx text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+check text eol=lf

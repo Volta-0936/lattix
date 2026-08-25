@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Lattix — 全検証。何かを変えたら必ずこれを通してから次に進む。
+set -u
+cd "$(dirname "$0")"
+pass=0; fail=0
+run() {  # run <name> <script> [timeout]
+  printf "  %-26s" "$1"
+  if timeout "${3:-900}" python3 "$2" >/dev/null 2>&1; then
+    echo " OK"; pass=$((pass+1))
+  else
+    echo " FAIL   <- python3 $2"; fail=$((fail+1))
+  fi
+}
+echo "-- correctness ------------------------------------------"
+run "verify      determinism"  test/verify.py
+run "nativecheck C==interp"    test/nativecheck.py
+run "runtime     data at runtime" test/runtimecheck.py
+run "rtattest    runtime certified" test/runtimeattest.py
+run "ctorhash    addr C==Python" test/ctorhash.py
+run "lexnative   real file, native" test/lexnative.py
+run "discover    polarity"     test/discover.py 1200
+run "certify_all all examples"  test/certify_all.py
+run "sabotage    miscompile"   test/sabotage.py
+run "selfhost    stratifier"   test/selfhost.py
+run "selfparse   lattix parses lattix" test/selfparse.py 1800
+run "metaeval    lattix runs lattix" test/metaeval.py 900
+run "elfout      lattix writes an exe" test/elfout.py
+run "asmout      lattix assembles x86" test/asmout.py 600
+run "gen         lattix compiles lattix" test/gen.py 900
+run "genparse    lattix reads, lattix emits" test/genparse.py 1800
+run "selfgen     .lx in, executable out" test/selfgen.py 3000
+run "selfbyte    source bytes, native" test/selfbyte.py 3000
+run "self3       shape from the fragment" test/self3.py 1800
+run "fold        one file, source to exe" test/fold.py 2500
+run "g4d         lattix bakes itself, byte for byte" test/g4d.py 4000
+run "accept      write .lx, run it (user side)" test/accept.py 1200
+run "differ      fragment fuzz, interp==exe" test/differ.py 1200
+run "relation    engine vs reference" test/relation.py 3000
+run "onerun      one run.lx, all programs" test/onerun.py 5400
+run "baked       run.lx baked, tables fed" test/baked.py 3000
+run "dataflow    analyses vs reference" test/dataflow.py 600
+run "why         ask the answer" test/why.py 600
+run "topwitness  cyclic top proved" test/topwitness.py 600
+run "build       real directory" test/build.py 600
+run "retract     delete facts" test/retract.py
+echo "-- expressiveness ---------------------------------------"
+run "advantage   4 executions" demo/advantage.py
+run "world       effects"      demo/world.py
+run "anytime     partial"      demo/anytime.py
+run "parse       CYK parser"   demo/parse.py
+run "ubound      stratum removed" demo/ubound.py
+run "regional    no global sync" demo/regional.py
+run "certified   regional proof" demo/certified.py
+run "bootstrap   lattix reads lattix" demo/bootstrap.py
+run "incremental native delta" demo/native_incremental.py
+run "nativeworld effects in C" demo/native_world.py
+echo "-- performance ------------------------------------------"
+run "bench       schedulers"   bench/bench.py
+run "sweep       geometry"     bench/sweep.py 1800
+run "geometry    work-span"    bench/geometry.py 1800
+run "compare     vs Python"    bench/compare.py
+echo "---------------------------------------------------------"
+echo "  passed $pass / failed $fail"
+[ "$fail" -eq 0 ] || exit 1
