@@ -2,7 +2,7 @@
 """**使う側の試験。** `./lattix` に .lx を食わせて焼き、走らせ、
    解釈実行（lattix.py）と升まで比べる。試験用に作られていない .lx を使う。"""
 import os, re, struct, subprocess, sys, io, collections, tempfile
-ROOT='/home/claude/lattix'; sys.path.insert(0,ROOT)
+ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0,ROOT)
 import lattix as L
 LATTIX=os.path.join(ROOT,"lattix")
 
