@@ -198,15 +198,29 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                         A(f"fn{s}[e,t] <- true   {G} if v{pl}{s}[{C}] is {_map('wm')}")
                 A(f"fo{s}[e,t] <- true   {LOOP} if st == {s} "
                   f"if fn{s}[e,t] >= fq{s}[e]")
+                if p >= 0:
+                    # 前の層で立った門はもう動かない（その層は閉じている）。
+                    # 引き継がないと、寄せ直す束（KEYED）の古い辺が門で落ちる。
+                    A(f"fo{s}[e,t] <- fo{p}[e,t]   {LOOP} if st >= 0 if st < {s}")
                 gate = f" if fo{s}[e,t]"
             if p >= 0:
+                # **寄与元キー付きの束（sum/count/bag）は引き継げない** ——
+                # 観測は数であって束の元ではないので、写しは join ではなく
+                # 足し算になる。しかも家の引き継ぎは *点ごと* に走るから、
+                # 同じ升に空間の点の数だけ入る（`total[]` が 701 倍になった）。
+                # 点の道は最初からこれを避けていた（上の `if lt in KEYED`）。
+                # **同じ判断を二箇所に書いたので、片方だけ直っていた**（気づき34）。
                 for lt in sorted({x[0] for x in fsh}):
+                    if lt in KEYED: continue
                     pl, _ = PLANE[lt]
                     A(f"v{pl}{s}[{_map('dm', PS)}] <- v{pl}{p}[{_map('dm', PS)}]   "
                       f"{LOOP} if lat == {lt} if st < {s}")
             for (lt, vf, n) in fsh:
                 pl, _ = PLANE[lt]
-                g = f"{LOOP} if st == {s} if lat == {lt} if vf == {vf}{gate}"
+                # 寄与元キー付きの束は引き継げないので、**その層までの辺を
+                # 毎回ぜんぶ寄せ直す**（点の道と同じ判断。上の `st <= s`）。
+                sel = f"if st <= {s}" if lt in KEYED else f"if st == {s}"
+                g = f"{LOOP} {sel} if lat == {lt} if vf == {vf}{gate}"
                 D = f"v{pl}{s}[{_map('dm', PS)}]"
                 if vf == 0:   A(f"{D} <- {_map('wm')}   {g}")
                 elif vf == 2: A(f"{D} <- true   {g}")
