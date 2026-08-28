@@ -326,6 +326,8 @@ class Flatten:
             return c, ss, (0, 0, 0)
         except NotImplementedError:
             pass
+        if e[0] == 'ctor':
+            return self.pctor(e, sl, axes, st, sp, npt)
         # `A + m·g[…]` の形に分ける（`g[…]` はちょうど一つ）
         fl = list(_tops(e))
         if len(fl) != 1 or not _addok(e):
@@ -341,8 +343,70 @@ class Flatten:
                 raise NotImplementedError(f"`{g[1]}` は同じ層で育つので番地にできない")
             lt = -lt                      # 生きた面から読む合図（`ix` と同じ）
         b = self.pslot(npt)
-        self.fp.append((self.newid(), sp, st, lt, b, am))
+        self.fp.append((self.newid(), sp, st, 0, lt, b, am, 0, 0, 0, 0))
         return c, ss, (m, b, 1)
+
+    def _affrange(self, cst, ss, axes):
+        """一次式の取りうる下端・上端（軸の幅が言う）。"""
+        lo = hi = cst
+        for j, col, m in ss:
+            b0, _w, _nc = axes[j]
+            x0, x1 = self.rng.get((b0, col), (0, 0))
+            lo += m * x0 if m > 0 else m * x1
+            hi += m * x1 if m > 0 else m * x0
+        return lo, hi
+
+    def pctor(self, e, sl, axes, st, sp, npt):
+        """**構成子の番地は、引数の一次式である（法 M）。**
+
+        `ctor_id` は Horner の折り込みで書いてあり、mod は環の準同型なので
+        展開できる（恒等式は `test/ctoraffine.py` が測っている）:
+
+            h_M = C(名前, 引数の数) + Σ_i (3·K^(n-1-i)) · a_i   (mod M)
+            番地 = h1 · M2 + h2
+
+        だから引数が軸の一次式なら **番地も軸の一次式（法 M）**である ——
+        hash-consing と多面体モデルは同じ算術だった。新しい概念は要らず、
+        番地の面に三枚写すだけでよい（h1 / h2 / 番地）。
+
+        引数が場の読みの形はまだ写していない（そのときは引数を先に `pa` へ
+        落としてから折る —— 入れ子の写しを重ねる形）。書けないと言う。
+        """
+        name, args = e[1], e[2]
+        n = len(args)
+        terms = []                      # 引数ごとに (定数の enc か、一次式)
+        for a in args:
+            g = self.ground(a)
+            if g is not None and not isinstance(g, bool) or isinstance(g, bool):
+                terms.append(('const', g)); continue
+            c, ss = self.affine(a, sl)   # 断りはそのまま上へ
+            lo, hi = self._affrange(c, ss, axes)
+            if lo < 0 or hi >= min(L.CTOR_M1, L.CTOR_M2):
+                raise NotImplementedError("構成子の引数が法の外（折る前に畳めない）")
+            terms.append(('aff', c, ss))
+        b = []
+        for m, k in ((L.CTOR_M1, L.CTOR_K1), (L.CTOR_M2, L.CTOR_K2)):
+            cst = (L._fold(name.encode(), m, k) * k + n + 1) % m
+            cst = (cst * pow(k, n, m)) % m
+            ss = []
+            for i, tm in enumerate(terms):
+                co = pow(k, n - 1 - i, m)
+                if tm[0] == 'const':
+                    cst += co * L._enc(tm[1], m, k)
+                else:
+                    cst += 3 * co * tm[1]
+                    ss += [(j, col, 3 * co * mu) for j, col, mu in tm[2]]
+            lo, _hi = self._affrange(cst, ss, axes)
+            while lo < 0:                # `%` に負の左辺を渡さない
+                cst += m * (1 + (-lo) // m); lo, _hi = self._affrange(cst, ss, axes)
+            bx = self.pslot(npt)
+            self.fp.append((self.newid(), sp, st, 1, 0, bx,
+                            self.mapof(cst, ss, axes), m, 0, 0, 0))
+            b.append(bx)
+        bz = self.pslot(npt)
+        self.fp.append((self.newid(), sp, st, 2, 0, bz,
+                        self.mapof(0, [], axes), 0, b[0], b[1], L.CTOR_M2))
+        return 0, [], (1, bz, 1)
 
     def pmapcell(self, f, kexprs, sl, axes, st, sp, npt):
         """場 f の升を指す **写像**。座標が値で決まっていてもよい。"""
@@ -1255,14 +1319,14 @@ class Flatten:
         if not self.dat: self.dat.append((0, 0, 0))
         for k, ar in (('eg', 10), ('cd', 10), ('ix', 6),
                       ('dat', 3), ('spc', 5), ('ssz', 2), ('mp', 14),
-                      ('fg', 10), ('fc', 11), ('fp', 6)):
+                      ('fg', 10), ('fc', 11), ('fp', 11)):
             if not t[k]:
                 row = [0] * ar; row[1] = 999        # どの層にも当たらない番兵
                 if k in ('ix', 'dat', 'spc', 'mp'): row = [0] * ar
                 if k == 'ssz': row = [0, 1]
                 if k == 'fg': row = [0, 0, 999, 0, 0, 0, 0, 0, 0, 0]
                 if k == 'fc': row = [0, 0, 999, 0, 0, 0, 0, 0, 0, 0, 0]
-                if k == 'fp': row = [0, 0, 999, 0, 0, 0]
+                if k == 'fp': row = [0, 0, 999, 0, 0, 0, 0, 0, 0, 0, 0]
                 t[k] = [tuple(row)]
         return t
 
@@ -1276,7 +1340,7 @@ class Flatten:
         vals = sorted({(e[2], e[4], e[5], e[7]) for e in self.eg if e[1] >= 0})
         self.fsh = sorted({(g[3], g[4], g[5]) for g in self.fg})   # 束,形,数
         self.fcsh = sorted({(c[3], c[4], c[6], c[7]) for c in self.fc})  # 種,束,演算子,数
-        self.fpsh = sorted({r[3] for r in self.fp})                # 番地の面の源の束
+        self.fpsh = sorted({(r[3], r[4]) for r in self.fp})        # 番地の面の (種, 源の束)
         cond = sorted({(c[2], c[3], c[5], c[6]) for c in self.cd})   # 種,束,演算子,数
         self.ixlat = sorted({r[3] for r in self.ix if r[1] != 0})
         lats = sorted({r[5] for r in self.ix} | {abs(e[2]) for e in self.eg}

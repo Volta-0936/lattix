@@ -18,7 +18,7 @@ CD = "(e,st,k,lat,c,op,n,r1,r2,w) in cd"
 IX = "(q,im,ic,il,iz,dl) in ix"
 FG = "(e,sp,st,lat,vf,n,dm,am,bm,wm) in fg"
 FC = "(e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc"
-FP = "(e,sp,st,lat,pb,am) in fp"
+FP = "(e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp"
 
 
 def _ax(sl, X):
@@ -170,12 +170,22 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             # 点の道の rz{s} は層で絞っていない。**同じ判断を二箇所に書いた**
             # ので、片方だけ直っていた（気づき34）。
             PL = f"for {FP} for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= {s}"
-            for lt in fpsh:
-                ql, _ = PLANE[abs(lt)]
-                r = s if lt < 0 else p
-                if r < 0: continue
-                A(f"pa{s}[pb + t] <- v{ql}{r}[{_map('am', PS)}]   "
-                  f"{PL} if lat == {lt}")
+            for (kd, lt) in fpsh:
+                if kd == 0:
+                    ql, _ = PLANE[abs(lt)]
+                    r = s if lt < 0 else p
+                    if r < 0: continue
+                    A(f"pa{s}[pb + t] <- v{ql}{r}[{_map('am', PS)}]   "
+                      f"{PL} if kd == 0 if lat == {lt}")
+                elif kd == 1:
+                    # **構成子の番地は引数の一次式（法 M）である。**
+                    # ctor_id の Horner を展開しただけで、hash は要らない
+                    # （恒等式は test/ctoraffine.py が測っている）。
+                    A(f"pa{s}[pb + t] <- {_map('am')} % mo   {PL} if kd == 1")
+                elif kd == 2:
+                    # 二本の折り込みを並べて番地にする（h1 · M2 + h2）。
+                    A(f"pa{s}[pb + t] <- mu * pa{s}[p1 + t] + pa{s}[p2 + t]   "
+                      f"{PL} if kd == 2")
         if fsh:
             A(f"# ── 多面体の寄与（層 {s}）。辺一本が空間ひとつを覆う。────────")
             LOOP = f"for {FG} for (t) in 0 .. SZ[sp] - 1"
