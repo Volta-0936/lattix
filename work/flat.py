@@ -366,42 +366,67 @@ class Flatten:
             番地 = h1 · M2 + h2
 
         だから引数が軸の一次式なら **番地も軸の一次式（法 M）**である ——
-        hash-consing と多面体モデルは同じ算術だった。新しい概念は要らず、
-        番地の面に三枚写すだけでよい（h1 / h2 / 番地）。
+        hash-consing と多面体モデルは同じ算術だった。写像（`mp`）の言葉は
+        一列も変えず、番地の面に写しを重ねるだけで載る。
 
-        引数が場の読みの形はまだ写していない（そのときは引数を先に `pa` へ
-        落としてから折る —— 入れ子の写しを重ねる形）。書けないと言う。
+        引数が **場の読み**でもよい。その値もまた点ごとに一升だから、
+        先に `pa` へ落とし、法で畳んでから折る（`pa` を `pa` から作る ——
+        入れ子は写しを重ねるだけで届く、と最初から書いてあった形である）。
+        折り込みは一行なので、**畳めない引数は一つまで**。
         """
         name, args = e[1], e[2]
         n = len(args)
-        terms = []                      # 引数ごとに (定数の enc か、一次式)
+        terms = []
         for a in args:
             g = self.ground(a)
-            if g is not None and not isinstance(g, bool) or isinstance(g, bool):
+            if g is not None or isinstance(g, bool):
                 terms.append(('const', g)); continue
-            c, ss = self.affine(a, sl)   # 断りはそのまま上へ
+            try:
+                c, ss = self.affine(a, sl)
+            except NotImplementedError:
+                # 軸で書けない引数 —— 値を番地の面に落としてから折る
+                cc, sss, iv = self.pcell(a, sl, axes, st, sp, npt)
+                if not iv[2] or cc or sss:
+                    raise NotImplementedError("構成子の引数が畳めない")
+                terms.append(('slot', iv[0], iv[1])); continue
+            # **原子は綴りで折る**（`_enc(文字列) = 3·折り込み+1`）。番号で折ると
+            # 参照実装と違う番地になる —— いまは範囲の検査が偶然これを弾いて
+            # いた（原子の置き場は 2^62）。偶然で通すのはやめて、名前で断る
+            # （気づき29「未対応が静かに真になると気づかない」）。
+            for j, col, _m in ss:
+                if (axes[j][0], col) in self.atomcol:
+                    raise NotImplementedError("構成子の引数が原子（綴りで折る）")
             lo, hi = self._affrange(c, ss, axes)
             if lo < 0 or hi >= min(L.CTOR_M1, L.CTOR_M2):
                 raise NotImplementedError("構成子の引数が法の外（折る前に畳めない）")
             terms.append(('aff', c, ss))
+        if sum(1 for t in terms if t[0] == 'slot') > 1:
+            raise NotImplementedError("折り込みに畳めない引数が二つ")
         b = []
         for m, k in ((L.CTOR_M1, L.CTOR_K1), (L.CTOR_M2, L.CTOR_K2)):
             cst = (L._fold(name.encode(), m, k) * k + n + 1) % m
             cst = (cst * pow(k, n, m)) % m
-            ss = []
+            ss, ind = [], (0, 0, 0)
             for i, tm in enumerate(terms):
                 co = pow(k, n - 1 - i, m)
                 if tm[0] == 'const':
-                    cst += co * L._enc(tm[1], m, k)
+                    cst = (cst + co * L._enc(tm[1], m, k)) % m
+                elif tm[0] == 'aff':
+                    q = (3 * co) % m
+                    cst += q * tm[1]
+                    ss += [(j, col, q * mu) for j, col, mu in tm[2]]
                 else:
-                    cst += 3 * co * tm[1]
-                    ss += [(j, col, 3 * co * mu) for j, col, mu in tm[2]]
+                    # `pa[b0+t]` を法で畳んでから、係数を掛けて足す
+                    bm = self.pslot(npt)
+                    self.fp.append((self.newid(), sp, st, 3, 0, bm,
+                                    self.mapof(0, [], axes), m, tm[2], 0, 0))
+                    ind = ((3 * co * tm[1]) % m, bm, 1)
             lo, _hi = self._affrange(cst, ss, axes)
-            while lo < 0:                # `%` に負の左辺を渡さない
+            while lo < 0:
                 cst += m * (1 + (-lo) // m); lo, _hi = self._affrange(cst, ss, axes)
             bx = self.pslot(npt)
             self.fp.append((self.newid(), sp, st, 1, 0, bx,
-                            self.mapof(cst, ss, axes), m, 0, 0, 0))
+                            self.mapof(cst, ss, axes, ind), m, 0, 0, 0))
             b.append(bx)
         bz = self.pslot(npt)
         self.fp.append((self.newid(), sp, st, 2, 0, bz,

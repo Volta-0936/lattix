@@ -181,7 +181,11 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                     # **構成子の番地は引数の一次式（法 M）である。**
                     # ctor_id の Horner を展開しただけで、hash は要らない
                     # （恒等式は test/ctoraffine.py が測っている）。
-                    A(f"pa{s}[pb + t] <- {_map('am')} % mo   {PL} if kd == 1")
+                    # 写像は番地の面も読める —— 引数が場の読みでも折れる。
+                    A(f"pa{s}[pb + t] <- {_map('am', PS)} % mo   {PL} if kd == 1")
+                elif kd == 3:
+                    # 折る前に法で畳む（引数が法を超えていてもよいように）。
+                    A(f"pa{s}[pb + t] <- pa{s}[p1 + t] % mo   {PL} if kd == 3")
                 elif kd == 2:
                     # 二本の折り込みを並べて番地にする（h1 · M2 + h2）。
                     A(f"pa{s}[pb + t] <- mu * pa{s}[p1 + t] + pa{s}[p2 + t]   "
