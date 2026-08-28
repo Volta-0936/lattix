@@ -67,6 +67,20 @@ ATOMB0 = 1 << 62  # 一巡目の原子の置き場（**測るための仮の上*
 OP  = {'==': 1, '!=': 2, '>=': 3, '<=': 4, '>': 5, '<': 6}
 
 
+class _NoFam(Exception):
+    """多面体（空間と写像）では書けない —— 理由を一つ持つ。
+
+    **断る口は一つにする。** 前は途中の `return False` が七つあり、そのうち
+    二つ（源が密でない・原子を値にした）は既に作った番地の写し `fp` と枠 `pab`
+    を戻さずに帰っていた。戻さないと、点に展開した規則のために番地の面が
+    育ち続ける —— 誰も読まない升を毎周まわすことになる。
+    同じ判断（作りかけを捨てる）を七箇所に書けば、直るのは一箇所である
+    （気づき34）。"""
+
+    def __init__(self, why):
+        super().__init__(why); self.why = why
+
+
 class Flatten:
     def __init__(self, prog, extent=None, atomb=None):
         self.p = prog
@@ -106,6 +120,7 @@ class Flatten:
         self.spc, self.spn, self.ssz = [], {}, []
         self.mp, self.mpn = [], {}
         self.fg = []
+        self.nofam = []                     # 断った規則と、その理由（数えるため）
         self.fc = []                        # 多面体のガード（辺ごと）
         self.fp = []                        # 番地の面への写し（間接の座標）
         self.pab = 1                        # 番地の面の次の枠（0 は番兵）
@@ -385,9 +400,28 @@ class Flatten:
         raise NotImplementedError(f"多面体のガードの形: {q}")
 
     def family(self, r, st, lat):
-        """規則を **空間と写像のまま**渡せるならそうする。できなければ False。"""
-        if not r.sources: return False
-        if r.target not in self.lay: return False   # 密に並んでいない場は写像で書けない
+        """規則を **空間と写像のまま**渡せるならそうする。できなければ False。
+
+        断る口はここ一つである。作りかけの番地の写し（`fp`）と枠（`pab`）は
+        必ず戻す。断った理由は数えられる形で残す（`nofam`）—— 広げる前に
+        数えるため（PLAN §5-6）。`mp` / `spc` は鍵で共有される溜めなので
+        戻さない（同じ写像を次の規則が引き当てる）。"""
+        fp0, pab0 = list(self.fp), self.pab
+        try:
+            return self._family(r, st, lat)
+        except _NoFam as ex:
+            why = ex.why
+        except NotImplementedError as ex:
+            why = str(ex) or 'NotImplementedError'
+        except KeyError as ex:
+            why = f'KeyError {ex}'
+        self.fp[:] = fp0; self.pab = pab0
+        self.nofam.append((why, r.target, getattr(r, 'id', -1), st))
+        return False
+
+    def _family(self, r, st, lat):
+        if not r.sources: raise _NoFam('源が無い')
+        if r.target not in self.lay: raise _NoFam('書き先が密でない')
         e = r.value
         if e[0] == 'bool':
             vf, srcs = (2 if e[1] else 5), []
@@ -396,44 +430,38 @@ class Flatten:
         else:
             vf, srcs = None, []
             fl = [x for x in _frefs(e)]
-            if fl and lat not in ARITH: return False
-            if not _addok(e): return False
+            if fl and lat not in ARITH: raise _NoFam('数でない束に読みがある')
+            if not _addok(e): raise _NoFam('値が足し算の形でない')
             vf = 1 if fl else 0
             srcs = fl
-        if len(srcs) > 2: return False
-        if any(self.flat[x[1]] != lat for x in srcs): return False
-        fp0, pab0 = list(self.fp), self.pab
-        try:
-            sp, axes = self.space(r, st)
-            n = 1
-            for _b, w, _c in axes: n *= w
-            if n < FAMILY_MIN: return False     # 小さい空間は点に展開したほうが速い
-            sl = self.slots(r)
-            dm = self.pmapcell(r.target, r.keys, sl, axes, st, sp, n)
-            am = bm = self.mapof(0, [], axes)
-            if any(x[1] not in self.lay for x in srcs): return False
-            if srcs:
-                am = self.pmapcell(srcs[0][1], srcs[0][2], sl, axes, st, sp, n)
-                if len(srcs) == 2:
-                    bm = self.pmapcell(srcs[1][1], srcs[1][2], sl, axes, st, sp, n)
-            if vf in (0, 1):
-                rest = _strip(e, srcs)
-                c, ss = self.affine(rest, sl)
-                for j, col, _m in ss:
-                    if (axes[j][0], col) in self.atomcol:
-                        return False           # 原子は値にできない
-                wm = self.mapof(c, ss, axes)
-            else:
-                wm = self.mapof(0, [], axes)
-            # **ガードも写像で書ける。** 「全部立った」は (辺, 点) で数える ——
-            # 升の数は変わらないが、表が規則の数に戻る（PLAN 6.8-2）。
-            fcr = [self.fcond(q, sl, axes, st, sp, n) for q in r.guards]
-        except NotImplementedError:
-            self.fp[:] = fp0; self.pab = pab0
-            return False
-        except KeyError:
-            self.fp[:] = fp0; self.pab = pab0
-            return False
+        if len(srcs) > 2: raise _NoFam('読みが三つ以上')
+        if any(self.flat[x[1]] != lat for x in srcs): raise _NoFam('読みで束が混ざる')
+        sp, axes = self.space(r, st)
+        n = 1
+        for _b, w, _c in axes: n *= w
+        # **これは断りではなく選択である**（小さい空間は点に展開したほうが速い）。
+        # 数えるときに、書けない物と混ぜてはいけない。
+        if n < FAMILY_MIN: raise _NoFam('※空間が小さい（選択）')
+        sl = self.slots(r)
+        if any(x[1] not in self.lay for x in srcs): raise _NoFam('読む場が密でない')
+        dm = self.pmapcell(r.target, r.keys, sl, axes, st, sp, n)
+        am = bm = self.mapof(0, [], axes)
+        if srcs:
+            am = self.pmapcell(srcs[0][1], srcs[0][2], sl, axes, st, sp, n)
+            if len(srcs) == 2:
+                bm = self.pmapcell(srcs[1][1], srcs[1][2], sl, axes, st, sp, n)
+        if vf in (0, 1):
+            rest = _strip(e, srcs)
+            c, ss = self.affine(rest, sl)
+            for j, col, _m in ss:
+                if (axes[j][0], col) in self.atomcol:
+                    raise _NoFam('原子を値にしている')
+            wm = self.mapof(c, ss, axes)
+        else:
+            wm = self.mapof(0, [], axes)
+        # **ガードも写像で書ける。** 「全部立った」は (辺, 点) で数える ——
+        # 升の数は変わらないが、表が規則の数に戻る（PLAN 6.8-2）。
+        fcr = [self.fcond(q, sl, axes, st, sp, n) for q in r.guards]
         eid = self.newid()
         self.fg.append((eid, sp, st, lat, vf, len(srcs), dm, am, bm, wm))
         for row in fcr:
