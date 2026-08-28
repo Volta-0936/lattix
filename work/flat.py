@@ -361,6 +361,39 @@ class Flatten:
             hi += m * x1 if m > 0 else m * x0
         return lo, hi
 
+    def pchain(self, e, sl, axes, st, sp, npt):
+        """値の式を **pa の変換の鎖**に落とす —— 場の読みに定数の * / % を
+        外へ重ねた形（`imm[i] / 256 % 256` など）。
+
+        掛けは間接の係数に畳める（iv の m を掛けるだけ）。割りと剰余だけが
+        升を要り、`pa` に一枚ずつ写す —— 前置きの鎖と同じ形である。
+        源の閉じ方は pcell が見る（閉じた面か、⊥→v で止まる flat）。"""
+        k = e[0]
+        if k in ('fref', 'ctor'):
+            cc, sss, iv = self.pcell(e, sl, axes, st, sp, npt)
+            if cc or sss or not iv[2]:
+                raise NotImplementedError("鎖の芯が読みでない")
+            return iv
+        if k == 'bin' and e[1] in '*/%':
+            a, b = e[2], e[3]
+            g = self.ground(b)
+            if g is None and e[1] == '*':
+                g = self.ground(a); a = e[3]
+            if not isinstance(g, int) or isinstance(g, bool) or \
+               (e[1] in '/%' and g <= 0):
+                raise NotImplementedError("鎖の定数でない")
+            iv = self.pchain(a, sl, axes, st, sp, npt)
+            if e[1] == '*':
+                return (iv[0] * g, iv[1], iv[2])
+            if iv[0] != 1:
+                raise NotImplementedError("係数を持ったまま割れない")
+            kd = 4 if e[1] == '/' else 3
+            b0 = self.pslot(npt)
+            self.fp.append((self.newid(), sp, st, kd, 0, b0,
+                            self.mapof(0, [], axes), g, iv[1], 0, 0))
+            return (1, b0, 1)
+        raise NotImplementedError(f"鎖の形でない: {e}")
+
     def pctor(self, e, sl, axes, st, sp, npt):
         """**構成子の番地は、引数の一次式である（法 M）。**
 
@@ -568,6 +601,10 @@ class Flatten:
             # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
             # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
             vf, srcs = 0, []
+        elif e[0] == 'bin' and e[1] in '*/%':
+            # **定数の掛け・割り・剰余の鎖。** 読みひとつに外へ重ねた形は
+            # pa の変換の鎖で書ける（pchain）。値の写像はその間接を読むだけ。
+            vf, srcs = 0, []
         else:
             fl = [x for x in _frefs(e)]
             if not _addok(e): raise _NoFam('値が足し算の形でない')
@@ -601,6 +638,9 @@ class Flatten:
                 bm = self.pmapcell(srcs[1][1], srcs[1][2], sl, axes, st, sp, n)
         if e[0] == 'ctor':
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
+            wm = self.mapof(0, [], axes, iv)
+        elif e[0] == 'bin' and e[1] in '*/%':
+            iv = self.pchain(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
         elif vf in (0, 1):
             rest = _strip(e, srcs + mis)

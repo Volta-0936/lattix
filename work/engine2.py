@@ -192,6 +192,9 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 elif kd == 3:
                     # 折る前に法で畳む（引数が法を超えていてもよいように）。
                     A(f"pa{s}[pb + t] <- pa{s}[p1 + t] % mo   {PL} if kd == 3")
+                elif kd == 4:
+                    # 定数で割る（値の鎖。掛けは間接の係数に畳んである）。
+                    A(f"pa{s}[pb + t] <- pa{s}[p1 + t] / mo   {PL} if kd == 4")
                 elif kd == 2:
                     # 二本の折り込みを並べて番地にする（h1 · M2 + h2）。
                     A(f"pa{s}[pb + t] <- mu * pa{s}[p1 + t] + pa{s}[p2 + t]   "
@@ -268,7 +271,13 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                       f"+ {_map('wm', PS)}   {g} if n == 2")
         A("# ── 寄与。これが全部である。──────────────────────────────")
         for (lt, vf, n, la) in vals:
-            if p < 0 and vf in (1, 4, 6, 7, 8) and (la < 0 or la != lt): continue
+            # la == 5（flat）は **生きた面でよい** —— ⊥ → v で止まるので、
+            # 束が違っても読みは単調である（ix が同じ理由で生きた面を読む）。
+            # 「閉じた面しか知らない」と、層 0 のこの形（imm[i]/256 の内側の
+            # 割り算など）が **規則ごと黙って捨てられていた**。
+            if p < 0 and vf in (1, 4, 6, 7, 8) and (la < 0 or
+                                                    (la != lt and la != 5)):
+                continue
             pl, _ = PLANE[lt]
             # 寄与元キー付きの束は引き継げない（観測は数であって束の元ではない）。
             # だから **その層までの辺を毎回ぜんぶ寄せ直す**。
@@ -286,14 +295,14 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 A(f"{D} <- {{v{ql}{r}[rz{s}[a]]}}   {g} if la == {la}")
             elif vf in (6, 7, 8):
                 ql, _ = PLANE[abs(la)]
-                r = s if la == lt else p
+                r = s if la == lt or la == 5 else p
                 op = {6: '*', 7: '/', 8: '%'}[vf]
                 rhs = f"v{ql}{r}[rz{s}[b]]" if n == 2 else "w"
                 A(f"{D} <- v{ql}{r}[rz{s}[a]] {op} {rhs}   "
                   f"{g} if n == {n} if la == {la}")
             elif vf in (1, 4):
                 ql, _ = PLANE[abs(la)]
-                r = s if la == lt else p
+                r = s if la == lt or la == 5 else p
                 src = f"v{ql}{r}[rz{s}[a]]"
                 if vf == 4:
                     A(f"{D} <- {src}   {g} if la == {la}")
