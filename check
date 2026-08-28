@@ -17,6 +17,7 @@ run "nativecheck C==interp"    test/nativecheck.py
 run "runtime     data at runtime" test/runtimecheck.py
 run "rtattest    runtime certified" test/runtimeattest.py
 run "ctorhash    addr C==Python" test/ctorhash.py
+run "ctoraffine  addr is affine"  test/ctoraffine.py
 run "lexnative   real file, native" test/lexnative.py
 run "discover    polarity"     test/discover.py 1200
 run "certify_all all examples"  test/certify_all.py
