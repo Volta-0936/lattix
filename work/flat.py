@@ -230,13 +230,24 @@ class Flatten:
             self.rng[(base, 0)] = (lo, hi)
         return self.reg[key]
 
+    UNIT = ('..', ('int', 0), ('int', 0))   # 一点の空間（地上の規則のための軸）
+
     def space(self, r, st=0):
-        """反復空間 = 軸の直積。点 t から x_j = (t / 歩幅_j) mod 幅_j。"""
+        """反復空間 = 軸の直積。点 t から x_j = (t / 歩幅_j) mod 幅_j。
+
+        **源が無い規則も空間である** —— 点が一つの空間である。
+        軸を一本も持たない空間にすると、写像の空いた枠（j=0, 列=0, 係数=0）が
+        居ない軸を指してしまうので、幅 1 の軸を一本置く（`dat` に 0 を一行）。
+        係数が 0 なので値は動かない —— **場合分けを作らないための番兵**であり、
+        使わない写像が `pa[0] = 0` を読むのと同じ形である。
+        木ぜんぶで一行・一空間しか要らない（鍵で共有される）。"""
         axes = []
         for vs, src in r.sources:
             if isinstance(src, tuple) and src[0] != '..':
                 raise NotImplementedError("多面体にできない源")
             axes.append(self.region(src, st))
+        if not axes:
+            axes.append(self.region(self.UNIT, st))
         key = tuple((b, w) for b, w, _c in axes)
         if key in self.spn: return self.spn[key], axes
         sp = len(self.spn); self.spn[key] = sp
@@ -365,6 +376,19 @@ class Flatten:
         zero = self.mapof(0, [], axes)
         if q[0] == 'cmp':
             op, a, b = q[1], q[2], q[3]
+            # **軸だけで決まる問いは、空間そのものを削る。**
+            # ここまで反復空間は「軸の直積」＝ **箱**だった。両辺が軸の一次式
+            # なら、その問いは半空間を一枚あてることであり、箱 ∩ 半空間 は
+            # **多面体**である。`if i >= 2` や `if i <= j` がそれで、いままでは
+            # 点に展開するときに数え上げの側で落としていた（だから家に載らな
+            # かった）。升を一つも読まないので、層も閉包も要らない。
+            try:
+                ca, sa = self.affine(a, sl); cb, sb = self.affine(b, sl)
+            except NotImplementedError:
+                pass
+            else:
+                return (sp, st, 6, 0, self.mapof(ca, sa, axes), OP[op], 0,
+                        zero, zero, self.mapof(cb, sb, axes))
             if a[0] != 'fref':
                 if b[0] != 'fref':
                     raise NotImplementedError("多面体のガード: 両辺が升でない")
@@ -435,7 +459,6 @@ class Flatten:
         return False
 
     def _family(self, r, st, lat):
-        if not r.sources: raise _NoFam('源が無い')
         if r.target not in self.lay: raise _NoFam('書き先が密でない')
         e = r.value
         if e[0] == 'bool':
@@ -456,7 +479,9 @@ class Flatten:
         for _b, w, _c in axes: n *= w
         # **これは断りではなく選択である**（小さい空間は点に展開したほうが速い）。
         # 数えるときに、書けない物と混ぜてはいけない。
-        if n < FAMILY_MIN: raise _NoFam('※空間が小さい（選択）')
+        # 地上の規則（源が無い）は点が一つなので、どちらに置いても同じ費用である
+        # —— 選択の余地が無いものを閾値で振り分けない。
+        if r.sources and n < FAMILY_MIN: raise _NoFam('※空間が小さい（選択）')
         sl = self.slots(r)
         if any(x[1] not in self.lay for x in srcs): raise _NoFam('読む場が密でない')
         dm = self.pmapcell(r.target, r.keys, sl, axes, st, sp, n)

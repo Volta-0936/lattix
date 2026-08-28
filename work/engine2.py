@@ -181,6 +181,13 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                     if p < 0 and kk in (1, 2): continue
                     G = (f"for {FC} for (t) in 0 .. SZ[sp] - 1 if st == {s} "
                          f"if kk == {kk} if lat == {lt}")
+                    if kk == 6:
+                        # **箱に半空間を一枚あてる。** 升を一つも読まないので
+                        # 面も層も要らない —— 軸の一次式どうしを比べるだけ。
+                        # これで反復空間が箱から多面体になる。
+                        A(f"fn{s}[e,t] <- true   {G} if op == {op} "
+                          f"if {_map('cm')} {IOP[op]} {_map('wm')}")
+                        continue
                     pl, _ = PLANE[lt]
                     V = f"v{pl}{s if kk == 11 else p}"
                     C = _map('cm', PS)
