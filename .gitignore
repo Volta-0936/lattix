@@ -8,3 +8,6 @@ witness.bin
 
 # 焼いた実行ファイルの置き場（試験が作る）
 /tmp_*/
+
+# 焼いた一枚とその C（test/baked.py が作る。26MB —— 生成物）
+work/_baked/
