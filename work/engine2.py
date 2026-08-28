@@ -38,6 +38,7 @@ def _map(X, s=None):
     out = f"MC[{X}]" + "".join(f" + MK{i}[{X}] * {_ax(i, X)}" for i in range(3))
     if s is not None:
         out += f" + MI[{X}] * pa{s}[MB[{X}] + MU[{X}] * t]"
+        out += f" + MI2[{X}] * pa{s}[MB2[{X}] + MU2[{X}] * t]"
     return out
 IOP = {v: k for k, v in OP.items()}
 KEYED = (8, 9, 10)                  # sum / count / bag —— 寄与元キー付き
@@ -62,14 +63,15 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             A(f"{nm}[sp,j] <- {col}   for (sp,j,b,w,d) in spc")
         A(f"field SZ : max bound {nsp}")
         A("SZ[sp] <- n            for (sp,n) in ssz")
-        MP = "for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu) in mp"
+        MP = "for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2) in mp"
         A(f"field MC : max bound {nmp}")
         A(f"MC[x] <- k0            {MP}")
         for i in range(3):
             for nm, col in (('MA', 'a'), ('ML', 'l'), ('MK', 'm')):
                 A(f"field {nm}{i} : max bound {nmp}")
                 A(f"{nm}{i}[x] <- {col}{i}   {MP}")
-        for nm, col in (('MI', 'im'), ('MB', 'ib'), ('MU', 'iu')):
+        for nm, col in (('MI', 'im'), ('MB', 'ib'), ('MU', 'iu'),
+                        ('MI2', 'i2'), ('MB2', 'b2'), ('MU2', 'u2')):
             A(f"field {nm} : max bound {nmp}")
             A(f"{nm}[x] <- {col}   {MP}")
     for s in range(ns):

@@ -291,18 +291,23 @@ class Flatten:
             raise NotImplementedError("軸と軸の積（一次でない）")
         raise NotImplementedError(f"一次式でない: {e}")
 
-    def mapof(self, const, slots, axes, ind=(0, 0, 0)):
+    def mapof(self, const, slots, axes, ind=(0, 0, 0), ind2=(0, 0, 0)):
         """写像を一つ登録する。枠は三つまで（余りはゼロの行を指す）。
 
         `ind = (係数, 番地面の基, 使うか)` は **値で決まる座標**の項である ——
-            値 = 定数 + Σ 係数·軸 + 係数_i · pa[基 + 使うか × 点]
+            値 = 定数 + Σ 係数·軸 + Σ_k 係数_k · pa[基_k + 使うか_k × 点]
         使わないときは (0, 0, 0) で、`pa[0] = 0` を読んで 0 を足す。
-        場合分けを作らないために、番兵の升を一つ置いてある（`pa[0]`）。"""
+        場合分けを作らないために、番兵の升を一つ置いてある（`pa[0]`）。
+
+        間接の枠は **二本**。一本だった間は `m[g[i], h[j]]` も
+        `cons(a[i], b[i])` も書けなかった —— 「一つまで」は写像の性質では
+        なく、私が列を一組しか置かなかったことの言い換えである（気づき23:
+        書けない形があるとき、まず自分の表の形を疑え）。"""
         if len(slots) > 3: raise NotImplementedError("枠が三つを超える")
         row = [const]
         for j, c, m in slots: row += [j, c, m]
         while len(row) < 10: row += [0, 0, 0]
-        row += list(ind)
+        row += list(ind) + list(ind2)
         key = tuple(row)
         if key in self.mpn: return self.mpn[key]
         x = len(self.mp); self.mpn[key] = x
@@ -400,13 +405,13 @@ class Flatten:
             if lo < 0 or hi >= min(L.CTOR_M1, L.CTOR_M2):
                 raise NotImplementedError("構成子の引数が法の外（折る前に畳めない）")
             terms.append(('aff', c, ss))
-        if sum(1 for t in terms if t[0] == 'slot') > 1:
-            raise NotImplementedError("折り込みに畳めない引数が二つ")
+        if sum(1 for t in terms if t[0] == 'slot') > 2:
+            raise NotImplementedError("折り込みに畳めない引数が三つ")
         b = []
         for m, k in ((L.CTOR_M1, L.CTOR_K1), (L.CTOR_M2, L.CTOR_K2)):
             cst = (L._fold(name.encode(), m, k) * k + n + 1) % m
             cst = (cst * pow(k, n, m)) % m
-            ss, ind = [], (0, 0, 0)
+            ss, inds = [], []
             for i, tm in enumerate(terms):
                 co = pow(k, n - 1 - i, m)
                 if tm[0] == 'const':
@@ -420,13 +425,14 @@ class Flatten:
                     bm = self.pslot(npt)
                     self.fp.append((self.newid(), sp, st, 3, 0, bm,
                                     self.mapof(0, [], axes), m, tm[2], 0, 0))
-                    ind = ((3 * co * tm[1]) % m, bm, 1)
+                    inds.append(((3 * co * tm[1]) % m, bm, 1))
+            while len(inds) < 2: inds.append((0, 0, 0))
             lo, _hi = self._affrange(cst, ss, axes)
             while lo < 0:
                 cst += m * (1 + (-lo) // m); lo, _hi = self._affrange(cst, ss, axes)
             bx = self.pslot(npt)
             self.fp.append((self.newid(), sp, st, 1, 0, bx,
-                            self.mapof(cst, ss, axes, ind), m, 0, 0, 0))
+                            self.mapof(cst, ss, axes, inds[0], inds[1]), m, 0, 0, 0))
             b.append(bx)
         bz = self.pslot(npt)
         self.fp.append((self.newid(), sp, st, 2, 0, bz,
@@ -436,13 +442,16 @@ class Flatten:
     def pmapcell(self, f, kexprs, sl, axes, st, sp, npt):
         """場 f の升を指す **写像**。座標が値で決まっていてもよい。"""
         base, sz, stp, lo = self.lay[f]
-        const, slots, ind = base, [], (0, 0, 0)
+        const, slots, ind, ind2 = base, [], (0, 0, 0), (0, 0, 0)
         for i, ke in enumerate(kexprs):
             c, ss, iv = self.pcell(ke, sl, axes, st, sp, npt)
             if iv[2]:
-                if ind[2]:
-                    raise NotImplementedError("一つの写像に間接の項が二つ")
-                ind = (iv[0] * stp[i], iv[1], 1)
+                if not ind[2]:
+                    ind = (iv[0] * stp[i], iv[1], 1)
+                elif not ind2[2]:
+                    ind2 = (iv[0] * stp[i], iv[1], 1)
+                else:
+                    raise NotImplementedError("一つの写像に間接の項が三つ")
             a = z = c
             for j, col, m in ss:
                 b0, _w, _nc = axes[j]
@@ -454,7 +463,7 @@ class Flatten:
                 self.seen[(f, i)] = (min(q0, a), max(q1, z))
             const += (c - lo[i]) * stp[i]
             slots += [(j, col, m * stp[i]) for j, col, m in ss]
-        return self.mapof(const, slots, axes, ind)
+        return self.mapof(const, slots, axes, ind, ind2)
 
     # ── 多面体のガード —— 条件も **写像**で書ける ────────────────────
     def fcond(self, q, sl, axes, st, sp, npt):
@@ -724,7 +733,12 @@ class Flatten:
             t = terms[i] if i < len(terms) else None
             if self.val(k, env) is not None: continue
             if t is not None:
-                m, c, o, lt = t
+                # terms の行は (キー番号, 係数, 升, 束) —— ここだけ別の形で
+                # 開いていて、m に番号・c に係数が入り、**升番号は捨てられて
+                # いた**。存在しない升を係数 0 で掛け、何も発火せず答えが
+                # 黙って空になる（表を書く側と読む側で行の形が食い違うと、
+                # 静かに壊れる —— 気づき23 の裏面）。
+                _i, m, c, lt = t
                 e = ('bin', '+', e, ('bin', '*', ('fref', '#c', [('int', c)]),
                                      ('int', stp[i] * m)))
             else:
@@ -1350,7 +1364,7 @@ class Flatten:
              'mp': self.mp, 'fg': self.fg, 'fc': self.fc, 'fp': self.fp}
         if not self.dat: self.dat.append((0, 0, 0))
         for k, ar in (('eg', 10), ('cd', 10), ('ix', 6),
-                      ('dat', 3), ('spc', 5), ('ssz', 2), ('mp', 14),
+                      ('dat', 3), ('spc', 5), ('ssz', 2), ('mp', 17),
                       ('fg', 10), ('fc', 11), ('fp', 11)):
             if not t[k]:
                 row = [0] * ar; row[1] = 999        # どの層にも当たらない番兵
