@@ -260,11 +260,17 @@ class Flatten:
                 c2 = -c2; s2 = [(j, c, -m) for j, c, m in s2]
             return c1 + c2, s1 + s2
         if k == 'bin' and e[1] == '*':
+            # 掛けてよいのは **地上で決まる数**だけである。軸と軸の積
+            # （`comp[i * j]`）は一次でない —— それは二つの軸の単項式であって、
+            # いまの写像の言葉（定数 + Σ 係数·軸）には無い形である。
+            # ここで KeyError を答えの代わりに使ってはいけない。使えば
+            # 「本物の誤り」と「ふつうの断り」が見分けられなくなる（気づき29）。
             for a, b in ((e[2], e[3]), (e[3], e[2])):
-                g = self.val(b, {})
+                g = self.ground(b)
                 if isinstance(g, int) and not isinstance(g, bool):
                     c1, s1 = self.affine(a, sl)
                     return c1 * g, [(j, c, m * g) for j, c, m in s1]
+            raise NotImplementedError("軸と軸の積（一次でない）")
         raise NotImplementedError(f"一次式でない: {e}")
 
     def mapof(self, const, slots, axes, ind=(0, 0, 0)):
@@ -414,7 +420,9 @@ class Flatten:
         except NotImplementedError as ex:
             why = str(ex) or 'NotImplementedError'
         except KeyError as ex:
-            why = f'KeyError {ex}'
+            # ここに来るのは **本物の誤り**である（ふつうの断りは _NoFam か
+            # NotImplementedError で言う）。名前を残して、数えるときに目立たせる。
+            why = f'!! KeyError {ex}'
         self.fp[:] = fp0; self.pab = pab0
         self.nofam.append((why, r.target, getattr(r, 'id', -1), st))
         return False
@@ -632,6 +640,17 @@ class Flatten:
         raise NotImplementedError(f"座標の形: {e}")
 
     # ── 束縛のもとで式を地上の値に落とす（できなければ None）────────
+    def ground(self, e):
+        """束縛に依らずに決まる値。決まらなければ None。
+
+        **断りを例外で言わない。** 例外は本物の誤りのために空けておく ——
+        でないと「まだ書いていない形」と「壊れている」が同じ顔で通る
+        （気づき29）。"""
+        try:
+            return self.val(e, {})
+        except KeyError:
+            return None
+
     def val(self, e, env):
         k = e[0]
         if k == 'int':  return e[1]
