@@ -182,7 +182,11 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                     # ctor_id の Horner を展開しただけで、hash は要らない
                     # （恒等式は test/ctoraffine.py が測っている）。
                     # 写像は番地の面も読める —— 引数が場の読みでも折れる。
-                    A(f"pa{s}[pb + t] <- {_map('am', PS)} % mo   {PL} if kd == 1")
+                    # **括弧を忘れない。** `%` は `+` より強く結びつくので、
+                    # 括弧が無いと最後の項だけが法で畳まれ、和は畳まれない。
+                    # 座標に使うぶんには「一貫して同じ番地」なので気づかない
+                    # —— 値にした瞬間に露見した（気づき29 の裏返し）。
+                    A(f"pa{s}[pb + t] <- ({_map('am', PS)}) % mo   {PL} if kd == 1")
                 elif kd == 3:
                     # 折る前に法で畳む（引数が法を超えていてもよいように）。
                     A(f"pa{s}[pb + t] <- pa{s}[p1 + t] % mo   {PL} if kd == 3")
@@ -250,15 +254,16 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 sel = f"if st <= {s}" if lt in KEYED else f"if st == {s}"
                 g = f"{LOOP} {sel} if lat == {lt} if vf == {vf}{gate}"
                 D = f"v{pl}{s}[{_map('dm', PS)}]"
-                if vf == 0:   A(f"{D} <- {_map('wm')}   {g}")
+                # 値の写像も番地の面を読める（構成した値がそこに居る）。
+                if vf == 0:   A(f"{D} <- {_map('wm', PS)}   {g}")
                 elif vf == 2: A(f"{D} <- true   {g}")
                 elif vf == 5: A(f"{D} <- false  {g}")
                 elif vf == 4: A(f"{D} <- v{pl}{s}[{_map('am', PS)}]   {g}")
                 elif vf == 1 and n == 1:
-                    A(f"{D} <- v{pl}{s}[{_map('am', PS)}] + {_map('wm')}   {g} if n == 1")
+                    A(f"{D} <- v{pl}{s}[{_map('am', PS)}] + {_map('wm', PS)}   {g} if n == 1")
                 elif vf == 1 and n == 2:
                     A(f"{D} <- v{pl}{s}[{_map('am', PS)}] + v{pl}{s}[{_map('bm', PS)}] "
-                      f"+ {_map('wm')}   {g} if n == 2")
+                      f"+ {_map('wm', PS)}   {g} if n == 2")
         A("# ── 寄与。これが全部である。──────────────────────────────")
         for (lt, vf, n, la) in vals:
             if p < 0 and vf in (1, 4, 6, 7, 8) and (la < 0 or la != lt): continue

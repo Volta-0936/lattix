@@ -554,6 +554,10 @@ class Flatten:
             vf, srcs = (2 if e[1] else 5), []
         elif e[0] == 'fref':
             vf, srcs = 4, [e]
+        elif e[0] == 'ctor':
+            # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
+            # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
+            vf, srcs = 0, []
         else:
             vf, srcs = None, []
             fl = [x for x in _frefs(e)]
@@ -579,7 +583,10 @@ class Flatten:
             am = self.pmapcell(srcs[0][1], srcs[0][2], sl, axes, st, sp, n)
             if len(srcs) == 2:
                 bm = self.pmapcell(srcs[1][1], srcs[1][2], sl, axes, st, sp, n)
-        if vf in (0, 1):
+        if e[0] == 'ctor':
+            _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
+            wm = self.mapof(0, [], axes, iv)
+        elif vf in (0, 1):
             rest = _strip(e, srcs)
             c, ss = self.affine(rest, sl)
             for j, col, _m in ss:
