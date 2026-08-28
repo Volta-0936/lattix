@@ -162,7 +162,14 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             A(f"ok{s}[e] <- ok{p}[e]   for {EG} if st >= 0 if st < {s}")
         if fpsh:
             A(f"# 値で決まる座標を番地の面へ写す（層 {s}）")
-            PL = f"for {FP} for (t) in 0 .. SZ[sp] - 1 if st == {s}"
+            # **番地の面は、その層までの写しを全部持っていなければならない。**
+            # 層をまたぐ引き継ぎ（v{s} <- v{p}）は *dm 写像* で升を名指すが、
+            # その写像は pa{s} を読む。st == s だけ書いていると、前の層で
+            # 立てた間接の写しが pa{s} に無く、引き継ぎが別の升を指す ——
+            # 書いたはずの値が消える（28_asm の form が三つ落ちた）。
+            # 点の道の rz{s} は層で絞っていない。**同じ判断を二箇所に書いた**
+            # ので、片方だけ直っていた（気づき34）。
+            PL = f"for {FP} for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= {s}"
             for lt in fpsh:
                 ql, _ = PLANE[abs(lt)]
                 r = s if lt < 0 else p

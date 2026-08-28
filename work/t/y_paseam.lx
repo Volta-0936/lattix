@@ -1,0 +1,23 @@
+# **番地の面（pa）は、その層までの写しを全部持っていなければならない。**
+#
+# 値で決まる座標（`form[icount[] + 1]`）は pa に一枚写してから読む。その写しを
+# 「その層で書かれた分」だけにしていると、層をまたぐ引き継ぎ（v{s} <- v{p}）が
+# 同じ dm 写像で升を名指すときに pa{s} が空で、**別の升を指す** ——
+# 書いたはずの値が消える。点の道の rz{s} は層で絞っていなかった（気づき34）。
+#
+# 直す前: form が {0,1,2,3,4} だけになる（5,6,7 が落ちる）
+table nums = (0,7), (1,13), (2,5), (3,100)
+field icount : max
+icount[] <- i + 1        for (i,v) in nums
+field form : max
+form[0] <- 1
+form[i+1] <- 1           for (i,v) in nums
+form[icount[] + 1] <- 2
+form[icount[] + 2] <- 1
+form[icount[] + 3] <- 2
+field nins : max
+nins[] <- icount[] + 3
+field len : max
+len[i] <- 5              for (i) in 0 .. nins[] if form[i] == 1
+len[i] <- 2              for (i) in 0 .. nins[] if form[i] == 2
+print form
