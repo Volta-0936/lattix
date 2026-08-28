@@ -559,23 +559,30 @@ class Flatten:
     def _family(self, r, st, lat):
         if r.target not in self.lay: raise _NoFam('書き先が密でない')
         e = r.value
+        mis = []                        # 束の合わない読み —— pa 経由で wm の間接へ
         if e[0] == 'bool':
             vf, srcs = (2 if e[1] else 5), []
-        elif e[0] == 'fref':
+        elif e[0] == 'fref' and self.flat.get(e[1]) == lat:
             vf, srcs = 4, [e]
         elif e[0] == 'ctor':
             # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
             # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
             vf, srcs = 0, []
         else:
-            vf, srcs = None, []
             fl = [x for x in _frefs(e)]
-            if fl and lat not in ARITH: raise _NoFam('数でない束に読みがある')
             if not _addok(e): raise _NoFam('値が足し算の形でない')
-            vf = 1 if fl else 0
-            srcs = fl
+            # **束の合わない読みは、閉じた面から `pa` に写して間接で読む。**
+            # 点の道の tolat（閉じた面から写す）と同じ判断で、機構は
+            # pcell が座標のために持っている物そのものである —— 閉じていない
+            # 源は pcell が断る（⊥→v で止まる flat だけが生きた面でよい）。
+            srcs = [x for x in fl if self.flat[x[1]] == lat]
+            mis  = [x for x in fl if self.flat[x[1]] != lat]
+            if srcs and lat not in ARITH: raise _NoFam('数でない束に読みがある')
+            if mis and lat not in ARITH and (srcs or len(fl) > 1):
+                raise _NoFam('数でない束に読みがある')
+            vf = 1 if srcs else 0
         if len(srcs) > 2: raise _NoFam('読みが三つ以上')
-        if any(self.flat[x[1]] != lat for x in srcs): raise _NoFam('読みで束が混ざる')
+        if len(mis) > 2: raise _NoFam('束の合わない読みが三つ以上')
         sp, axes = self.space(r, st)
         n = 1
         for _b, w, _c in axes: n *= w
@@ -596,12 +603,17 @@ class Flatten:
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
         elif vf in (0, 1):
-            rest = _strip(e, srcs)
+            rest = _strip(e, srcs + mis)
             c, ss = self.affine(rest, sl)
             for j, col, _m in ss:
                 if (axes[j][0], col) in self.atomcol:
                     raise _NoFam('原子を値にしている')
-            wm = self.mapof(c, ss, axes)
+            ivs = []
+            for x in mis:
+                cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
+                ivs.append(iv)
+            while len(ivs) < 2: ivs.append((0, 0, 0))
+            wm = self.mapof(c, ss, axes, ivs[0], ivs[1])
         else:
             wm = self.mapof(0, [], axes)
         # **ガードも写像で書ける。** 「全部立った」は (辺, 点) で数える ——
