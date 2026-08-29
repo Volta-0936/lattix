@@ -45,6 +45,29 @@ def assemble():
 SRC = assemble()
 
 
+def extrows(fl):
+    """合成の場（_size と 引数場）の測った置き場を、走らせた側の口として渡す。"""
+    named = list(fl.p.fields)
+    syn = {'_size'} | {f"{nm}_{f}" for nm, (fs, _bd) in fl.p.ctors.items()
+                       for f in fs}
+    decl = [f for f in named if f not in syn]
+    fnum = {f: i for i, f in enumerate(decl)}
+    nf0 = len(decl)
+    fnum['_size'] = nf0
+    base = nf0 + 1
+    for nm, (fs, _bd) in fl.p.ctors.items():
+        for k, f in enumerate(fs):
+            fnum[f"{nm}_{f}"] = base + k
+        base += len(fs)
+    rows = []
+    for f in syn:
+        if f not in fl.lay: continue
+        b, sz, st, lo = fl.lay[f]
+        for d in range(len(sz)):
+            rows.append((fnum[f], d, lo[d], sz[d]))
+    return sorted(rows) or [(0, 0, 0, 0)]
+
+
 def oracle(fl):
     """区間の上端に出てくる閉じた升（場, 座標, 値）。走らせた側の口の写し。"""
     def frefs(e):
@@ -68,11 +91,12 @@ def oracle(fl):
     return sorted(set(rows)) or [(0, 0, -1)]
 
 
-def run_front(path, orc=None):
+def run_front(path, orc=None, ext=None):
     """front.lx を焼いた測定器で走らせ、家の表を読み出す。"""
     data = open(path, 'rb').read()
     rows = [(i, c) for i, c in enumerate(data)] + [(len(data), 32)]
     orc = orc or [(0, 0, -1)]
+    ext = ext or [(0, 0, 0, 0)]
     if SLOW:
         src = re.sub(r"table ch = .*?\n",
                      "table ch = " + ", ".join(f"({i},{c})" for i, c in rows) + "\n",
@@ -80,9 +104,12 @@ def run_front(path, orc=None):
         src = re.sub(r"table orc = .*?\n",
                      "table orc = " + ", ".join(str(r) for r in orc) + "\n",
                      src, count=1)
+        src = re.sub(r"table ext = .*?\n",
+                     "table ext = " + ", ".join(str(r) for r in ext) + "\n",
+                     src, count=1)
         o = ns['go'](src)
     else:
-        o = ns['cgo']('front', SRC, {'ch': rows, 'orc': orc})
+        o = ns['cgo']('front', SRC, {'ch': rows, 'orc': orc, 'ext': ext})
     g = lambda f: dict(o(f))
     dat = sorted((k[0], k[1], v) for k, v in g('zdat').items())
     spb, spw, sps = g('zspb'), g('zspw'), g('zsps')
@@ -113,6 +140,7 @@ def front_family(g):
         n = nsv.get((r,), 0)
         zero = r * 64 + 4
         am = r * 64 + 1 if hasa.get((r,)) else zero
+        am = g('zfgam').get((r,), am)
         bm = r * 64 + 2 if n == 2 else zero
         wm = g('zwm').get((r,), zero)
         fg.append((r, spof[(r,)], st[(r,)], lat[(r,)], vf.get((r,), 0), n,
@@ -130,11 +158,13 @@ def front_family(g):
                    zfcwm.get((s, i), zero)))
     zfpu, zfplt, zfpb, zfpam = g('zfpu'), g('zfplt'), g('zfpb'), g('zfpam')
     zfpk, zfpmo, zfpsr = g('zfpk'), g('zfpmo'), g('zfpsr')
+    zfps2, zfpx = g('zfps2'), g('zfpx')
     fp = []
     for (r, u) in zfpu:
         fp.append((0, spof[(r,)], st[(r,)], zfpk.get((r, u), 0),
                    zfplt[(r, u)], zfpb[(r, u)], zfpam[(r, u)],
-                   zfpmo.get((r, u), 0), zfpsr.get((r, u), 0), 0, 0))
+                   zfpmo.get((r, u), 0), zfpsr.get((r, u), 0),
+                   zfps2.get((r, u), 0), zfpx.get((r, u), 0)))
     return fg, fc, fp, maps
 
 
@@ -152,8 +182,12 @@ def run_flat(path):
 def paexp(b, maps, fpbyb, depth):
     fpr = fpbyb.get(b)
     if fpr is None: return ('?', b)
+    if depth > 8: return ('deep',)
     if fpr[3] in (3, 4):
         return (fpr[3], fpr[7], paexp(fpr[8], maps, fpbyb, depth + 1))
+    if fpr[3] == 2:
+        return (2, paexp(fpr[8], maps, fpbyb, depth + 1),
+                paexp(fpr[9], maps, fpbyb, depth + 1), fpr[10])
     return (fpr[3], fpr[4], mapexp(fpr[6], maps, fpbyb, depth + 1))
 
 
@@ -240,7 +274,7 @@ BOOKS = [
     'examples/26_reach.lx', 'work/t/x_sumstrata.lx', 'work/t/y_paseam.lx',
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
-    'work/t/z_chain.lx', 'work/t/z_nestwm.lx',
+    'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
 ]
 
 if __name__ == '__main__':
@@ -257,7 +291,7 @@ if __name__ == '__main__':
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
                 continue
-            dat1, spc1, ssz1, g = run_front(f, oracle(fl))
+            dat1, spc1, ssz1, g = run_front(f, oracle(fl), extrows(fl))
             got = normalize(dat1, spc1, ssz1)
             want = normalize(dat2, spc2, ssz2)
             why = diff(got, want)
