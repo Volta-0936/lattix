@@ -129,10 +129,12 @@ def front_family(g):
                    zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
                    zfcwm.get((s, i), zero)))
     zfpu, zfplt, zfpb, zfpam = g('zfpu'), g('zfplt'), g('zfpb'), g('zfpam')
+    zfpk, zfpmo, zfpsr = g('zfpk'), g('zfpmo'), g('zfpsr')
     fp = []
     for (r, u) in zfpu:
-        fp.append((0, spof[(r,)], st[(r,)], 0, zfplt[(r, u)], zfpb[(r, u)],
-                   zfpam[(r, u)], 0, 0, 0, 0))
+        fp.append((0, spof[(r,)], st[(r,)], zfpk.get((r, u), 0),
+                   zfplt[(r, u)], zfpb[(r, u)], zfpam[(r, u)],
+                   zfpmo.get((r, u), 0), zfpsr.get((r, u), 0), 0, 0))
     return fg, fc, fp, maps
 
 
@@ -145,6 +147,14 @@ def run_flat(path):
     return (sorted(map(tuple, t['dat'])), sorted(map(tuple, t['spc'])),
             sorted(map(tuple, t['ssz'])), fl,
             fg, live(t['fc']), live(t['fp']), maps)
+
+
+def paexp(b, maps, fpbyb, depth):
+    fpr = fpbyb.get(b)
+    if fpr is None: return ('?', b)
+    if fpr[3] in (3, 4):
+        return (fpr[3], fpr[7], paexp(fpr[8], maps, fpbyb, depth + 1))
+    return (fpr[3], fpr[4], mapexp(fpr[6], maps, fpbyb, depth + 1))
 
 
 def mapexp(mid, maps, fpbyb, depth=0):
@@ -160,10 +170,7 @@ def mapexp(mid, maps, fpbyb, depth=0):
     for base in (10, 13):
         ia, ib, iu = row[base], row[base + 1], row[base + 2]
         if iu:
-            fpr = fpbyb.get(ib)
-            pa = (('?', ib) if fpr is None else
-                  (fpr[3], fpr[4], mapexp(fpr[6], maps, fpbyb, depth + 1)))
-            inds.append((ia, pa))
+            inds.append((ia, paexp(ib, maps, fpbyb, depth)))
     return (const, slots, tuple(sorted(inds)))
 
 
@@ -180,8 +187,7 @@ def famnorm(fg, fc, fp, maps, spmap):
                      ex(q[10])) for q in fcby.get(eid, []))
         out.append((spmap.get(sp), st, lat, vf, nsc, ex(row[6]), ex(row[7]),
                     ex(row[8]), ex(row[9]), tuple(gs)))
-    loosefp = sorted((r[3], r[4], mapexp(r[6], maps, fpbyb))
-                     for r in fp)
+    loosefp = sorted(paexp(r[5], maps, fpbyb, 0) for r in fp)
     return sorted(out), loosefp
 
 
@@ -234,6 +240,7 @@ BOOKS = [
     'examples/26_reach.lx', 'work/t/x_sumstrata.lx', 'work/t/y_paseam.lx',
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
+    'work/t/z_chain.lx',
 ]
 
 if __name__ == '__main__':
