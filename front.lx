@@ -21,6 +21,61 @@ table orc = (0, 0, 0)
 field zorc : max bound 1024 64          # 閉じた値（場, 座標 → 値）
 zorc[f, c] <- v for (f, c, v) in orc
 
+# ══ 精密な成層（参照実装と同じ判断） ═══════════════════════════════
+# 33_self の lvl は比較を一律に非単調と見る（断片の安全側）。参照実装は
+# **束の向き**で見る —— `a[i] > k` は max（昇る場）に対して単調で、層を
+# 食わない（真になったら二度と偽にならない）。ここでは断片の成層を触らず、
+# 家の表のための層をもう一枚、精密な非単調で数え直す。
+#
+# 非単調な読みとは: 否定 / 添字の中（flat・fourv を除く）/ 向きの合わない
+# 比較（== と != は flat 以外すべて）/ 束の違う値の読み（flat・fourv を除く）。
+field zosen : max bound 8192            # 出現の場の向き（1 下る / 2 昇る / 5 flat / 6 fourv）
+zosen[o] <- 1 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] == 1
+zosen[o] <- 2 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] >= 2 if zlatf[ofl[o] - 1] <= 3
+zosen[o] <- 2 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] >= 8
+zosen[o] <- 5 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] == 5
+zosen[o] <- 6 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] == 6
+field zrq : max bound 262144            # 比較の辺の要る向き（1 下る / 2 昇る / 4 座標）
+zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] >= 5
+zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 3
+zrq[oppv[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 4
+zrq[oppv[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 6
+zrq[oppv[t]] <- 4 for (t,zc) in ch if iscmp2[t] if opc2[t] <= 2
+zrq[opnx[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] >= 5
+zrq[opnx[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 3
+zrq[opnx[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 4
+zrq[opnx[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 6
+zrq[opnx[t]] <- 4 for (t,zc) in ch if iscmp2[t] if opc2[t] <= 2
+field zonm : or bound 8192              # 精密な非単調の読み
+zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if isneg[t]
+zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tdep[t] >= 1
+      if zosen[oseq[t]] <= 4
+zonm[oseq[tmatch[oppv[t]]]] <- true for (t,zc) in ch if iscmp2[t]
+      if isclo[oppv[t]] if zosen[oseq[tmatch[oppv[t]]]] <= 4
+      if zrq[oppv[t]] != zosen[oseq[tmatch[oppv[t]]]]
+zonm[oseq[opnx[t]]] <- true for (t,zc) in ch if iscmp2[t]
+      if isocc[opnx[t]] if zosen[oseq[opnx[t]]] <= 4
+      if zrq[opnx[t]] != zosen[oseq[opnx[t]]]
+zonm[oseq[t]] <- true for (t,zc) in ch if istrm[t] if ofl[oseq[t]] >= 1
+      if hfl[snum[t]] >= 1 if zosen[oseq[t]] <= 4
+      if zlatf[ofl[oseq[t]] - 1] != zlatf[hfl[snum[t]] - 1]
+field zwlv : or bound 1024 128          # 場 f を書く文が層 k 以上（精密）
+field zlvl : or bound 4096 128          # 文 s は層 k 以上（精密）
+zlvl[s,0] <- true for (s) in 0 .. nstz[0] if hasr[s]
+zwlv[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127
+      if hasr[s] if hfl[s] >= 0 if zlvl[s,k]
+zlvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
+      if not ohd[o] if not zonm[o] if zwlv[ofl[o], k]
+zlvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126
+      if oin[o] if not ohd[o] if zonm[o] if zwlv[ofl[o], k]
+field zlevel : max bound 4096           # 文 s の層（精密）
+zlevel[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if zlvl[s,k]
+
 # ── 家の規則 = 矢印のある文（種も規則も同じ扱い —— 点が一つの空間） ──
 field zisr : or bound 4096              # 文 s は家の規則になる
 zisr[s] <- true for (s) in 0 .. nstz[0] if isseed[s]
@@ -332,7 +387,7 @@ zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] <= 3
 zlatf[f] <- 5 for (f) in 0 .. nfdz[0] if flatt[f] == 6
 zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] >= 8
 field zfws : max bound 1024             # 場 f を書く最大の層（fstr）
-zfws[hfz[s]] <- level[s] for (s) in 0 .. nstz[0] if zisr[s] if hfz[s] >= 0
+zfws[hfz[s]] <- zlevel[s] for (s) in 0 .. nstz[0] if zisr[s] if hfz[s] >= 0
 
 # ── 規則の頭・層・束 ────────────────────────────────────────────────
 field zsr : max bound 8192              # 出現 o の家の規則番号
@@ -340,7 +395,7 @@ zsr[o] <- zrn[osn[o]] for (o) in 0 .. nocz[0] if zrn[osn[o]] >= 0
 field zho : max bound 4096              # 規則 r の頭の出現
 zho[zsr[o]] <- o for (o) in 0 .. nocz[0] if okk[o] == 2 if zsr[o] >= 0
 field zfgst : max bound 4096            # fg の層
-zfgst[zrn[s]] <- level[s] for (s) in 0 .. nstz[0] if zisr[s] if zrn[s] >= 0
+zfgst[zrn[s]] <- zlevel[s] for (s) in 0 .. nstz[0] if zisr[s] if zrn[s] >= 0
 field zfglat : max bound 4096           # fg の束
 zfglat[zrn[s]] <- zlatf[hfz[s]] for (s) in 0 .. nstz[0] if zisr[s]
       if zrn[s] >= 0
@@ -663,7 +718,20 @@ zfck[s, i] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zglf[s, i] if not zgrf[s, i] if zglfd[s, i] >= 0
       if zfws[zglfd[s, i]] <= zfgst[zgrul[s, i]] - 1
 zfclt[s, i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if zglf[s, i] if not zgrf[s, i]
+      if zglf[s, i] if not zgrf[s, i] if zglfd[s, i] >= 0
+      if zfws[zglfd[s, i]] <= zfgst[zgrul[s, i]] - 1
+# 種11: 左が生きた読み（単調な比較 —— 向きが合うので層を食っていない）。
+# cm は読みの番地の写像そのもの（番地の面を通らない）。
+zfck[s, i] <- 11 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zglf[s, i] if not zgrf[s, i] if zglfd[s, i] >= 0
+      if zfws[zglfd[s, i]] >= zfgst[zgrul[s, i]]
+zfclt[s, i] <- zlatf[zglfd[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zglf[s, i] if not zgrf[s, i] if zglfd[s, i] >= 0
+      if zfws[zglfd[s, i]] >= zfgst[zgrul[s, i]]
+zrdq[zglo[s, i]] <- zgrul[s, i] * 32 + 8 + 3 * i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zglf[s, i] if not zgrf[s, i]
+      if zglo[s, i] >= 0 if zgrul[s, i] >= 0 if zglfd[s, i] >= 0
+      if zfws[zglfd[s, i]] >= zfgst[zgrul[s, i]]
 zfpu[zgrul[s, i], i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 2
       if zglf[s, i] if not zgrf[s, i] if zgrul[s, i] >= 0
       if zglfd[s, i] >= 0 if zfws[zglfd[s, i]] <= zfgst[zgrul[s, i]] - 1
@@ -719,18 +787,18 @@ zmc0[zgm[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
 zmm0[zgm[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm[s, i] >= 1 if zgl[s, i] >= 0 if not isnum[zgl[s, i]]
       if not zglf[s, i]
-# 種1 の左: 定数 0 + 間接 (1, 面の基, 1)
+# 種1 の左: 定数 0 + 間接 (1, 面の基, 1) —— 閉じた読みのときだけ
 zmn[zgm[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 2
-      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i]
+      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i] if zfck[s, i] == 1
 zmc[zgm[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 2
-      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i]
+      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i] if zfck[s, i] == 1
 zmia[zgm[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 2
-      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i]
+      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i] if zfck[s, i] == 1
 zmib[zgm[s, i]] <- zfpb[zgrul[s, i], i] for (s) in 0 .. nstz[0]
       for (i) in 0 .. 2 if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i]
-      if zgrul[s, i] >= 0 if zfpb[zgrul[s, i], i] >= 1
+      if zgrul[s, i] >= 0 if zfpb[zgrul[s, i], i] >= 1 if zfck[s, i] == 1
 zmiu[zgm[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 2
-      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i]
+      if zgm[s, i] >= 1 if zglf[s, i] if not zgrf[s, i] if zfck[s, i] == 1
 
 # 右の写像（一次式）
 field zgm2 : max bound 4096 8           # 右の写像の枠番号
