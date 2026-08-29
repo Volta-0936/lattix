@@ -525,23 +525,39 @@ class Flatten:
                     raise NotImplementedError("多面体のガード: 両辺が升でない")
                 op, a, b = self.FLIP[op], b, a
             fl = [a[1]] + [x[1] for x in _frefs(b)]
-            lt = self.flat[a[1]]
-            if any(self.flat[f] != lt for f in fl):
-                raise NotImplementedError("多面体のガードで束が混ざる")
             if not _addok(b):
                 raise NotImplementedError("多面体のガードの右辺")
             rb = list(_frefs(b))
             if len(rb) > 2:
                 raise NotImplementedError("多面体のガードの右辺が三つ以上の升")
+            # **閉じた読みと flat の読みは pa に写せる** —— そうすれば比較は
+            # 「写像 対 写像」であり、束も面も規則から消える（種1・束0）。
+            # 比較の規則が 束×演算子×数 で増えていたのは、比較が面を直接
+            # 読んでいたからで、pa を通せば六行に潰れる。閉じ方は pcell が
+            # 見張る（⊥→v で止まる flat だけが生きた面でよい）。
+            if all(self.flat[f] == 5 or self.fstr.get(f, -1) < st for f in fl):
+                cc, css, civ = self.pcell(a, sl, axes, st, sp, npt)
+                cm = self.mapof(cc, css, axes, civ)
+                c, ss = self.affine(_strip(b, rb), sl)
+                ivs = [self.pcell(x, sl, axes, st, sp, npt)[2] for x in rb]
+                while len(ivs) < 2: ivs.append((0, 0, 0))
+                return (sp, st, 1, 0, cm, OP[op], 0,
+                        zero, zero, self.mapof(c, ss, axes, ivs[0], ivs[1]))
+            # 生きた非 flat の比較（単調な問い）だけが面に残る（種11）
+            lt = self.flat[a[1]]
+            if any(self.flat[f] != lt for f in fl):
+                raise NotImplementedError("多面体のガードで束が混ざる")
             k = 1 if all(self.fstr.get(f, -1) >= st for f in fl) else 0
             if k and lt in (8, 9, 10): k = 0
             if not k and st == 0:
                 raise NotImplementedError("層 0 で閉じた値を問うている")
+            if not k:
+                raise NotImplementedError("閉じた読みと生きた読みが混ざる比較")
             cm = self.pmapcell(a[1], a[2], sl, axes, st, sp, npt)
             rm = [self.pmapcell(x[1], x[2], sl, axes, st, sp, npt)
                   for x in rb] + [zero, zero]
             c, ss = self.affine(_strip(b, rb), sl)
-            return (sp, st, 1 + 10 * k, lt, cm, OP[op], len(rb),
+            return (sp, st, 11, lt, cm, OP[op], len(rb),
                     rm[0], rm[1], self.mapof(c, ss, axes))
         if q[0] == 'geq' and q[1][0] == 'fref':
             bv = self.val(q[2], {})

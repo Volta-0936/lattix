@@ -75,10 +75,63 @@ def survey():
             sorted(fsh), sorted(fcsh), sorted(fpsh), dim)
 
 
+ARITH = (1, 2, 5, 6, 8, 10)
+
+
+def family_shapes():
+    """**家の形は測らずに数え上げる。** 形の空間は文法が宣言している有限集合
+    である（気づき46 の論法を engine 自身に適用する）。測量で閉じると、
+    測量に現れなかった形の表を食わせたとき **どの規則の門も合わず、
+    黙って何も出さない** —— trinity の三面鏡がこれを 21 本まとめて出した。
+
+    閉じた根拠（気づき31。「なぜこれで全部か」を同じ場所に書く）:
+      fsh  (束, 形, 数):  形0 定数/間接(全束・数0) / 形1 加算(数の束・数1,2) /
+           形2 true・形5 false(or/and/fourv) / 形4 写し(全束・数1)
+      fcsh (種, 束, 演算子, 数):  種6 軸だけ(演算子6) / 種2 not・種5 bnot・
+           種3 生・種4 is(全束) / 種1 閉・種11 生の比較(全束×演算子6×数0..2)
+      fpsh (種, 束):  種0 場の写し(全束±。負は生きた flat) /
+           種1 折り込み / 種2 並べ / 種3 法 / 種4 割り(束0)
+    点の道の形（vals/cond/ixlat）は今も測量で閉じている —— そちらは
+    消える予定の道であり、検査の側（shapes.json）が届かない形を声に出す。"""
+    # 束の合法性は定義（lattix.py の check）が言う —— or は true と or の
+    # 読みだけ、値の式（形0/1）は数の束だけ。数え上げを文法より粗くすると、
+    # 定義が run.lx ごと弾く（一度やった。彼が見つけてくれた）。
+    # write() の最後で L.check に通し、粗ければ **声に出して**落ちる。
+    fsh = set()
+    for lt in ARITH:
+        fsh.add((lt, 0, 0)); fsh.add((lt, 1, 1)); fsh.add((lt, 1, 2))
+    for lt in PLANE:
+        fsh.add((lt, 4, 1))
+    for lt in (3, 4, 9):
+        fsh.add((lt, 2, 0))
+    for lt in (4, 6):
+        fsh.add((lt, 5, 0))
+    fsh.add((6, 2, 0))
+    # 種1（閉じた/flat の比較）は pa を通るので束が消えている —— 六行で全部。
+    # 種11（生きた単調な比較）だけが面に残るが、それは測量に任せる（下の union）。
+    fcsh = {(6, 0, op, 0) for op in range(1, 7)} | \
+           {(1, 0, op, 0) for op in range(1, 7)}
+    for lt in PLANE:
+        if lt == 7:
+            # set をガードの主語にする形は測定器（C）が `is` を焼けない。
+            # 言語の制限ではないので数え上げから外すだけ —— 本が要れば
+            # shapes.json 経由で「run.lx に無い形」と **声に出て**止まる。
+            continue
+        fcsh.add((2, lt, 0, 0)); fcsh.add((5, lt, 0, 0))
+        fcsh.add((3, lt, 0, 0)); fcsh.add((4, lt, 0, 0))
+    fpsh = {(0, lt) for lt in PLANE} | {(0, -5)} |            {(1, 0), (2, 0), (3, 0), (4, 0)}
+    return fsh, fcsh, fpsh
+
+
 def write(path):
     (vals, cond, lats, ixl, ns, nc, ne, nq, fsh, fcsh, fpsh, dim) = survey()
     if ns > NS:
         raise SystemExit(f"層が {ns} —— 宣言した上限 {NS} を超えた")
+    efsh, efcsh, efpsh = family_shapes()
+    # 数え上げ ∪ 測量（種11 のような「面に残る形」は測量が言う）
+    fsh = sorted(efsh | set(fsh))
+    fcsh = sorted(efcsh | set(fcsh))
+    fpsh = sorted(efpsh | set(fpsh))
     lats = sorted(set(lats) | set(LAT.values()) & set(PLANE))
     body = engine2.engine_text(nc, ne, nq, NS, (vals, cond, lats), ixl,
                                fsh, dim['nrow'], dim['ncol'], dim['nsp'],
@@ -96,6 +149,58 @@ def write(path):
             "#   プログラムごとに変わるのは **表だけ**である。\n"
             f"#   規則の数 {body.count(chr(10))} 行は、言語の形の数であって\n"
             "#   プログラムの大きさではない。\n\n")
+    # **書く前に定義へ通し、定義に刈らせる。** 数え上げは文法の上限であり、
+    # どの形が意味を持つか（or に値は書けない・min の生ガードは輪を閉じる）は
+    # 定義（check / stratify）が言う。弾かれた行から形を読み取り、落として
+    # 書き直す —— 黙って落とすのではなく、刈った形を一つずつ声に出す。
+    import re as _re
+    import lattix as _L
+    pad = {'eg': [0]*10, 'cd': [0,0,999,0,0,0,0,0,0,0], 'ix': [0]*6,
+           'dat': [0]*3, 'spc': [0]*5, 'ssz': [0,1], 'mp': [0]*17,
+           'fg': [0,0,999,0,0,0,0,0,0,0], 'fc': [0,0,999,0,0,0,0,0,0,0,0],
+           'fp': [0,0,999,0,0,0,0,0,0,0,0]}
+    dummy = "".join("table %s = (%s)\n" % (n, ",".join(map(str, r)))
+                    for n, r in pad.items())
+    for _round in range(200):
+        src = dummy + head + body
+        try:
+            q = _L.parse(src); _L.check(q); _L.stratify(q)
+            break
+        except _L.LattixError as ex:
+            m = _re.search(r'line (\d+)', str(ex))
+            if not m: raise
+            ln = src.split('\n')[int(m.group(1)) - 1]
+            mc = _re.search(r'in fc .*if kk == (\d+) if lat == (-?\d+)'
+                            r'(?:.*if op == (\d+))?', ln)
+            mg = _re.search(r'in fg .*if lat == (-?\d+) if vf == (\d+)'
+                            r'(?:.*if n == (\d+))?', ln)
+            if mc:
+                kk, lt = int(mc.group(1)), int(mc.group(2))
+                drop = {t for t in fcsh if t[0] == kk and t[1] == lt}
+            elif mg:
+                lt, vf = int(mg.group(1)), int(mg.group(2))
+                drop = {t for t in fsh if t[0] == lt and t[1] == vf}
+            else:
+                raise
+            if not drop: raise
+            for t in sorted(drop):
+                print(f"  刈った: {t}  —— {str(ex).splitlines()[0][:60]}",
+                      flush=True)
+            fcsh = sorted(set(fcsh) - drop); fsh = sorted(set(fsh) - drop)
+            body = engine2.engine_text(nc, ne, nq, NS, (vals, cond, lats), ixl,
+                                       fsh, dim['nrow'], dim['ncol'],
+                                       dim['nsp'], dim['nmp'], dim['nax'],
+                                       fcsh, dim['npt'], fpsh, dim['npa'])
+    else:
+        raise SystemExit("刈っても閉じない —— 数え上げの根拠が破れている")
+    # 検査の側が「run.lx に無い形」を声に出せるように、**刈ったあとの**
+    # 一覧を書き残す（刈る前に書くと、持っていない形を持っていると嘘をつく）。
+    import json
+    json.dump({'vals': sorted(vals), 'cond': sorted(cond), 'ixlat': sorted(ixl),
+               'fsh': [list(t) for t in fsh], 'fcsh': [list(t) for t in fcsh],
+               'fpsh': [list(t) for t in fpsh], 'dim': dim,
+               'nc': nc, 'ne': ne, 'nq': nq},
+              open(os.path.join(HERE, 'shapes.json'), 'w'))
     open(path, 'w', encoding='utf-8').write(head + body)
     return len(vals), len(cond), len(lats), ns, body.count("\n"), nc
 

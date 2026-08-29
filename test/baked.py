@@ -19,6 +19,29 @@ import engine2
 from engine2 import tbl, answers, Rejected
 
 NAMES = ('eg', 'cd', 'ix', 'dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp')
+
+
+def coverage(fl):
+    """この本の形が run.lx の規則で受かるか。**受からない形は黙って落ちる**
+    （どの規則の門も合わない）ので、検査の側で声に出す。
+    形の一覧は mkrun が run.lx と同時に書く（work/shapes.json）。"""
+    import json
+    jp = os.path.join(ROOT, 'work', 'shapes.json')
+    if not os.path.exists(jp): return None       # 古い run.lx —— 検査できない
+    sh = json.load(open(jp))
+    tt = lambda xs: {tuple(x) if isinstance(x, (list, tuple)) else (x,)
+                     for x in xs}
+    v, c, _l = fl.shapes()
+    for k, mine in (('vals', tt(v)), ('cond', tt(c)),
+                    ('ixlat', tt(fl.ixlat)), ('fsh', tt(fl.fsh)),
+                    ('fcsh', tt(fl.fcsh)), ('fpsh', tt(fl.fpsh))):
+        miss = mine - tt(sh[k])
+        if miss:
+            return f"run.lx に無い形 {k}:{sorted(miss)[0]}"
+    if fl.ncell() + 1 > sh['nc']: return f"升 {fl.ncell()+1} > {sh['nc']}"
+    if fl.nid + 1 > sh['ne']: return f"辺 {fl.nid+1} > {sh['ne']}"
+    if len(fl.ix) + 1 > sh['nq']: return f"指し {len(fl.ix)+1} > {sh['nq']}"
+    return None
 DROP = ()          # **面はもう一つも落としていない**（集約も集合も焼ける）
 DROPLAT = ()
 NS = 16
@@ -38,13 +61,18 @@ def bake(keep):
     t = fl.tables()
     src = enginesrc("".join(tbl(n, t[n]) for n in NAMES))
     t0 = time.time()
-    return R.build(src, keep=keep), time.time() - t0
+    # 検証の焼きは -O0 でよい —— 正しさに最適化は要らず、gcc の時間だけが減る。
+    # 速さを測るときだけ LATTIX_OPT=-O2 にする（測る物と検べる物を混ぜない）。
+    opt = os.environ.get('LATTIX_OPT', '-O0')
+    return R.build(src, keep=keep, opt=opt), time.time() - t0
 
 
 def one(info, path):
     ref, p = answers(path)
     fl, _ = flatten(path, engine2.close_upto)
     if fl.strata() > NS: return 'skip', f"層 {fl.strata()}"
+    why = coverage(fl)
+    if why: return 'skip', why
     t = fl.tables()
     if any(isinstance(x, str) for n in NAMES for row in t[n] for x in row):
         return 'diff', "表に文字列がある（走らせる側は文字列を見ないはず）"

@@ -11,3 +11,6 @@ witness.bin
 
 # 焼いた一枚とその C（test/baked.py が作る。26MB —— 生成物）
 work/_baked/
+
+# 三面鏡が割った本の置き場（生成物）
+work/_trinity/

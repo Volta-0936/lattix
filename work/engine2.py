@@ -208,9 +208,15 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 A(f"fq{s}[e] <- true   for {FC} if st == {s}")
                 A(f"fn{s}[e,t] <- true   {LOOP} if st == {s}")
                 for (kk, lt, op, n) in fcsh:
-                    if p < 0 and kk in (1, 2): continue
+                    if p < 0 and kk == 2: continue
                     G = (f"for {FC} for (t) in 0 .. SZ[sp] - 1 if st == {s} "
                          f"if kk == {kk} if lat == {lt}")
+                    if kk == 1:
+                        # **写像 対 写像。** 読みは pa に写してあるので、
+                        # 比較の規則から束も面も消えている（六行で全部）。
+                        A(f"fn{s}[e,t] <- true   {G} if op == {op} "
+                          f"if ({_map('cm', PS)}) {IOP[op]} ({_map('wm', PS)})")
+                        continue
                     if kk == 6:
                         # **箱に半空間を一枚あてる。** 升を一つも読まないので
                         # 面も層も要らない —— 軸の一次式どうしを比べるだけ。

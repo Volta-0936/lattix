@@ -1209,9 +1209,23 @@ static void load(const char *p){ load_into(p, 0); }
     # 全部を一つのループで回すと、育ちきる前の値で否定が真になり、集合が汚れる。
     # （実際にそれで `tc[0,3]` を取りこぼした。層は飾りではない。）
     for si, rules in enumerate(prog.strata):
-        a(f"static int sweep{si}(void){{ int changed=0;")
+        # **一つの関数に全規則を書くと cc1 が記憶で死ぬ**（3,800 規則の
+        # run.lx で 24 万行の C になり、-O0 でも OOM）。規則の塊ごとに
+        # 関数へ割る —— 意味は変わらない（changed の OR を積むだけ）。
+        parts, buf = [], []
+        ba = buf.append
         for r in rules:
-            emit_rule(a, prog, r, arity)
+            emit_rule(ba, prog, r, arity)
+            if len(buf) > 4000:
+                parts.append(buf); buf = []; ba = buf.append
+        if buf: parts.append(buf)
+        for pi, chunk in enumerate(parts):
+            a(f"static int sweep{si}_{pi}(void){{ int changed=0;")
+            for ln in chunk: a(ln)
+            a("  return changed; }")
+        a(f"static int sweep{si}(void){{ int changed=0;")
+        for pi in range(len(parts)):
+            a(f"  changed |= sweep{si}_{pi}();")
         a("  return changed; }")
 
     # ---- 層の中を SCC に割り、位相順に。融合できる SCC は座標順に一掃する ----
@@ -1592,7 +1606,12 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
             and open(cf, encoding='utf-8').read() == csrc)
     if not same:
         open(cf, "w").write(csrc)
-        r = subprocess.run(["gcc", opt, "-w", "-o", ex, cf],
+        # 大きな生成 C（数十万行）で cc1 が記憶で死ぬ —— GC を強制する。
+        # 意味は変わらず、時間が少し増えるだけ（正しさの焼きには十分）。
+        r = subprocess.run(["gcc", opt, "-w",
+                            "--param", "ggc-min-expand=10",
+                            "--param", "ggc-min-heapsize=32768",
+                            "-o", ex, cf],
                            capture_output=True, text=True)
         if r.returncode: raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
     LATS[ex] = _lats
