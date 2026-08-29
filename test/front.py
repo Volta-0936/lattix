@@ -46,7 +46,7 @@ SRC = assemble()
 
 
 def run_front(path):
-    """front.lx を焼いた測定器で走らせ、家の表（dat/spc/ssz）を読み出す。"""
+    """front.lx を焼いた測定器で走らせ、家の表を読み出す。"""
     data = open(path, 'rb').read()
     rows = [(i, c) for i, c in enumerate(data)] + [(len(data), 32)]
     if SLOW:
@@ -62,14 +62,100 @@ def run_front(path):
     spc = sorted((sp, j, spb[(sp, j)], spw[(sp, j)], sps[(sp, j)])
                  for (sp, j) in spb)
     ssz = sorted((k[0], v) for k, v in g('zssz').items())
-    return dat, spc, ssz
+    return dat, spc, ssz, g
+
+
+def front_family(g):
+    """front.lx の場から fg/fc/fp/写像 を組み立てる（0 は居ない部品の埋め草）。"""
+    zmu = g('zmu')
+    c = {n: g(n) for n in ('zmc', 'zmn', 'zmj0', 'zmc0', 'zmm0', 'zmj1', 'zmc1',
+                           'zmm1', 'zmj2', 'zmc2', 'zmm2', 'zmia', 'zmib',
+                           'zmiu', 'zmia2', 'zmib2', 'zmiu2')}
+    maps = {}
+    for (m,) in zmu:
+        v = lambda n: c[n].get((m,), 0)
+        maps[m] = (v('zmc'), v('zmj0'), v('zmc0'), v('zmm0'),
+                   v('zmj1'), v('zmc1'), v('zmm1'), v('zmj2'), v('zmc2'),
+                   v('zmm2'), v('zmia'), v('zmib'), v('zmiu'),
+                   v('zmia2'), v('zmib2'), v('zmiu2'))
+    st, lat, vf, nsv = g('zfgst'), g('zfglat'), g('zfgvf'), g('zfgns')
+    spof, sszr = g('zspof'), g('zsszr')
+    hasa = g('zhasa')
+    fg = []
+    for (r,) in st:
+        n = nsv.get((r,), 0)
+        zero = r * 32 + 4
+        am = r * 32 + 1 if hasa.get((r,)) else zero
+        bm = r * 32 + 2 if n == 2 else zero
+        wm = g('zwm').get((r,), zero)
+        fg.append((r, spof[(r,)], st[(r,)], lat[(r,)], vf.get((r,), 0), n,
+                   r * 32, am, bm, wm))
+    zfck, zfclt, zfcam, zfcop, zfcwm = (g('zfck'), g('zfclt'), g('zfcam'),
+                                        g('zfcop'), g('zfcwm'))
+    zrnm = g('zrn')
+    fc = []
+    for (s, i), k in zfck.items():
+        r = zrnm.get((s,))
+        if r is None: continue
+        zero = r * 32 + 4
+        fc.append((r, spof[(r,)], st[(r,)], k, zfclt.get((s, i), 0),
+                   zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
+                   zfcwm.get((s, i), zero)))
+    zfpu, zfplt, zfpb, zfpam = g('zfpu'), g('zfplt'), g('zfpb'), g('zfpam')
+    fp = []
+    for (r, u) in zfpu:
+        fp.append((0, spof[(r,)], st[(r,)], 0, zfplt[(r, u)], zfpb[(r, u)],
+                   zfpam[(r, u)], 0, 0, 0, 0))
+    return fg, fc, fp, maps
 
 
 def run_flat(path):
     fl, _ = flatten(path, engine2.close_upto)
     t = fl.tables()
+    live = lambda rs: [tuple(r) for r in rs if len(r) > 2 and r[2] != 999]
+    fg = [tuple(r) for r in t['fg'] if len(r) == 10]
+    maps = {r[0]: tuple(r[1:]) for r in t['mp']}
     return (sorted(map(tuple, t['dat'])), sorted(map(tuple, t['spc'])),
-            sorted(map(tuple, t['ssz'])), fl)
+            sorted(map(tuple, t['ssz'])), fl,
+            fg, live(t['fc']), live(t['fp']), maps)
+
+
+def mapexp(mid, maps, fpbyb, depth=0):
+    """写像の番号 → 中身（間接は番地の面の写しを再帰で開く）。"""
+    if depth > 4: return ('deep',)
+    row = maps[mid]
+    const, slots = row[0], {}
+    for k in range(3):
+        j, c, m = row[1 + 3 * k], row[2 + 3 * k], row[3 + 3 * k]
+        if m: slots[(j, c)] = slots.get((j, c), 0) + m
+    slots = tuple(sorted((jc, m) for jc, m in slots.items() if m))
+    inds = []
+    for base in (10, 13):
+        ia, ib, iu = row[base], row[base + 1], row[base + 2]
+        if iu:
+            fpr = fpbyb.get(ib)
+            pa = (('?', ib) if fpr is None else
+                  (fpr[3], fpr[4], mapexp(fpr[6], maps, fpbyb, depth + 1)))
+            inds.append((ia, pa))
+    return (const, slots, tuple(sorted(inds)))
+
+
+def famnorm(fg, fc, fp, maps, spmap):
+    """規則を中身で名づけ直す —— eid・写像番号・面の基はラベルである。"""
+    fpbyb = {r[5]: r for r in fp}
+    fcby = {}
+    for r in fc: fcby.setdefault(r[0], []).append(r)
+    out = []
+    for row in fg:
+        eid, sp, st, lat, vf, nsc = row[0], row[1], row[2], row[3], row[4], row[5]
+        ex = lambda m: mapexp(m, maps, fpbyb)
+        gs = sorted((q[3], q[4], ex(q[5]), q[6], q[7], ex(q[8]), ex(q[9]),
+                     ex(q[10])) for q in fcby.get(eid, []))
+        out.append((spmap.get(sp), st, lat, vf, nsc, ex(row[6]), ex(row[7]),
+                    ex(row[8]), ex(row[9]), tuple(gs)))
+    loosefp = sorted((r[3], r[4], mapexp(r[6], maps, fpbyb))
+                     for r in fp)
+    return sorted(out), loosefp
 
 
 def normalize(dat, spc, ssz):
@@ -93,12 +179,12 @@ def normalize(dat, spc, ssz):
         axes = sorted((j, regions[base][1], w, step)
                       for s2, j, base, w, step in spc if s2 == sp)
         spaces[sp] = (tuple(axes), sz.get(sp))
-    return sorted(regions.values()), sorted(spaces.values()), leftover
+    return sorted(regions.values()), sorted(spaces.values()), leftover, spaces
 
 
 def diff(a, b):
-    ra, sa, la = a
-    rb, sb, lb = b
+    ra, sa, la = a[:3]
+    rb, sb, lb = b[:3]
     if ra != rb:
         for x, y in zip(ra, rb):
             if x != y: return f"軸: {str(x)[:38]} ≠ {str(y)[:38]}"
@@ -130,14 +216,32 @@ if __name__ == '__main__':
     for f in files:
         n = os.path.basename(f)
         try:
-            dat2, spc2, ssz2, fl = run_flat(f)
+            dat2, spc2, ssz2, fl, ffg, ffc, ffp, fmaps = run_flat(f)
             if fl.nofam:
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
                 continue
-            got = normalize(*run_front(f))
+            if any(f not in fl.p.field_bound for f in fl.p.fields):
+                skip += 1
+                print(f"  {n:<22} —  bound の無い場がある（測る道はまだ）", flush=True)
+                continue
+            dat1, spc1, ssz1, g = run_front(f)
+            got = normalize(dat1, spc1, ssz1)
             want = normalize(dat2, spc2, ssz2)
             why = diff(got, want)
+            if why is None:
+                gfg, gfc, gfp, gmaps = front_family(g)
+                a = famnorm(gfg, gfc, gfp, gmaps, got[3])
+                b = famnorm(ffg, ffc, ffp, fmaps, want[3])
+                if a != b:
+                    fa, fb = a[0], b[0]
+                    why = "fg/fc/fp: "
+                    for x, y in zip(fa, fb):
+                        if x != y:
+                            why += f"{str(x)[:60]} ≠ {str(y)[:60]}"; break
+                    else:
+                        why += (f"規則の数 {len(fa)} ≠ {len(fb)}" if len(fa) != len(fb)
+                                else f"面 {str(a[1])[:40]} ≠ {str(b[1])[:40]}")
         except Exception as ex:
             bad += 1
             print(f"  {n:<22} ✗  {type(ex).__name__}: {str(ex)[:52]}", flush=True)
