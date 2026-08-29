@@ -219,8 +219,11 @@ field zford : max bound 1024            # 順位 → 場
 zford[zfrk[f] - 1] <- f for (f) in 0 .. nfdz[0] if zfrk[f] >= 1
 field zfna : max bound 1024             # 次数（1 か 2）
 zfna[f] <- farr[f] for (f) in 0 .. nfdz[0]
-field zfsz0 : max bound 1024            # 次元0 の広さ + 64
-zfsz0[f] <- fwid[f] + 64 for (f) in 0 .. nfdz[0]
+field zfsz0 : max bound 1024            # 次元0 の広さ（宣言 + 64 / 測った幅）
+zfsz0[f] <- fwid[f] + 64 for (f) in 0 .. nfdz[0] if zfbnd[f]
+zfsz0[f] <- zexth[f] - zextl[f] + 1 for (f) in 0 .. nfdz[0]
+      if not zfbnd[f] if zfused[f] if zexth[f] >= zextl[f]
+zfsz0[f] <- 1 for (f) in 0 .. nfdz[0] if not zfbnd[f] if not zfused[f]
 field zfsz1 : max bound 1024            # 次元1 の広さ + 64（2次のとき）
 zfsz1[f] <- fwid2[f] + 64 for (f) in 0 .. nfdz[0] if zfna[f] == 2
 field zfvol : max bound 1024            # 升の数
@@ -296,9 +299,9 @@ zmn[r * 32 + 4] <- 0 for (r) in 0 .. znrm[0]
 field zdmf : max bound 4096             # 規則 r の頭の場
 zdmf[r] <- ofl[zho[r]] - 1 for (r) in 0 .. znrm[0] if zho[r] >= 0
 zmu[r * 32] <- true for (r) in 0 .. znrm[0] if zho[r] >= 0
-zmc[r * 32] <- zfb[zdmf[r]] + (c0cc[zho[r]] + 64) * zfs0[zdmf[r]]
+zmc[r * 32] <- zfb[zdmf[r]] + (c0cc[zho[r]] - zflo0[zdmf[r]]) * zfs0[zdmf[r]]
       for (r) in 0 .. znrm[0] if c0sr[zho[r]] == 4
-zmc[r * 32] <- zfb[zdmf[r]] + (zsof[zho[r]] + 64) * zfs0[zdmf[r]]
+zmc[r * 32] <- zfb[zdmf[r]] + (zsof[zho[r]] - zflo0[zdmf[r]]) * zfs0[zdmf[r]]
       for (r) in 0 .. znrm[0] if c0sr[zho[r]] <= 1
 zmn[r * 32] <- 0 for (r) in 0 .. znrm[0] if c0sr[zho[r]] == 4
 zmn[r * 32] <- 1 for (r) in 0 .. znrm[0] if c0sr[zho[r]] <= 1
@@ -358,9 +361,9 @@ zrdq[zmis2[r]] <- r * 32 + 25 for (r) in 0 .. znrm[0] if zhasm[r]
 field zrdf : max bound 8192             # その読みの場
 zrdf[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 1
 zmu[zrdq[o]] <- true for (o) in 0 .. nocz[0] if zrdq[o] >= 1
-zmc[zrdq[o]] <- zfb[zrdf[o]] + (c0cc[o] + 64) * zfs0[zrdf[o]]
+zmc[zrdq[o]] <- zfb[zrdf[o]] + (c0cc[o] - zflo0[zrdf[o]]) * zfs0[zrdf[o]]
       for (o) in 0 .. nocz[0] if zrdq[o] >= 1 if c0sr[o] == 4
-zmc[zrdq[o]] <- zfb[zrdf[o]] + (zsof[o] + 64) * zfs0[zrdf[o]]
+zmc[zrdq[o]] <- zfb[zrdf[o]] + (zsof[o] - zflo0[zrdf[o]]) * zfs0[zrdf[o]]
       for (o) in 0 .. nocz[0] if zrdq[o] >= 1 if c0sr[o] <= 1
 zmn[zrdq[o]] <- 0 for (o) in 0 .. nocz[0] if zrdq[o] >= 1 if c0sr[o] == 4
 zmn[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 1 if c0sr[o] <= 1
@@ -689,3 +692,59 @@ print zfgns
 print zwm
 print zmu
 print zmc
+
+# ══ 三枚目 —— 測った広さ ═══════════════════════════════════════════
+#
+# `bound` の無い場の広さは **測って言う**（気づき35）。測るといっても
+# 走らせる必要は無い —— 番地の写像は座標の一次式で、軸の列の下端と上端は
+# dat が知っている。だから場の広さは **区間算術の min/max** で出る。
+# flat.py の「一巡目で測る」は、実はこの静的な計算だった。
+
+field zfbnd : or bound 1024             # 場 f は bound を宣言している
+zfbnd[fdno[t]] <- true for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+field zqspan : max bound 64             # 軸 q の幅 - 1
+zqspan[q] <- zqw[q] - 1 for (q) in 0 .. znqm[0] if zqw[q] >= 1
+field zqcmin : min bound 64 8           # 軸 q の列 c の最小値
+zqcmin[q, c] <- zdat[zqb[q] + i, c] for (q) in 0 .. znqm[0]
+      for (i) in 0 .. zqspan[q] for (c) in 0 .. 7 if zqb[q] >= 1
+field zqcmax : max bound 64 8           # 軸 q の列 c の最大値
+zqcmax[q, c] <- zdat[zqb[q] + i, c] for (q) in 0 .. znqm[0]
+      for (i) in 0 .. zqspan[q] for (c) in 0 .. 7 if zqb[q] >= 1
+
+# ── 写像になった出現ぜんぶが、場の広さの証人である ──────────────────
+field zmoc : or bound 8192              # 写像になった出現
+zmoc[zho[r]] <- true for (r) in 0 .. znrm[0] if zho[r] >= 0
+zmoc[o] <- true for (o) in 0 .. nocz[0] if zrdq[o] >= 1
+field zof2 : max bound 8192             # 出現 o の場
+zof2[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if zmoc[o]
+field zoq : max bound 8192              # 出現 o の添字の軸（源 0/1）
+zoq[o] <- zax[zsr[o], zoj[o]] - 1 for (o) in 0 .. nocz[0] if zmoc[o]
+      if c0sr[o] == 0 if zax[zsr[o], zoj[o]] >= 1
+zoq[o] <- zax[zsr[o], c0cc[o]] - 1 for (o) in 0 .. nocz[0] if zmoc[o]
+      if c0sr[o] == 1 if zax[zsr[o], c0cc[o]] >= 1
+field zocl : max bound 8192             # その軸のどの列か（計数器は 0）
+zocl[o] <- c0cc[o] for (o) in 0 .. nocz[0] if zmoc[o] if c0sr[o] == 0
+zocl[o] <- 0 for (o) in 0 .. nocz[0] if zmoc[o] if c0sr[o] == 1
+field zmol : max bound 8192             # 出現の座標の下端
+zmol[o] <- c0cc[o] for (o) in 0 .. nocz[0] if zmoc[o] if c0sr[o] == 4
+zmol[o] <- zqcmin[zoq[o], zocl[o]] + zsof[o] for (o) in 0 .. nocz[0]
+      if zmoc[o] if c0sr[o] <= 1 if zoq[o] >= 0
+field zmoh : max bound 8192             # 出現の座標の上端
+zmoh[o] <- c0cc[o] for (o) in 0 .. nocz[0] if zmoc[o] if c0sr[o] == 4
+zmoh[o] <- zqcmax[zoq[o], zocl[o]] + zsof[o] for (o) in 0 .. nocz[0]
+      if zmoc[o] if c0sr[o] <= 1 if zoq[o] >= 0
+field zextl : min bound 1024            # 場 f の測った下端
+zextl[zof2[o]] <- zmol[o] for (o) in 0 .. nocz[0] if zmoc[o]
+      if zof2[o] >= 0
+field zexth : max bound 1024            # 場 f の測った上端
+zexth[zof2[o]] <- zmoh[o] for (o) in 0 .. nocz[0] if zmoc[o]
+      if zof2[o] >= 0
+field zfused : or bound 1024            # 一度でも写像に出た場
+zfused[zof2[o]] <- true for (o) in 0 .. nocz[0] if zmoc[o] if zof2[o] >= 0
+
+# ── 広さと下端（bound があれば宣言、無ければ測った値） ──────────────
+field zflo0 : max bound 1024            # 次元0 の下端
+zflo0[f] <- 0 - 64 for (f) in 0 .. nfdz[0] if zfbnd[f]
+zflo0[f] <- zextl[f] for (f) in 0 .. nfdz[0] if not zfbnd[f] if zfused[f]
+      if zexth[f] >= zextl[f]
+zflo0[f] <- 0 for (f) in 0 .. nfdz[0] if not zfbnd[f] if not zfused[f]

@@ -204,7 +204,8 @@ BOOKS = [
     'work/t/o_ctr.lx', 'work/t/p_nest.lx', 'work/t/q_ctrguard.lx',
     'work/t/r_fguard.lx', 'work/t/s_not.lx', 'work/t/u_cross.lx',
     'examples/01_shortest.lx', 'examples/03_time_axis.lx',
-    'examples/26_reach.lx',
+    'examples/26_reach.lx', 'work/t/x_sumstrata.lx', 'work/t/y_paseam.lx',
+    'examples/08_belnap.lx', 'examples/18_ubound.lx',
 ]
 
 if __name__ == '__main__':
@@ -220,10 +221,6 @@ if __name__ == '__main__':
             if fl.nofam:
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
-                continue
-            if any(f not in fl.p.field_bound for f in fl.p.fields):
-                skip += 1
-                print(f"  {n:<22} —  bound の無い場がある（測る道はまだ）", flush=True)
                 continue
             dat1, spc1, ssz1, g = run_front(f)
             got = normalize(dat1, spc1, ssz1)
