@@ -85,7 +85,8 @@ def one(info, path):
     for lt in fl.shapes()[2]:
         pl = PLANE[lt][0]
         if pl in DROP: continue
-        for (c,), v in got.get(f'v{pl}{NS-1}', {}).items():
+        for (sx, c), v in got.get(f'v{pl}', {}).items():
+            if sx != NS - 1: continue
             try: f, keys = fl.name_of(c)
             except (KeyError, IndexError): continue
             out.setdefault(f, {})[keys] = fl.obs(v)

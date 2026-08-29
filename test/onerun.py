@@ -49,8 +49,9 @@ def one(path):
     st2, _, _ = L.run(q, out=io.StringIO())
     got = {}
     for lt in fl.shapes()[2]:
-        nm = f'v{PLANE[lt][0]}{NS-1}'
-        for (c,), v in st2.get(nm, {}).items():
+        nm = f'v{PLANE[lt][0]}'
+        for (sx, c), v in st2.get(nm, {}).items():
+            if sx != NS - 1: continue
             try: f, keys = fl.name_of(c)
             except (KeyError, IndexError): continue
             got.setdefault(f, {})[keys] = fl.obs(q.fields[nm].observe(v))

@@ -109,7 +109,8 @@ def faces(path, info, ddir):
         ans = {}
         for lt in fl.shapes()[2]:
             pl = F.PLANE[lt][0]
-            for (c,), v in got.get(f'v{pl}{NS-1}', {}).items():
+            for (sx, c), v in got.get(f'v{pl}', {}).items():
+                if sx != NS - 1: continue
                 try: f, keys = fl.name_of(c)
                 except (KeyError, IndexError): continue
                 ans.setdefault(f, {})[keys] = fl.obs(v)
