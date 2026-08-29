@@ -53,6 +53,7 @@ zrq[opnx[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 6
 zrq[opnx[t]] <- 4 for (t,zc) in ch if iscmp2[t] if opc2[t] <= 2
 field zonm : or bound 8192              # 精密な非単調の読み
 zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if isneg[t]
+      if zosen[oseq[t]] <= 5
 zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tdep[t] >= 1
       if zosen[oseq[t]] <= 4
 zonm[oseq[tmatch[oppv[t]]]] <- true for (t,zc) in ch if iscmp2[t]
@@ -382,10 +383,15 @@ zfbk[0] <- 0
 zfbk[k] <- zfbk[k-1] + zfvol[zford[k-1]] for (k) in 1 .. nfdz[0]
 field zfb : max bound 1024              # 場 f の基
 zfb[f] <- zfbk[zfrk[f] - 1] for (f) in 0 .. nfdz[0] if zfrk[f] >= 1
+field zkw4 : or bound 262144            # `fourv` の語
+zkw4[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t]
+      if tch[t,0] == 102 if tch[t,1] == 111 if tch[t,2] == 117
+      if tch[t,3] == 114 if tch[t,4] == 118
 field zlatf : max bound 1024            # 束（flat.py の番号: flat は 5）
 zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] <= 3
 zlatf[f] <- 5 for (f) in 0 .. nfdz[0] if flatt[f] == 6
 zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] >= 8
+zlatf[fdno[t]] <- 6 for (t,zc) in ch if isdcl[t] if zkw4[latt[t]]
 field zfws : max bound 1024             # 場 f を書く最大の層（fstr）
 zfws[hfz[s]] <- zlevel[s] for (s) in 0 .. nstz[0] if zisr[s] if hfz[s] >= 0
 
@@ -557,6 +563,13 @@ zmm0[zrdq[o]] <- zfs0[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 1
 # ── 値の一次式: 定数の和と、変数の枠 ────────────────────────────────
 field ztrue : or bound 4096             # 値が true の文
 ztrue[snum[t]] <- true for (t,zc) in ch if kwtru[t] if aftarw[t]
+      if cnum[t] == 0 if tdep[t] == 0
+field zkwfls : or bound 262144          # `false` の語
+zkwfls[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t]
+      if tch[t,0] == 102 if tch[t,1] == 97 if tch[t,2] == 108
+      if tch[t,3] == 115 if tch[t,4] == 101
+field zfalse : or bound 4096            # 値が false の文
+zfalse[snum[t]] <- true for (t,zc) in ch if zkwfls[t] if aftarw[t]
       if cnum[t] == 0 if tdep[t] == 0
 field zhask : or bound 4096             # 定数の項がある（規則）
 zhask[zrn[snum[t]]] <- true for (t,zc) in ch if istrmn[t]
@@ -837,6 +850,10 @@ zfck[s, i] <- 3 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if gkd[s, i] == 9 if zgpo[s, i] >= 0
 zfck[s, i] <- 2 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if gkd[s, i] == 2 if zgpo[s, i] >= 0
+      if zlatf[ofl[zgpo[s, i]] - 1] <= 5
+zfck[s, i] <- 5 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if gkd[s, i] == 2 if zgpo[s, i] >= 0
+      if zlatf[ofl[zgpo[s, i]] - 1] == 6
 zfclt[s, i] <- zlatf[ofl[zgpo[s, i]] - 1] for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if gkd[s, i] >= 2 if gkd[s, i] <= 2 if zgpo[s, i] >= 0
 zfclt[s, i] <- zlatf[ofl[zgpo[s, i]] - 1] for (s) in 0 .. nstz[0]
@@ -861,6 +878,8 @@ zone1[zrn[s]] <- true for (s) in 0 .. nstz[0] if zisr[s] if zrn[s] >= 0
       if ztn[s] == 1 if zns[zrn[s]] == 1
 field zfgvf : max bound 4096
 zfgvf[zrn[s]] <- 2 for (s) in 0 .. nstz[0] if zisr[s] if ztrue[s]
+      if zrn[s] >= 0
+zfgvf[zrn[s]] <- 5 for (s) in 0 .. nstz[0] if zisr[s] if zfalse[s]
       if zrn[s] >= 0
 zfgvf[zrn[s]] <- 1 for (s) in 0 .. nstz[0] if zisr[s] if not ztrue[s]
       if zrn[s] >= 0 if zhasa[zrn[s]] if not zone1[zrn[s]]
