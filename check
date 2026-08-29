@@ -13,6 +13,7 @@ run() {  # run <name> <script> [timeout]
 }
 echo "-- correctness ------------------------------------------"
 run "verify      determinism"  test/verify.py
+run "axisstrat   stratum is a coordinate" test/axisstrat.py 600
 run "nativecheck C==interp"    test/nativecheck.py
 run "runtime     data at runtime" test/runtimecheck.py
 run "rtattest    runtime certified" test/runtimeattest.py

@@ -408,6 +408,7 @@ class Program:
         self.sense = {}
         self.conservative = False
         self.strata = []          # list[list[Rule]] filled by stratify()
+        self._axis = {}           # field -> 成層の時計が立つ軸（_axis_unroll が刻む）
         self.critical_path = []
         self.certificates = {}
         self.io = 0
@@ -1443,6 +1444,92 @@ def dependency_edges(prog):
     return edges
 
 
+def _const_int(e):
+    """定数に畳めるなら int、畳めなければ None。"""
+    if e[0] == 'int': return e[1]
+    if e[0] == 'bin':
+        a, b = _const_int(e[2]), _const_int(e[3])
+        if a is None or b is None: return None
+        try:
+            return {'+': a + b, '-': a - b, '*': a * b,
+                    '/': a // b, '%': a % b}[e[1]]
+        except ZeroDivisionError:
+            return None
+    return None
+
+
+def _axis_unroll(prog, ids):
+    """**局所成層の決定可能な十分条件 —— 展開そのものが証明である。**
+
+    場の粒度の成層器は、否定が同じ場の *小さい座標* を読む形
+    （lvl[s, c] が lvl[s-1, c'] を否定で読む）を輪と見なして棄却する。
+    だが座標が静的な区間 `for (s) in lo .. hi` で束ねられているなら、
+    s を代入して展開した具体例の集合は **元のプログラムと同一のグラウンド
+    集合**であり、展開後のグラフで成層が立てば、それは s に沿った整礎帰納の
+    証明である（依存距離が正なら軸を逐次に回してよい —— 多面体の合法性と
+    同じ主張）。判断は増やさない: 展開して、同じ成層器にもう一度判定させる。
+
+    展開するのは棄却された SCC の規則だけ。各規則は「目標の座標に現れる、
+    静的な区間の変数」を一つ持たねばならない（書き先の時計）。無ければ
+    諦めて元の棄却を返す。展開の上限は 65,536 具体例 —— 超えたら声に出す。
+    """
+    todo = [prog.rules[i] for i in ids]
+    plans = []
+    total = 0
+    axis = {}                      # 場 → 軸の位置（書き先の時計が立つ列）
+    for r in todo:
+        pick = None
+        for vs, src in r.sources:
+            if not (len(vs) == 1 and isinstance(src, tuple) and src[0] == '..'):
+                continue
+            dims = [d for d, k in enumerate(r.keys) if k == ('var', vs[0])]
+            if not dims: continue
+            lo, hi = _const_int(src[1]), _const_int(src[2])
+            if lo is not None and hi is not None and lo <= hi:
+                pick = (vs[0], lo, hi, dims[0]); break
+        if pick is None: return False
+        d0 = axis.setdefault(r.target, pick[3])
+        if d0 != pick[3]: return False     # 同じ場に二つの時計は持てない
+        total += pick[2] - pick[1] + 1
+        plans.append((r, pick))
+    # 展開しない書き手が居る場は、その書き手の座標が不明（総当たり）になる。
+    # それでも裂く価値はある —— 不明は保守的に全員へ繋ぐだけである。
+    for f, d in axis.items():
+        prog._axis[f] = d
+    if total > 65536:
+        raise LattixError(
+            f"axis unrolling would create {total} rule instances (cap 65536) —\n"
+            f"    the stratification axis range is too wide to elaborate.")
+    out = []
+    for r in prog.rules:
+        plan = next((pl for rr, pl in plans if rr is r), None)
+        if plan is None:
+            out.append(r); continue
+        var, lo, hi, _d = plan
+        for v in range(lo, hi + 1):
+            vm = {var: ('int', v)}
+            srcs = []
+            for vs, src in r.sources:
+                if len(vs) == 1 and vs[0] == var and isinstance(src, tuple) \
+                        and src[0] == '..':
+                    continue
+                if isinstance(src, tuple) and src[0] == '..':
+                    srcs.append((vs, ('..', _subst(src[1], {}, vm),
+                                      _subst(src[2], {}, vm))))
+                else:
+                    srcs.append((vs, src))
+            nr = Rule(r.target, [_subst(k, {}, vm) for k in r.keys],
+                      _subst(r.value, {}, vm), srcs,
+                      [_subst(g, {}, vm) for g in r.guards], r.lineno)
+            nr.reads = set(r.reads)
+            nr.mono_reads = set(r.mono_reads)
+            nr.nonmono_reads = set(r.nonmono_reads)
+            out.append(nr)
+    prog.rules = out
+    for i, r in enumerate(prog.rules): r.id = i
+    return True
+
+
 def stratify(prog):
     """Assign each rule the smallest stratum consistent with soundness.
 
@@ -1450,24 +1537,87 @@ def stratify(prog):
     edge W --1--> R : R non-monotonically reads it (must be strictly later)
 
     Minimal depth = weighted longest path.  A 1-edge inside a cycle means
-    recursion through negation: no stratification exists, at all.
+    recursion through negation: no stratification exists —— unless the cycle
+    descends a statically bounded coordinate, in which case unrolling that
+    axis elaborates the local stratification (see `_axis_unroll`).
     """
+    for _attempt in range(8):
+        bad = _stratify_core(prog)
+        if bad is None:
+            return prog._depth
+        ids, err = bad
+        if not _axis_unroll(prog, ids):
+            raise err
+    raise err
+
+
+def _fref_axis_coords(e, f, d, out):
+    """式の中の場 f の読みについて、軸 d の座標（定数）を集める。
+    定数でない読みは None（不明＝全員に繋ぐ）。"""
+    k = e[0]
+    if k == 'fref':
+        if e[1] == f:
+            out.add(_const_int(e[2][d]) if d < len(e[2]) else None)
+        for x in e[2]: _fref_axis_coords(x, f, d, out)
+    elif k == 'ctor':
+        for x in e[2]: _fref_axis_coords(x, f, d, out)
+    elif k in ('bin', 'cmp', 'fn'):
+        _fref_axis_coords(e[2], f, d, out); _fref_axis_coords(e[3], f, d, out)
+    elif k == 'geq':
+        _fref_axis_coords(e[1], f, d, out); _fref_axis_coords(e[2], f, d, out)
+    elif k in ('not', 'bnot'):
+        _fref_axis_coords(e[1], f, d, out)
+    elif k == 'set':
+        for x in e[1]: _fref_axis_coords(x, f, d, out)
+
+
+def _stratify_core(prog):
     n = len(prog.rules)
     writers = defaultdict(list)
     for r in prog.rules:
         writers[r.target].append(r.id)
+
+    # **座標で場を裂く。** 軸を持つ場（_axis_unroll が刻む）は、書き先の
+    # 軸座標が定数 c、読みの軸座標が定数 c' で c != c' なら、そのグラウンド
+    # 辺は存在しない —— 場の粒度の総当たりから、無い辺を引くだけである。
+    # 字面展開の engine が通っていたのは名前が座標を持っていたからで
+    # （vf0, vf1, …）、これは同じ判断を名前ではなく数で行う。
+    axis = getattr(prog, '_axis', {})
+    wc = {}
+    for r in prog.rules:
+        d = axis.get(r.target)
+        wc[r.id] = _const_int(r.keys[d]) if d is not None and d < len(r.keys) \
+                   else None
+
+    def rcoords(r, f):
+        d = axis.get(f)
+        if d is None: return {None}
+        out = set()
+        for e in r.keys + [r.value] + r.guards:
+            _fref_axis_coords(e, f, d, out)
+        for vs, src in r.sources:
+            if isinstance(src, tuple) and src[0] == '..':
+                _fref_axis_coords(src[1], f, d, out)
+                _fref_axis_coords(src[2], f, d, out)
+        return out or {None}
+
+    def joined(w, r, f):
+        if f not in axis: return True
+        rs = rcoords(r, f)
+        return None in rs or wc[w] is None or wc[w] in rs
 
     edges = []          # (u, v, w)
     succ = [[] for _ in range(n)]
     for r in prog.rules:
         for f in r.mono_reads:
             for w in writers.get(f, ()):
-                if w != r.id:            # self-loop at weight 0 is just iteration
+                if w != r.id and joined(w, r, f):
                     edges.append((w, r.id, 0)); succ[w].append(r.id)
         for f in r.nonmono_reads:
             for w in writers.get(f, ()):
                 # a weight-1 self-loop IS the ill-posed case; keep it
-                edges.append((w, r.id, 1)); succ[w].append(r.id)
+                if joined(w, r, f):
+                    edges.append((w, r.id, 1)); succ[w].append(r.id)
         # 外界との往復: そのチャネルへ emit する規則より真に後でなければ、
         # 応答を読むことはできない。これが逐次性の *本当の* 出どころである。
         for f in r.reads:
@@ -1483,7 +1633,8 @@ def stratify(prog):
     for (u, v, w) in edges:
         if w == 1 and comp[u] == comp[v]:
             cyc = sorted({prog.rules[i].target for i in range(n) if comp[i] == comp[u]})
-            raise LattixError(
+            ids = [i for i in range(n) if comp[i] == comp[u]]
+            err = LattixError(
                 "unstratifiable program: recursion through a non-monotone "
                 "dependency.\n"
                 f"    fields in the cycle: {', '.join(cyc)}\n"
@@ -1494,6 +1645,7 @@ def stratify(prog):
                 f"    REPAIR: retype {' / '.join(cyc)} to `fourv`. Belnap negation is\n"
                 f"    monotone in the knowledge order, so the cycle acquires a least\n"
                 f"    fixpoint and the undecided coordinates come back as ⊥.")
+            return (ids, err)
 
     cedges = defaultdict(int)
     for (u, v, w) in edges:
@@ -1537,7 +1689,8 @@ def stratify(prog):
             chain.append("+".join(members))
             c = pred[c]
         prog.critical_path = list(reversed(chain))
-    return depth
+    prog._depth = depth
+    return None
 
 
 # ==========================================================================
