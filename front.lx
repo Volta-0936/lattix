@@ -64,20 +64,64 @@ znrr[z] <- zrgc[g] for (g) in 0 .. znglm[0] for (z) in 0 .. 0
 field zhasu : or bound 1                # 点が一つの空間を使う規則がある
 zhasu[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if zisr[s]
       if not hasfor[s]
+# ── 表は何枚でもよい。行は **全表を通した鎖**で数え、名前は鍵で引く ──
+field ztbs : max bound 4096             # 表の文 s → 表番号（0 起点）
+ztbs[s] <- ctb[s] - 1 for (s) in 0 .. nstz[0] if istb[s] if ctb[s] >= 1
+field ztrw : max bound 262144           # 全表を通した行番号（1 起点の鎖）
+ztrw[0] <- 0
+ztrw[t] <- ztrw[t-1] for (t,zc) in ch if t >= 1 if not rowbk[t]
+ztrw[t] <- ztrw[t-1] for (t,zc) in ch if t >= 1 if rowbk[t]
+      if not istb[snum[t]]
+ztrw[t] <- ztrw[t-1] + 1 for (t,zc) in ch if t >= 1 if rowbk[t]
+      if istb[snum[t]]
+field zisnm : or bound 262144           # 名前の鍵が要るトークン
+zisnm[nextw[t]] <- true for (t,zc) in ch if kwtbl[t] if sbrk[t]
+zisnm[int1[t]] <- true for (t,zc) in ch if kwin[t] if not isnum[int1[t]]
+field zink : max bound 262144 8         # 名前の鍵（文字の鎖）
+zink[t, 0] <- tch[t, 0] for (t,zc) in ch if zisnm[t]
+zink[t, k] <- zink[t, k-1] * 128 + tch[t, k] for (t,zc) in ch
+      for (k) in 1 .. 7 if zisnm[t] if k <= tlen[t] - 1
+field ztnk : max bound 262144           # 名前の鍵（詰めた一語）
+ztnk[t] <- zink[t, tlen[t] - 1] for (t,zc) in ch if zisnm[t]
+      if tlen[t] >= 1
+field ztdn : max bound 262144           # 表の宣言の名前トークン → 表番号
+ztdn[nextw[t]] <- ztbs[snum[t]] for (t,zc) in ch if kwtbl[t] if sbrk[t]
+      if ztbs[snum[t]] >= 0
+field zdnm : or bound 262144            # 表の宣言の名前トークン
+zdnm[nextw[t]] <- true for (t,zc) in ch if kwtbl[t] if sbrk[t]
+field ztbmt : max bound 262144          # 源の名前トークン → 表番号（鍵で引く）
+ztbmt[t] <- ztdn[t2] for (t,zc) in ch for (t2,zc2) in ch if zisnm[t]
+      if not zdnm[t] if zdnm[t2] if ztnk[t] == ztnk[t2] if ztdn[t2] >= 0
+field zltb : max bound 2048             # 表のループ g → 表番号
+zltb[glno[t] - 1] <- ztbmt[int1[t]] for (t,zc) in ch if kwin[t]
+      if not isnum[int1[t]] if ztbmt[int1[t]] >= 0 if glno[t] >= 1
+field ztbud : or bound 64               # 表 tb は源に使われている
+ztbud[zltb[g]] <- true for (g) in 0 .. znglm[0] if lpk[g] == 0
+      if zltb[g] >= 0
 field ztbu : or bound 1                 # 表を源に使うループがある
 ztbu[z] <- true for (g) in 0 .. znglm[0] for (z) in 0 .. 0 if lpk[g] == 0
+field zntb : max bound 1                # 表の数 - 1
+zntb[z] <- 0 for (z) in 0 .. 0
+zntb[z] <- ztbs[s] for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if istb[s]
+      if ztbs[s] >= 0
+field ztbc : max bound 64               # tb までの使われた表の数（tb を含む）
+ztbc[0] <- 0 for (z) in 0 .. 0 if not ztbud[0]
+ztbc[0] <- 1 for (z) in 0 .. 0 if ztbud[0]
+ztbc[tb] <- ztbc[tb-1] for (tb) in 1 .. zntb[0] if not ztbud[tb]
+ztbc[tb] <- ztbc[tb-1] + 1 for (tb) in 1 .. zntb[0] if ztbud[tb]
 field znu : max bound 1                 # 番兵の軸の数（0 か 1）
 znu[z] <- 0 for (z) in 0 .. 0 if not zhasu[z]
 znu[z] <- 1 for (z) in 0 .. 0 if zhasu[z]
-field znt : max bound 1                 # 表の軸の数（0 か 1。表は一つ —— 33_self の約束）
+field znt : max bound 1                 # 表の軸の数
 znt[z] <- 0 for (z) in 0 .. 0 if not ztbu[z]
-znt[z] <- 1 for (z) in 0 .. 0 if ztbu[z]
+znt[z] <- ztbc[tb] for (tb) in 0 .. zntb[0] for (z) in 0 .. 0 if ztbu[z]
 field znq : max bound 1                 # 軸の数ぜんぶ
 znq[z] <- znu[z] + znt[z] + znrr[z] for (z) in 0 .. 0
 field znqm : max bound 1
 znqm[z] <- znq[z] - 1 for (z) in 0 .. 0
-field ztqid : max bound 1               # 表の軸の番号（＝番兵の有無）
-ztqid[z] <- znu[z] for (z) in 0 .. 0
+field zqoft : max bound 64              # 表 tb の軸の番号
+zqoft[tb] <- znu[z] + ztbc[tb] - 1 for (tb) in 0 .. zntb[0]
+      for (z) in 0 .. 0 if ztbud[tb] if ztbc[tb] >= 1
 field zrgno : max bound 2048            # 区間ループ g の軸の番号（代表）
 zrgno[g] <- znu[z] + znt[z] + zrgc[g] - 1 for (g) in 0 .. znglm[0]
       for (z) in 0 .. 0 if zrrep[g]
@@ -85,26 +129,41 @@ field zrgof : max bound 2048            # 区間ループ g の軸の番号（�
 zrgof[g] <- zrgno[h] for (g) in 0 .. znglm[0] for (h) in 0 .. znglm[0]
       if lpk[g] == 1 if zrrep[h] if zrky[h] == zrky[g]
 
-# ── 軸の属性: 幅・下端・中身の列数 ──────────────────────────────────
+# ── 軸の属性: 幅・下端・中身の列数（表ごと） ────────────────────────
 # `table steps = range(0, 18)` は **半開区間の省略記法**である —— 参照実装は
 # 18 行（0..17）に開く。字句の上では一行二列 (0, 18) にしか見えないので、
 # `range` の語を見た表だけ、行を区間として開き直す。
-field ztrg : or bound 1                 # 表が range(...) で書かれている
-ztrg[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if istb[snum[t]]
+field ztrgt : or bound 64               # 表 tb は range(...) で書かれている
+ztrgt[ztbs[snum[t]]] <- true for (t,zc) in ch if istb[snum[t]]
       if tlen[t] == 5 if not tcom[t] if tch[t,0] == 114 if tch[t,1] == 97
       if tch[t,2] == 110 if tch[t,3] == 103 if tch[t,4] == 101
-field ztlo : max bound 1                # range の下端
-ztlo[z] <- tbrow[1, 0] for (z) in 0 .. 0 if ztrg[z]
-field zthi : max bound 1                # range の上端（半開）
-zthi[z] <- tbrow[1, 1] for (z) in 0 .. 0 if ztrg[z]
-field ztbn : max bound 1                # 表の行の数
-ztbn[z] <- rowc[t] for (t,zc) in ch for (z) in 0 .. 0 if isnum[t]
-      if istb[snum[t]] if tdep[t] == 1 if not ztrg[z]
-ztbn[z] <- zthi[z] - ztlo[z] for (z) in 0 .. 0 if ztrg[z]
-      if zthi[z] >= ztlo[z]
+      if ztbs[snum[t]] >= 0
+field ztrmin : min bound 64             # 表 tb の最初の行（通し番号）
+ztrmin[ztbs[snum[t]]] <- ztrw[t] for (t,zc) in ch if rowbk[t]
+      if istb[snum[t]] if ztbs[snum[t]] >= 0
+field ztrmax : max bound 64             # 表 tb の最後の行（通し番号）
+ztrmax[ztbs[snum[t]]] <- ztrw[t] for (t,zc) in ch if rowbk[t]
+      if istb[snum[t]] if ztbs[snum[t]] >= 0
+field ztlot : max bound 64              # range の下端
+ztlot[ztbs[snum[t]]] <- tval[nextw[t]] for (t,zc) in ch
+      if istb[snum[t]] if rowbk[t] if ztrgt[ztbs[snum[t]]]
+      if ztbs[snum[t]] >= 0
+field zthit : max bound 64              # range の上端（半開）
+zthit[ztbs[snum[t]]] <- tval[nextw[nextw[nextw[t]]]] for (t,zc) in ch
+      if istb[snum[t]] if rowbk[t] if ztrgt[ztbs[snum[t]]]
+      if ztbs[snum[t]] >= 0
+field ztbnn : max bound 64              # 表 tb の行の数
+ztbnn[tb] <- ztrmax[tb] - ztrmin[tb] + 1 for (tb) in 0 .. zntb[0]
+      if not ztrgt[tb] if ztrmax[tb] >= ztrmin[tb]
+ztbnn[tb] <- zthit[tb] - ztlot[tb] for (tb) in 0 .. zntb[0]
+      if ztrgt[tb] if zthit[tb] >= ztlot[tb]
+field zncolt : max bound 64             # 表 tb の列の数 - 1
+zncolt[ztbs[snum[t]]] <- colc[t] for (t,zc) in ch if isnum[t]
+      if istb[snum[t]] if tdep[t] == 1 if ztbs[snum[t]] >= 0
 field zqw : max bound 64                # 軸 q の幅（行の数）
 zqw[0] <- 1 for (z) in 0 .. 0 if zhasu[z]
-zqw[ztqid[z]] <- ztbn[z] for (z) in 0 .. 0 if ztbu[z] if ztbn[z] >= 1
+zqw[zqoft[tb]] <- ztbnn[tb] for (tb) in 0 .. zntb[0] if ztbud[tb]
+      if zqoft[tb] >= 0 if ztbnn[tb] >= 1
 zqw[zrgno[g]] <- lphi[g] - lplo[g] + 1 for (g) in 0 .. znglm[0]
       if zrrep[g] if lphi[g] >= lplo[g]
 field zqb : max bound 64                # 軸 q の基（前置きの鎖。行 0 は空けておく）
@@ -112,23 +171,24 @@ zqb[0] <- 1
 zqb[q] <- zqb[q-1] + zqw[q-1] for (q) in 1 .. znqm[0]
 
 # ── dat: 軸の中身 ──────────────────────────────────────────────────
-field zncm : max bound 1                # 表の列の数 - 1
-zncm[z] <- ncol[z] - 1 for (z) in 0 .. 0
-field ztbh : or bound 8192 8            # 表の (行, 列) に数が書いてある
-ztbh[rowc[t], colc[t]] <- true for (t,zc) in ch if isnum[t]
-      if istb[snum[t]] if tdep[t] == 1
+field ztbh2 : or bound 8192 8           # (通し行, 列) に数が書いてある
+ztbh2[ztrw[t], colc[t]] <- true for (t,zc) in ch if isnum[t]
+      if istb[snum[t]] if tdep[t] == 1 if ztrw[t] >= 1
+field ztbv : max bound 8192 8           # (通し行, 列) の値
+ztbv[ztrw[t], colc[t]] <- tval[t] for (t,zc) in ch if isnum[t]
+      if istb[snum[t]] if tdep[t] == 1 if ztrw[t] >= 1
+field ztsp2 : max bound 64              # 表 tb の行の数 - 1
+ztsp2[tb] <- ztbnn[tb] - 1 for (tb) in 0 .. zntb[0] if ztbnn[tb] >= 1
 field zdat : max bound 8192 8           # 家の dat（行, 列 → 値）
 zdat[1, 0] <- 0 for (z) in 0 .. 0 if zhasu[z]
-zdat[zqb[ztqid[z]] + r - 1, c] <- tbrow[r, c] for (z) in 0 .. 0
-      for (r) in 1 .. ztbn[0] for (c) in 0 .. zncm[0] if ztbu[z] if ztbh[r, c]
-      if not ztrg[z]
-zdat[zqb[ztqid[z]] + r - 1, c] <- 0 for (z) in 0 .. 0
-      for (r) in 1 .. ztbn[0] for (c) in 0 .. zncm[0] if ztbu[z] if not ztbh[r, c]
-      if not ztrg[z]
-field ztsp : max bound 1                # range の幅 - 1
-ztsp[z] <- zthi[z] - ztlo[z] - 1 for (z) in 0 .. 0 if zthi[z] >= ztlo[z]
-zdat[zqb[ztqid[z]] + i, 0] <- ztlo[z] + i for (z) in 0 .. 0
-      for (i) in 0 .. ztsp[0] if ztbu[z] if ztrg[z]
+zdat[zqb[zqoft[tb]] + i, c] <- ztbv[ztrmin[tb] + i, c] for (tb) in 0 .. zntb[0]
+      for (i) in 0 .. ztsp2[tb] for (c) in 0 .. zncolt[tb] if ztbud[tb]
+      if not ztrgt[tb] if ztbh2[ztrmin[tb] + i, c] if zqoft[tb] >= 0
+zdat[zqb[zqoft[tb]] + i, c] <- 0 for (tb) in 0 .. zntb[0]
+      for (i) in 0 .. ztsp2[tb] for (c) in 0 .. zncolt[tb] if ztbud[tb]
+      if not ztrgt[tb] if not ztbh2[ztrmin[tb] + i, c] if zqoft[tb] >= 0
+zdat[zqb[zqoft[tb]] + i, 0] <- ztlot[tb] + i for (tb) in 0 .. zntb[0]
+      for (i) in 0 .. ztsp2[tb] if ztbud[tb] if ztrgt[tb] if zqoft[tb] >= 0
 field zrspan : max bound 2048           # 区間ループ g の幅 - 1（数え上げの上端）
 zrspan[g] <- lphi[g] - lplo[g] for (g) in 0 .. znglm[0]
       if zrrep[g] if lphi[g] >= lplo[g]
@@ -138,8 +198,8 @@ zdat[zqb[zrgno[g]] + i, 0] <- lplo[g] + i for (g) in 0 .. znglm[0]
 # ── 規則の軸の列（枠は四つ。0 は「無い」、q+1 が入る） ───────────────
 field zax : max bound 4096 4            # 規則 r の j 番目の軸 + 1
 zax[r, j] <- 0 for (r) in 0 .. znrm[0] for (j) in 0 .. 3
-zax[zlpr[g], lpi[g]] <- ztqid[z] + 1 for (g) in 0 .. znglm[0]
-      for (z) in 0 .. 0 if lpk[g] == 0
+zax[zlpr[g], lpi[g]] <- zqoft[zltb[g]] + 1 for (g) in 0 .. znglm[0]
+      if lpk[g] == 0 if zltb[g] >= 0 if zqoft[zltb[g]] >= 0
 zax[zlpr[g], lpi[g]] <- zrgof[g] + 1 for (g) in 0 .. znglm[0] if lpk[g] == 1
 zax[zrn[s], 0] <- 1 for (s) in 0 .. nstz[0] if zisr[s] if not hasfor[s]
 
@@ -207,11 +267,22 @@ print zspof
 # ラベルであって意味を持たない（突き合わせは中身で比べる）。
 
 # ── 場の置き場（lay） ───────────────────────────────────────────────
+# dkey は **綴りの長さぶんだけ**詰めた鍵なので、短い名前ほど小さくなって
+# 辞書順にならない（"far" < "dist"）。左詰めに直す —— 8 文字ぶんに伸ばす。
+field zp128 : max bound 16              # 128 のべき（鎖）
+zp128[0] <- 1
+zp128[k] <- zp128[k-1] * 128 for (k) in 1 .. 8
+field zfln : max bound 1024             # 場 f の名前の長さ
+zfln[fdno[t]] <- tlen[t] for (t,zc) in ch if isdcl[t]
+field zfky : max bound 1024             # 左詰めの鍵（辞書順 = 数の順）
+zfky[f] <- dkey[f+1] * zp128[8 - zfln[f]] for (f) in 0 .. nfdz[0]
+      if zfln[f] <= 8
+zfky[f] <- dkey[f+1] for (f) in 0 .. nfdz[0] if zfln[f] >= 9
 field zfles : or bound 1024 1024        # 場 f の名は場 g の名より小さい
 zfles[f,g] <- true for (f) in 0 .. nfdz[0] for (g) in 0 .. nfdz[0]
-      if dkey[f+1] <= dkey[g+1] - 1
+      if zfky[f] <= zfky[g] - 1
 zfles[f,g] <- true for (f) in 0 .. nfdz[0] for (g) in 0 .. nfdz[0]
-      if dkey[f+1] == dkey[g+1] if dkey2[f+1] <= dkey2[g+1] - 1
+      if zfky[f] == zfky[g] if dkey2[f+1] <= dkey2[g+1] - 1
 field zfrk : count bound 1024           # 辞書順の順位 + 1
 zfrk[f] <- 1 for (f) in 0 .. nfdz[0]
 zfrk[f] <- 1 for (f) in 0 .. nfdz[0] for (g) in 0 .. nfdz[0] if zfles[g,f]
