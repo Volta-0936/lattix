@@ -553,7 +553,10 @@ class Flatten:
             fl = [a[1]] + [x[1] for x in _frefs(b)]
             if not _addok(b):
                 raise NotImplementedError("多面体のガードの右辺")
-            rb = list(_frefs(b))
+            # **加法の骨組みの上の読みだけが項である**（気づき28）。添字の中の
+            # 読みは座標であって項ではない —— _frefs で拾うと `q[a[i]] + 1` の
+            # `a[i]` が重みに化けて、答えに足し込まれる（黙って違う答え）。
+            rb = list(_tops(b))
             if len(rb) > 2:
                 raise NotImplementedError("多面体のガードの右辺が三つ以上の升")
             # **閉じた読みと flat の読みは pa に写せる** —— そうすれば比較は
@@ -648,7 +651,12 @@ class Flatten:
             # pa の変換の鎖で書ける（pchain）。値の写像はその間接を読むだけ。
             vf, srcs = 0, []
         else:
-            fl = [x for x in _frefs(e)]
+            # 項は **加法の骨組みの上の読み**だけ（_tops）。_frefs は添字の
+            # 中まで降りるので、`_size[a[i]] + 1` の内側の `a[i]` が mis に
+            # 入り、重みの間接として **値に足し込まれていた** —— _size は
+            # どの本も print しないので、三面鏡にも映らなかった（気づき29）。
+            # 二つ目の実装（front.lx）が突き合わせで出した（気づき49）。
+            fl = [x for x in _tops(e)]
             if not _addok(e): raise _NoFam('値が足し算の形でない')
             # **束の合わない読みは、閉じた面から `pa` に写して間接で読む。**
             # 点の道の tolat（閉じた面から写す）と同じ判断で、機構は
