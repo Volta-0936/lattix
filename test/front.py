@@ -233,7 +233,7 @@ BOOKS = [
     'examples/01_shortest.lx', 'examples/03_time_axis.lx',
     'examples/26_reach.lx', 'work/t/x_sumstrata.lx', 'work/t/y_paseam.lx',
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
-    'work/t/z_mixlat.lx',
+    'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
 ]
 
 if __name__ == '__main__':
