@@ -8,7 +8,7 @@
 #   辺の上限: 6136   指し番号の上限: 3996
 #
 #   プログラムごとに変わるのは **表だけ**である。
-#   規則の数 313 行は、言語の形の数であって
+#   規則の数 316 行は、言語の形の数であって
 #   プログラムの大きさではない。
 
 # ══ 走らせる物 —— 寄与の関係を閉じる ════════════════════════════
@@ -19,13 +19,13 @@
 #  軸の中身は `dat` の行に置いてある（区間も表と同じ形）。
 field D : flat bound 1002 6
 D[r,c] <- v            for (r,c,v) in dat
-field SB : max bound 24 4
+field SB : max bound 28 4
 SB[sp,j] <- b   for (sp,j,b,w,d) in spc
-field SW : max bound 24 4
+field SW : max bound 28 4
 SW[sp,j] <- w   for (sp,j,b,w,d) in spc
-field SD : max bound 24 4
+field SD : max bound 28 4
 SD[sp,j] <- d   for (sp,j,b,w,d) in spc
-field SZ : max bound 24
+field SZ : max bound 28
 SZ[sp] <- n            for (sp,n) in ssz
 field MC : max bound 812
 MC[x] <- k0            for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2) in mp
@@ -78,7 +78,7 @@ field nc : count bound 16 6136
 field ng : count bound 16 6136
 field ok : or bound 16 6136
 field ct : flat bound 16 437671048959211563
-field pa : flat bound 16 123122
+field pa : flat bound 16 137378
 pa[s, 0] <- 0   for (s) in 0 .. 15
 field fq : count bound 16 6136
 field fn : count bound 16 6136 10368
@@ -144,7 +144,6 @@ nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if s
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 9 if op == 3 if n == 0 if vc[s - 1, rz[s, c]] >= w
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 2 if lat == 3 if not vo[s - 1, rz[s, c]]
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 3 if lat == 3 if vo[s, rz[s, c]]
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 3 if lat == 5 if vf[s, rz[s, c]]
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 1 if vn[s, rz[s, c]] is w
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 5 if vf[s, rz[s, c]] is w
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 8 if vm[s, rz[s, c]] is w
@@ -158,7 +157,11 @@ nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if s
 ok[s, e] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st == s if nc[s, e] >= ng[s, e]
 ok[s, e] <- ok[s - 1, e]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st < s
 # ── 値で決まる座標を番地の面へ写す。その層までの写しを全部持つ。──
+pa[s, pb + t] <- vc[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == -9
+pa[s, pb + t] <- v4[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == -6
 pa[s, pb + t] <- vf[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == -5
+pa[s, pb + t] <- vo[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == -3
+pa[s, pb + t] <- vx[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == -2
 pa[s, pb + t] <- vn[s - 1, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 1 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == 1
 pa[s, pb + t] <- vx[s - 1, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 1 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == 2
 pa[s, pb + t] <- vo[s - 1, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 1 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 0 if lat == 3

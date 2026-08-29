@@ -156,13 +156,6 @@ def front_family(g):
         fc.append((r, spof[(r,)], st[(r,)], k, zfclt.get((s, i), 0),
                    zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
                    zfcwm.get((s, i), zero)))
-    # 合成規則は host のガードを継ぐ（写像は内容で共有される）
-    zsyrr, zrnm2 = g('zsyrr'), zrnm
-    hostfc = {}
-    for row in fc: hostfc.setdefault(row[0], []).append(row)
-    for (rp,), rh in zsyrr.items():
-        for row in hostfc.get(rh, []):
-            fc.append((rp, spof[(rp,)], st[(rp,)]) + row[3:])
     zfpu, zfplt, zfpb, zfpam = g('zfpu'), g('zfplt'), g('zfpb'), g('zfpam')
     zfpk, zfpmo, zfpsr = g('zfpk'), g('zfpmo'), g('zfpsr')
     zfps2, zfpx = g('zfps2'), g('zfpx')
@@ -172,6 +165,46 @@ def front_family(g):
                    zfplt[(r, u)], zfpb[(r, u)], zfpam[(r, u)],
                    zfpmo.get((r, u), 0), zfpsr.get((r, u), 0),
                    zfps2.get((r, u), 0), zfpx.get((r, u), 0)))
+    # 合成規則は host のガードを継ぐ（写像は内容で共有される）——
+    # ただし種1 の読みの枠は **合成規則の層で閉じ方を見直す**。_size は
+    # 書き手の最大層へ持ち上がるので、host では生きていた読み（負の束）が
+    # 合成の層では閉じている（正の束）。flat.py は合成規則の fcond を
+    # その層で引き直すのと同じ判断である。
+    zsyrr = g('zsyrr')
+    zrs = {r: s for (s,), r in zrnm.items()}
+    zglfd, zgcfd, zgch = g('zglfd'), g('zgcfd'), g('zgch')
+    zlatf, zfws = g('zlatf'), g('zfws')
+    BIG = 10 ** 9
+    hostfc = {}
+    for row in fc: hostfc.setdefault(row[0], []).append(row)
+    for (rp,), rh in zsyrr.items():
+        sh = zrs.get(rh)
+        for row in hostfc.get(rh, []):
+            row2 = (rp, spof[(rp,)], st[(rp,)]) + row[3:]
+            cam = row[5]
+            i = (cam % 128 - 8) // 3
+            if (row[3] == 1 and sh is not None and 0 <= i < 8
+                    and (rh, 32 + i) in zfpu):
+                ch = zgch.get((sh, i))
+                fd = (zgcfd.get((sh, i)) if ch else zglfd.get((sh, i)))
+                if fd is not None:
+                    lat = zlatf[(fd,)]
+                    lt = lat if zfws.get((fd,), 0) <= st[(rp,)] - 1 else -lat
+                    b32 = BIG + rp * 64 + 32 + i
+                    fp.append((0, spof[(rp,)], st[(rp,)], 0, lt, b32,
+                               zfpam[(rh, 32 + i)], 0, 0, 0, 0))
+                    tb = b32
+                    if ch and (rh, 56 + i) in zfpu:
+                        tb = BIG + rp * 64 + 56 + i
+                        fp.append((0, spof[(rp,)], st[(rp,)], 3, 0, tb,
+                                   rh * 128 + 4, zfpmo[(rh, 56 + i)],
+                                   b32, 0, 0))
+                    mn = BIG + rp * 128 + cam % 128
+                    mia = maps[cam][10]
+                    maps[mn] = (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, mia, tb, 1,
+                                0, 0, 0)
+                    row2 = row2[:5] + (mn,) + row2[6:]
+            fc.append(row2)
     return fg, fc, fp, maps
 
 
@@ -289,7 +322,7 @@ BOOKS = [
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
     'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
     'examples/16_lex.lx', 'work/t/z_atomarg.lx', 'examples/35_noema.lx',
-    'examples/20_lex_full.lx',
+    'examples/20_lex_full.lx', 'examples/21_lex.lx',
 ]
 
 if __name__ == '__main__':

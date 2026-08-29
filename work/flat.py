@@ -350,8 +350,14 @@ class Flatten:
         am = self.pmapcell(g[1], g[2], sl, axes, st, sp, npt)
         lt = self.flat[g[1]]
         if self.fstr.get(g[1], 0) >= st:
-            # まだ閉じていない場を番地にできるのは、⊥ → v で止まる升だけ
-            if lt != 5:
+            # **まだ閉じていない場でも、昇る束なら写せる。** この層に居られた
+            # のは定義（lattix.py の classify）がその読みを単調と認めたから
+            # である —— 非単調な読み（座標にする・向きの合わない比較・引き算
+            # の右）は成層が先に層を割るので、ここには閉じた姿しか来ない。
+            # 下る束（min / and）と符号の要る束（sum / bag）は別で、生きた
+            # まま pa（flat・昇る文脈）へ写す規則は run.lx 自身が成層でき
+            # ない —— そこだけは断る（同束の直読み am/bm は元から生きてよい）。
+            if lt not in (2, 3, 5, 6, 9):
                 raise NotImplementedError(f"`{g[1]}` は同じ層で育つので番地にできない")
             lt = -lt                      # 生きた面から読む合図（`ix` と同じ）
         b = self.pslot(npt)
@@ -672,10 +678,12 @@ class Flatten:
             if not _addok(e): raise _NoFam('値が足し算の形でない')
             # **束の合わない読みは、閉じた面から `pa` に写して間接で読む。**
             # 点の道の tolat（閉じた面から写す）と同じ判断で、機構は
-            # pcell が座標のために持っている物そのものである —— 閉じていない
-            # 源は pcell が断る（⊥→v で止まる flat だけが生きた面でよい）。
-            srcs = [x for x in fl if self.flat[x[1]] == lat]
-            mis  = [x for x in fl if self.flat[x[1]] != lat]
+            # pcell が座標のために持っている物そのものである。
+            # **係数つきの読みも pa 経由**である —— am/bm の直の読みは
+            # 重み 1 しか書けないが、間接の m には係数が畳める。
+            srcs = [x for x in fl
+                    if self.flat[x[1]] == lat and _coef(e, x) == 1]
+            mis  = [x for x in fl if x not in srcs]
             if srcs and lat not in ARITH: raise _NoFam('数でない束に読みがある')
             if mis and lat not in ARITH and (srcs or len(fl) > 1):
                 raise _NoFam('数でない束に読みがある')
@@ -714,7 +722,7 @@ class Flatten:
             ivs = []
             for x in mis:
                 cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
-                ivs.append(iv)
+                ivs.append((iv[0] * _coef(e, x), iv[1], iv[2]))
             while len(ivs) < 2: ivs.append((0, 0, 0))
             wm = self.mapof(c, ss, axes, ivs[0], ivs[1])
         else:
@@ -1520,12 +1528,18 @@ class Flatten:
 
 def _addok(e):
     """場の読みが **足し算の枝にだけ**あるか。掛け算や割り算の中にあると、
-    「Σ源 + 重み」に分けられない（`pow2[n-1] * 2` はそれ）。"""
+    「Σ源 + 重み」に分けられない（`pow2[n-1] * 2` はそれ）——
+    ただし **定数を掛けた読み**は別である。係数は間接の m に畳めるので
+    （`acc[i-1] * 10 + c - 48`）、pa 経由の項として一次のまま届く。"""
     if not isinstance(e, tuple) or not e: return True
     if e[0] == 'fref': return True
     if e[0] == 'bin' and e[1] == '+': return _addok(e[2]) and _addok(e[3])
     if e[0] == 'bin' and e[1] == '-':
         return _addok(e[2]) and not any(True for _ in _frefs(e[3]))
+    if e[0] == 'bin' and e[1] == '*':
+        for a, b in ((e[2], e[3]), (e[3], e[2])):
+            if isinstance(b, tuple) and b and b[0] == 'int':
+                return _addok(a)
     return not any(True for _ in _frefs(e))
 
 

@@ -36,10 +36,25 @@ zosen[o] <- 2 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
       if zlatf[ofl[o] - 1] >= 2 if zlatf[ofl[o] - 1] <= 3
 zosen[o] <- 2 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
       if zlatf[ofl[o] - 1] >= 8
+zosen[o] <- 1 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] == 4
+zosen[o] <- 2 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+      if zlatf[ofl[o] - 1] == 7
 zosen[o] <- 5 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
       if zlatf[ofl[o] - 1] == 5
 zosen[o] <- 6 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
       if zlatf[ofl[o] - 1] == 6
+# 頭の場の要る向き —— 定義（lattix.py の tgt_req）と同じ写像:
+# sense が下る束（min / and）だけ 1、他は全部 2（flat / fourv / set の頭も 2）
+field zhsen : max bound 4096
+zhsen[s] <- 1 for (s) in 0 .. nstz[0] if hfl[s] >= 1
+      if zlatf[hfl[s] - 1] == 1
+zhsen[s] <- 1 for (s) in 0 .. nstz[0] if hfl[s] >= 1
+      if zlatf[hfl[s] - 1] == 4
+zhsen[s] <- 2 for (s) in 0 .. nstz[0] if hfl[s] >= 1
+      if zlatf[hfl[s] - 1] >= 2 if zlatf[hfl[s] - 1] <= 3
+zhsen[s] <- 2 for (s) in 0 .. nstz[0] if hfl[s] >= 1
+      if zlatf[hfl[s] - 1] >= 5
 field zrq : max bound 262144            # 比較の辺の要る向き（1 下る / 2 昇る / 4 座標）
 zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] >= 5
 zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 3
@@ -62,9 +77,12 @@ zonm[oseq[tmatch[oppv[t]]]] <- true for (t,zc) in ch if iscmp2[t]
 zonm[oseq[opnx[t]]] <- true for (t,zc) in ch if iscmp2[t]
       if isocc[opnx[t]] if zosen[oseq[opnx[t]]] <= 4
       if zrq[opnx[t]] != zosen[oseq[opnx[t]]]
+# 値の読みは **向きが合えば単調**である（束の名は関係ない）—— max を flat の
+# 頭に読むのは単調（どちらも昇る）、min を max に読むのは非単調（向きが逆）。
+# 定義（classify: s != req）と同じ比較。
 zonm[oseq[t]] <- true for (t,zc) in ch if istrm[t] if ofl[oseq[t]] >= 1
       if hfl[snum[t]] >= 1 if zosen[oseq[t]] <= 4
-      if zlatf[ofl[oseq[t]] - 1] != zlatf[hfl[snum[t]] - 1]
+      if zosen[oseq[t]] != zhsen[snum[t]]
 # 鎖のガードの芯（`f[i] % c == k` の f[i]）—— 剰余は向きを壊すので常に非単調
 zonm[zgco[s, i]] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgch[s, i] if zgco[s, i] >= 0
@@ -466,6 +484,15 @@ field zd1 : max bound 8192              # 次元1 の添字トークン
 zd1[oseq[t]] <- d1t[t] for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
 field zdk : max bound 8192 2
 zdk[oseq[t], 0] <- 4 for (t,zc) in ch if isocc[t] if isnum[t+2]
+# 負の定数の座標（`quotes[-1] <- 0` の種）—— `-` と数の二語で一つの定数
+field zdneg : or bound 8192             # 次元0 の定数が負
+zdneg[oseq[t]] <- true for (t,zc) in ch if isocc[t] if ismin[t+2]
+      if isnum[t+3]
+field zdnv : max bound 8192             # その絶対値
+zdnv[oseq[t]] <- tval[t+3] for (t,zc) in ch if isocc[t] if ismin[t+2]
+      if isnum[t+3]
+zdk[oseq[t], 0] <- 4 for (t,zc) in ch if isocc[t] if ismin[t+2]
+      if isnum[t+3]
 zdk[oseq[t], 0] <- 7 for (t,zc) in ch if isocc[t] if isocc[t+2]
 zdk[oseq[t], 0] <- 0 for (t,zc) in ch if isocc[t] if not isnum[t+2]
       if not isocc[t+2] if not isclo[t+2] if lkd[snum[t], vlpz[t+2]] == 0
@@ -482,6 +509,9 @@ zdk[o, 1] <- 1 for (o) in 0 .. nocz[0] if zd1[o] >= 0 if not isnum[zd1[o]]
       if not isocc[zd1[o]] if lkd[osn[o], zd1s[o]] >= 1
 field zdc : max bound 8192 2            # 定数 / 列（計数器は 0）
 zdc[o, 0] <- c0cc[o] for (o) in 0 .. nocz[0] if zdk[o, 0] == 4
+      if not zdneg[o]
+zdc[o, 0] <- 0 - zdnv[o] for (o) in 0 .. nocz[0] if zdk[o, 0] == 4
+      if zdneg[o]
 zdc[o, 0] <- c0cc[o] for (o) in 0 .. nocz[0] if zdk[o, 0] == 0
 zdc[o, 0] <- 0 for (o) in 0 .. nocz[0] if zdk[o, 0] == 1
 zdc[o, 1] <- tval[zd1[o]] for (o) in 0 .. nocz[0] if zdk[o, 1] == 4
@@ -554,12 +584,25 @@ ztml[t] <- zlatf[ofl[oseq[t]] - 1] for (t,zc) in ch if istrm[t]
 field zrlat : max bound 524288          # そのトークンの規則の束
 zrlat[t] <- zfglat[zrn[snum[t]]] for (t,zc) in ch if istm[t]
       if zrn[snum[t]] >= 0
-field zsamel : or bound 524288          # 同じ束の読みの項（足す形だけ）
+# 係数つきの読み（次の項が `* 定数`）—— am/bm の直の読みは重み 1 しか
+# 書けないが、間接の m には係数が畳める。だから pa 経由（mis の道）へ。
+field zco6 : or bound 524288            # この読みの項の次が `* 定数`
+zco6[t] <- true for (t,zc) in ch if istrm[t]
+      if trkd[snum[t], tcnt[t] + 1] == 6
+field zocof : max bound 8192            # 出現の係数
+zocof[oseq[t]] <- trvl[snum[t], tcnt[t] + 1] for (t,zc) in ch if istrm[t]
+      if zco6[t]
+field zmco : or bound 8192              # 出現に係数がある
+zmco[oseq[t]] <- true for (t,zc) in ch if istrm[t] if zco6[t]
+field zsamel : or bound 524288          # 同じ束の読みの項（足す形・重み 1）
 zsamel[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if ztml[t] == zrlat[t]
-field zmisl : or bound 524288           # 束の違う読みの項
+      if not zco6[t]
+field zmisl : or bound 524288           # pa 経由の読みの項（束ちがい / 係数つき）
 zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if ztml[t] != zrlat[t]
+zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
+      if trkd[snum[t], tcnt[t]] == 3 if zco6[t]
 field zam : min bound 4096              # 規則 r の一本目の同束の読み（出現）
 zam[zrn[snum[t]]] <- oseq[t] for (t,zc) in ch if zsamel[t]
       if zrn[snum[t]] >= 0
@@ -877,12 +920,18 @@ field zfpb : max bound 4096 64          # 枠 u の番地の面の基
 zfpb[r, u] <- zpab[r] + (zfpc[r, u] - 1) * zsszr[r] for (r) in 0 .. znr2m[0]
       for (u) in 0 .. 63 if zfpu[r, u] if zpab[r] >= 1
 
-# wm の間接（束ちがいの読みは番地の面から足す）
+# wm の間接（束ちがい・係数つきの読みは番地の面から足す。係数は m に畳む）
 zmia[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r]
+      if not zmco[zmis[r]]
+zmia[r * 128 + 3] <- zocof[zmis[r]] for (r) in 0 .. znrm[0] if zhasm[r]
+      if zmco[zmis[r]] if zocof[zmis[r]] >= 1
 zmib[r * 128 + 3] <- zfpb[r, 3] for (r) in 0 .. znrm[0] if zhasm[r]
       if zfpb[r, 3] >= 1
 zmiu[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r]
 zmia2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if zmis2[r] >= 1
+      if not zmco[zmis2[r]]
+zmia2[r * 128 + 3] <- zocof[zmis2[r]] for (r) in 0 .. znrm[0] if zhasm[r]
+      if zmis2[r] >= 1 if zmco[zmis2[r]] if zocof[zmis2[r]] >= 1
 zmib2[r * 128 + 3] <- zfpb[r, 4] for (r) in 0 .. znrm[0] if zhasm[r]
       if zmis2[r] >= 1 if zfpb[r, 4] >= 1
 zmiu2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if zmis2[r] >= 1
@@ -1012,10 +1061,20 @@ zfplt[zgrul[s, i], 32 + i] <- zlatf[zglfd[s, i]] for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zglf[s, i] if not zgrf[s, i]
       if zglfd[s, i] >= 0 if zgrul[s, i] >= 0
       if zfws[zglfd[s, i]] <= zfgst[zgrul[s, i]] - 1
+# 閉じた読みは正の束、生きた読みは負の束（定義が単調と認めた読みだけが
+# 同じ層に居られる —— pcell と同じ判断。flat.py の (0, -束) と対）
 zfplt[r, 3] <- zlatf[ofl[zmis[r]] - 1] for (r) in 0 .. znrm[0]
       if zhasm[r] if zmis[r] >= 0
+      if zfws[ofl[zmis[r]] - 1] <= zfgst[r] - 1
+zfplt[r, 3] <- 0 - zlatf[ofl[zmis[r]] - 1] for (r) in 0 .. znrm[0]
+      if zhasm[r] if zmis[r] >= 0
+      if zfws[ofl[zmis[r]] - 1] >= zfgst[r]
 zfplt[r, 4] <- zlatf[ofl[zmis2[r]] - 1] for (r) in 0 .. znrm[0]
       if zhasm[r] if zmis2[r] >= 1
+      if zfws[ofl[zmis2[r]] - 1] <= zfgst[r] - 1
+zfplt[r, 4] <- 0 - zlatf[ofl[zmis2[r]] - 1] for (r) in 0 .. znrm[0]
+      if zhasm[r] if zmis2[r] >= 1
+      if zfws[ofl[zmis2[r]] - 1] >= zfgst[r]
 field zfpam : max bound 4096 64         # fp の読みの写像（枠番号）
 zfpam[zgrul[s, i], 32 + i] <- zgrul[s, i] * 128 + 10 + 3 * i for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zglf[s, i] if not zgrf[s, i] if zgrul[s, i] >= 0
