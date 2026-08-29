@@ -2121,10 +2121,11 @@ zmm0[r * 128 + 1] <- 1 for (r) in 0 .. znr2m[0] if zissy[r] if zsyk[r] >= 0
 # 剰余（enc = 3·折り込み+1）を運び、構成子は AE1/AE2[番号] を pa に写す。
 # 折り込みも比較も **文字の座標の上の鎖**で書く —— 文字の面を広げない。
 
-field zqtk : or bound 262144            # 綴りのトークン（表の升の、引用符の次）
+field zqtk : or bound 262144            # 綴りのトークン（表の升の原子）
+# 引用符つき（"x"）でも素の綴り（x）でもよい —— 表の丸括弧の中の
+# 数でない語は、どちらも原子である（29_dataflow の none / x / y …）。
 zqtk[t] <- true for (t,zc) in ch if tkind[t] == 1 if not isnum[t]
-      if istb[snum[t]] if tdep[t] == 1 if tch[prevw[t], 0] == 34
-      if tlen[prevw[t]] == 1
+      if istb[snum[t]] if tdep[t] == 1 if not tcom[t]
 field zqac : or bound 262144            # 綴りのトークンに属する文字
 zqac[i] <- true for (i,c) in ch if zqtk[tnum[i]]
 field zprc : max bound 262144           # 綴りのトークンの通し番号（鎖）
