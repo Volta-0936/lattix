@@ -45,17 +45,44 @@ def assemble():
 SRC = assemble()
 
 
-def run_front(path):
+def oracle(fl):
+    """区間の上端に出てくる閉じた升（場, 座標, 値）。走らせた側の口の写し。"""
+    def frefs(e):
+        if not isinstance(e, tuple): return
+        if e[0] == 'fref':
+            yield e
+        for x in e[1:]:
+            if isinstance(x, tuple): yield from frefs(x)
+            elif isinstance(x, list):
+                for y in x: yield from frefs(y)
+    fnum = {f: i for i, f in enumerate(fl.p.fields)}
+    rows = []
+    for r in fl.p.rules:
+        for _vs, srcx in (r.sources or []):
+            if isinstance(srcx, tuple) and srcx[0] == '..':
+                for e in list(frefs(srcx[1])) + list(frefs(srcx[2])):
+                    keys = tuple(k[1] if k[0] == 'int' else 0 for k in e[2])
+                    v = fl.closed.get((e[1], keys))
+                    if v is None: continue
+                    rows.append((fnum[e[1]], keys[0] if keys else 0, int(v)))
+    return sorted(set(rows)) or [(0, 0, -1)]
+
+
+def run_front(path, orc=None):
     """front.lx を焼いた測定器で走らせ、家の表を読み出す。"""
     data = open(path, 'rb').read()
     rows = [(i, c) for i, c in enumerate(data)] + [(len(data), 32)]
+    orc = orc or [(0, 0, -1)]
     if SLOW:
         src = re.sub(r"table ch = .*?\n",
                      "table ch = " + ", ".join(f"({i},{c})" for i, c in rows) + "\n",
                      SRC, count=1)
+        src = re.sub(r"table orc = .*?\n",
+                     "table orc = " + ", ".join(str(r) for r in orc) + "\n",
+                     src, count=1)
         o = ns['go'](src)
     else:
-        o = ns['cgo']('front', SRC, {'ch': rows})
+        o = ns['cgo']('front', SRC, {'ch': rows, 'orc': orc})
     g = lambda f: dict(o(f))
     dat = sorted((k[0], k[1], v) for k, v in g('zdat').items())
     spb, spw, sps = g('zspb'), g('zspw'), g('zsps')
@@ -222,7 +249,7 @@ if __name__ == '__main__':
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
                 continue
-            dat1, spc1, ssz1, g = run_front(f)
+            dat1, spc1, ssz1, g = run_front(f, oracle(fl))
             got = normalize(dat1, spc1, ssz1)
             want = normalize(dat2, spc2, ssz2)
             why = diff(got, want)
