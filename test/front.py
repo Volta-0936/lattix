@@ -156,6 +156,13 @@ def front_family(g):
         fc.append((r, spof[(r,)], st[(r,)], k, zfclt.get((s, i), 0),
                    zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
                    zfcwm.get((s, i), zero)))
+    # 合成規則は host のガードを継ぐ（写像は内容で共有される）
+    zsyrr, zrnm2 = g('zsyrr'), zrnm
+    hostfc = {}
+    for row in fc: hostfc.setdefault(row[0], []).append(row)
+    for (rp,), rh in zsyrr.items():
+        for row in hostfc.get(rh, []):
+            fc.append((rp, spof[(rp,)], st[(rp,)]) + row[3:])
     zfpu, zfplt, zfpb, zfpam = g('zfpu'), g('zfplt'), g('zfpb'), g('zfpam')
     zfpk, zfpmo, zfpsr = g('zfpk'), g('zfpmo'), g('zfpsr')
     zfps2, zfpx = g('zfps2'), g('zfpx')
@@ -275,6 +282,7 @@ BOOKS = [
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
     'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
+    'examples/16_lex.lx',
 ]
 
 if __name__ == '__main__':
