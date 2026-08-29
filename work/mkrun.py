@@ -39,7 +39,7 @@ def survey():
     # 多面体の道の形と、その資源（行・列・空間・写像・軸・点）も **測る**
     fsh, fcsh, fpsh = set(), set(), set()
     dim = {'nrow': 1, 'ncol': 1, 'nsp': 1, 'nmp': 1, 'nax': 1, 'npt': 1,
-           'npa': 1}
+           'npa': 1, 'nat': 1}
 
     def bell(sig, fr): raise TimeoutError()
     signal.signal(signal.SIGALRM, bell)
@@ -63,6 +63,7 @@ def survey():
                              max((r[1] for r in fl.spc), default=0) + 1)
             dim['npt'] = max(dim['npt'], max((r[1] for r in fl.ssz), default=1))
             dim['npa'] = max(dim['npa'], fl.pab + 1)
+            dim['nat'] = max(dim['nat'], fl.ATOMB + len(fl.atl) + 1)
             note = f"形 {len(v)}+{len(fl.fsh)}  層 {fl.strata()}  升 {fl.ncell()+1}"
         except TimeoutError:
             note = f"—— {LIMIT}s で切った"
@@ -119,7 +120,7 @@ def family_shapes():
             continue
         fcsh.add((2, lt, 0, 0)); fcsh.add((5, lt, 0, 0))
         fcsh.add((3, lt, 0, 0)); fcsh.add((4, lt, 0, 0))
-    fpsh = {(0, lt) for lt in PLANE} | {(0, -5)} |            {(1, 0), (2, 0), (3, 0), (4, 0)}
+    fpsh = {(0, lt) for lt in PLANE} | {(0, -5)} |            {(1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0)}
     return fsh, fcsh, fpsh
 
 
@@ -136,7 +137,7 @@ def write(path):
     body = engine2.engine_text(nc, ne, nq, NS, (vals, cond, lats), ixl,
                                fsh, dim['nrow'], dim['ncol'], dim['nsp'],
                                dim['nmp'], dim['nax'], fcsh, dim['npt'],
-                               fpsh, dim['npa'])
+                               fpsh, dim['npa'], dim['nat'])
     head = ("# ══ run.lx —— 走らせる物。**これ一枚で全部のプログラムが走る** ══\n"
             "#\n"
             "#   入れる物: 表 `eg`（寄与の辺）/ `cd`（条件）/ `ix`（升を指す番号）\n"
@@ -158,7 +159,7 @@ def write(path):
     pad = {'eg': [0]*10, 'cd': [0,0,999,0,0,0,0,0,0,0], 'ix': [0]*6,
            'dat': [0]*3, 'spc': [0]*5, 'ssz': [0,1], 'mp': [0]*17,
            'fg': [0,0,999,0,0,0,0,0,0,0], 'fc': [0,0,999,0,0,0,0,0,0,0,0],
-           'fp': [0,0,999,0,0,0,0,0,0,0,0]}
+           'fp': [0,0,999,0,0,0,0,0,0,0,0], 'ate': [0,0,0]}
     dummy = "".join("table %s = (%s)\n" % (n, ",".join(map(str, r)))
                     for n, r in pad.items())
     for _round in range(200):
@@ -190,7 +191,7 @@ def write(path):
             body = engine2.engine_text(nc, ne, nq, NS, (vals, cond, lats), ixl,
                                        fsh, dim['nrow'], dim['ncol'],
                                        dim['nsp'], dim['nmp'], dim['nax'],
-                                       fcsh, dim['npt'], fpsh, dim['npa'])
+                                       fcsh, dim['npt'], fpsh, dim['npa'], dim['nat'])
     else:
         raise SystemExit("刈っても閉じない —— 数え上げの根拠が破れている")
     # 検査の側が「run.lx に無い形」を声に出せるように、**刈ったあとの**

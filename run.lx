@@ -1,14 +1,14 @@
 # ══ run.lx —— 走らせる物。**これ一枚で全部のプログラムが走る** ══
 #
 #   入れる物: 表 `eg`（寄与の辺）/ `cd`（条件）/ `ix`（升を指す番号）
-#   層の上限: 16   升の番号の上限: 214362840040925879（**測った**値）
+#   層の上限: 16   升の番号の上限: 437671048959211563（**測った**値）
 #     大きいのは、内容アドレスを座標にする場があるからである ——
 #     こちらが大きく書いたのではなく、content address がそう宣言している。
 #     焼くときは、その場だけが hash 表に落ちる（他は密配列）。
-#   辺の上限: 35269   指し番号の上限: 25760
+#   辺の上限: 6136   指し番号の上限: 3996
 #
 #   プログラムごとに変わるのは **表だけ**である。
-#   規則の数 306 行は、言語の形の数であって
+#   規則の数 313 行は、言語の形の数であって
 #   プログラムの大きさではない。
 
 # ══ 走らせる物 —— 寄与の関係を閉じる ════════════════════════════
@@ -59,26 +59,30 @@ field MB2 : max bound 812
 MB2[x] <- b2   for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2) in mp
 field MU2 : max bound 812
 MU2[x] <- u2   for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2) in mp
-field vn : min bound 16 214362840040925879
-field vx : max bound 16 214362840040925879
-field vo : or bound 16 214362840040925879
-field va : and bound 16 214362840040925879
-field vf : flat bound 16 214362840040925879
-field v4 : fourv bound 16 214362840040925879
-field vs : set bound 16 214362840040925879
-field vm : sum bound 16 214362840040925879
-field vc : count bound 16 214362840040925879
-field vb : bag bound 16 214362840040925879
-field rz : flat bound 16 25760
-field nc : count bound 16 35269
-field ng : count bound 16 35269
-field ok : or bound 16 35269
-field ct : flat bound 16 214362840040925879
-field pa : flat bound 16 1763
+field AE1 : flat bound 71454279745205302
+field AE2 : flat bound 71454279745205302
+AE1[x] <- e1   for (x,e1,e2) in ate
+AE2[x] <- e2   for (x,e1,e2) in ate
+field vn : min bound 16 437671048959211563
+field vx : max bound 16 437671048959211563
+field vo : or bound 16 437671048959211563
+field va : and bound 16 437671048959211563
+field vf : flat bound 16 437671048959211563
+field v4 : fourv bound 16 437671048959211563
+field vs : set bound 16 437671048959211563
+field vm : sum bound 16 437671048959211563
+field vc : count bound 16 437671048959211563
+field vb : bag bound 16 437671048959211563
+field rz : flat bound 16 3996
+field nc : count bound 16 6136
+field ng : count bound 16 6136
+field ok : or bound 16 6136
+field ct : flat bound 16 437671048959211563
+field pa : flat bound 16 123122
 pa[s, 0] <- 0   for (s) in 0 .. 15
-field fq : count bound 16 35269
-field fn : count bound 16 35269 10368
-field fo : or bound 16 35269 10368
+field fq : count bound 16 6136
+field fn : count bound 16 6136 10368
+field fo : or bound 16 6136 10368
 
 # ══ 升を指す番号を解く。m = 0 はそのまま、それ以外は値で決まる升。══
 rz[s, q] <- iz        for (s) in 0 .. 15 for (q,im,ic,il,iz,dl) in ix if im == 0
@@ -169,6 +173,9 @@ pa[s, pb + t] <- (MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % S
 pa[s, pb + t] <- mu * pa[s, p1 + t] + pa[s, p2 + t]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 2
 pa[s, pb + t] <- pa[s, p1 + t] % mo   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 3
 pa[s, pb + t] <- pa[s, p1 + t] / mo   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 4
+pa[s, pb + t] <- AE1[MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 5
+pa[s, pb + t] <- AE2[MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 6
+pa[s, pb + t] <- mu * pa[s, p1 + t] + mo * pa[s, p2 + t]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 7
 # ── 多面体の寄与。辺一本が空間ひとつを覆う。──────────────
 fq[s, e] <- true   for (s) in 0 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if st == s
 fq[s, e] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc if st == s

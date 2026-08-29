@@ -56,8 +56,9 @@ PLANE = {1: ('n', 'min'), 2: ('x', 'max'), 3: ('o', 'or'), 4: ('a', 'and'),
          8: ('m', 'sum'), 9: ('c', 'count'), 10: ('b', 'bag')}
 ARITH = (1, 2, 5, 6, 8, 10)         # 値が数として足せる束
 FAMILY = True     # 多面体の道（反復空間を点に潰さずに渡す）
-ARITH_MAX = 1 << 24   # 一軸の広さがこれを超えたら、密には並べない
-ARITH_SPACE = 1 << 32 # 場ぜんたいの広さの上限（同上）
+ARITH_MAX = 1 << 24   # （旧）密配列の目安 —— 番号づけには使わない
+ARITH_SPACE = 1 << 32 # 同上
+ARITH_BAND = int(os.environ.get("LATTIX_BAND", 1 << 57))  # 帯の上限（切り分け用に環境で絞れる）
 # **この言語の最適化は「証明」ではなく「選択」である**（CLAUDE.md）。
 # 小さい空間は点に展開したほうが速い（層の数だけ寄せ直すから）。
 # 大きい空間だけ、多面体のまま渡す —— 表が爆発するのはそこだけ。
@@ -151,12 +152,18 @@ class Flatten:
             self.ar = set(need)
             for f in prog.fields:
                 if f in need or f in prog.field_bound: self.ar.add(f); continue
-                w, ok = 1, True
+                w = 1
                 for i in range(_arity(prog, f)):
                     a, z = extent.get((f, i), (0, 0))
-                    if z - a + 1 > ARITH_MAX: ok = False; break
                     w *= z - a + 1
-                if ok and w <= ARITH_SPACE: self.ar.add(f)
+                # **番号づけと記憶を混同しない。** 密配列に置けるかは走らせる
+                # 側が自分で決める（engine の面はどのみち番号で引く）。ここで
+                # 決めるのは番号だけで、帯 base + (座標 - 下端) は幅が 2^56
+                # でも番号である。上限は一つ —— 升の番号が i64 に入ること
+                # （層の軸 ns を掛けても ⊤ の番兵に届かないこと）。
+                # 構成子のアクセサ場（because_*[addr] など）はこれで算術に
+                # 載り、書き先が密でないという断りが消える。
+                if w <= ARITH_BAND: self.ar.add(f)
         self.atn, self.atl = {}, []
         for a in _allatoms(prog):           # **綴りの順**に番号を配る
             self.atn[a] = len(self.atl); self.atl.append(a)
@@ -427,13 +434,16 @@ class Flatten:
                 if not iv[2] or cc or sss:
                     raise NotImplementedError("構成子の引数が畳めない")
                 terms.append(('slot', iv[0], iv[1])); continue
-            # **原子は綴りで折る**（`_enc(文字列) = 3·折り込み+1`）。番号で折ると
-            # 参照実装と違う番地になる —— いまは範囲の検査が偶然これを弾いて
-            # いた（原子の置き場は 2^62）。偶然で通すのはやめて、名前で断る
-            # （気づき29「未対応が静かに真になると気づかない」）。
-            for j, col, _m in ss:
-                if (axes[j][0], col) in self.atomcol:
-                    raise NotImplementedError("構成子の引数が原子（綴りで折る）")
+            # **原子は綴りで折る**（`_enc(文字列) = 3·折り込み+1`）。番号で
+            # 折ると参照実装と違う番地になる。だが剰余は原子ごとの **データ**
+            # である —— 前段が綴りから enc_M1 / enc_M2 を計算して表（ate）に
+            # 載せ、走らせる側は AE1/AE2[原子番号] を pa に写して足すだけ。
+            # 原子番号の付け方（綴り順 = 比較の正しさ）は一切動かさない。
+            if any((axes[j][0], col) in self.atomcol for j, col, _m in ss):
+                if not all((axes[j][0], col) in self.atomcol
+                           for j, col, _m in ss):
+                    raise NotImplementedError("原子と数の混ざった引数")
+                terms.append(('atom', c, ss)); continue
             lo, hi = self._affrange(c, ss, axes)
             if lo < 0 or hi >= min(L.CTOR_M1, L.CTOR_M2):
                 raise NotImplementedError("構成子の引数が法の外（折る前に畳めない）")
@@ -453,12 +463,28 @@ class Flatten:
                     q = (3 * co) % m
                     cst += q * tm[1]
                     ss += [(j, col, q * mu) for j, col, mu in tm[2]]
+                elif tm[0] == 'atom':
+                    # enc は表が知っている（ate）—— AE を pa に写して足す
+                    bm = self.pslot(npt)
+                    kd = 5 if m == L.CTOR_M1 else 6
+                    self.fp.append((self.newid(), sp, st, kd, 0, bm,
+                                    self.mapof(tm[1], tm[2], axes), 0, 0, 0, 0))
+                    inds.append((co % m, bm, 1))
                 else:
                     # `pa[b0+t]` を法で畳んでから、係数を掛けて足す
                     bm = self.pslot(npt)
                     self.fp.append((self.newid(), sp, st, 3, 0, bm,
                                     self.mapof(0, [], axes), m, tm[2], 0, 0))
                     inds.append(((3 * co * tm[1]) % m, bm, 1))
+            # **間接は何本でも書ける** —— 写像の枠は二本だが、余った対は
+            # pa の結合（種7: mu·pa + mo·pa）で一本に畳めばよい。前は三本目を
+            # 検査なしで捨てていた（黙って違う番地。三面鏡が出した）。
+            while len(inds) > 2:
+                (c1, b1, _u1), (c2, b2, _u2) = inds.pop(), inds.pop()
+                bm = self.pslot(npt)
+                self.fp.append((self.newid(), sp, st, 7, 0, bm,
+                                self.mapof(0, [], axes), c2, b1, b2, c1))
+                inds.append((1, bm, 1))
             while len(inds) < 2: inds.append((0, 0, 0))
             lo, _hi = self._affrange(cst, ss, axes)
             while lo < 0:
@@ -1429,11 +1455,14 @@ class Flatten:
     def tables(self):
         t = {'eg': self.eg, 'cd': self.cd, 'ix': self.ix,
              'dat': self.dat, 'spc': self.spc, 'ssz': self.ssz,
-             'mp': self.mp, 'fg': self.fg, 'fc': self.fc, 'fp': self.fp}
+             'mp': self.mp, 'fg': self.fg, 'fc': self.fc, 'fp': self.fp,
+             'ate': [(self.ATOMB + i, L._enc(a, L.CTOR_M1, L.CTOR_K1),
+                      L._enc(a, L.CTOR_M2, L.CTOR_K2))
+                     for i, a in enumerate(self.atl)]}
         if not self.dat: self.dat.append((0, 0, 0))
         for k, ar in (('eg', 10), ('cd', 10), ('ix', 6),
                       ('dat', 3), ('spc', 5), ('ssz', 2), ('mp', 17),
-                      ('fg', 10), ('fc', 11), ('fp', 11)):
+                      ('fg', 10), ('fc', 11), ('fp', 11), ('ate', 3)):
             if not t[k]:
                 row = [0] * ar; row[1] = 999        # どの層にも当たらない番兵
                 if k in ('ix', 'dat', 'spc', 'mp'): row = [0] * ar

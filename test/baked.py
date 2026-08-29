@@ -18,7 +18,7 @@ from flat import flatten, PLANE
 import engine2
 from engine2 import tbl, answers, Rejected
 
-NAMES = ('eg', 'cd', 'ix', 'dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp')
+NAMES = ('eg', 'cd', 'ix', 'dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp', 'ate')
 
 
 def coverage(fl):

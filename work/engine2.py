@@ -46,7 +46,7 @@ BOOL  = (3, 4, 9)                   # true を寄せる束
 
 
 def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
-                nsp=1, nmp=1, nax=1, fcsh=(), npt=1, fpsh=(), npa=1):
+                nsp=1, nmp=1, nax=1, fcsh=(), npt=1, fpsh=(), npa=1, nat=1):
     """**層は座標である。** 前は層ごとに規則を字面で展開していた（vf0, vf1,
     … と名前が層を持っていた —— 名前が座標だった）。いまは場が先頭に s 軸を
     持ち、規則は `for (s) in 0 .. N-1` を纏う。閉じた面は `s-1` の読みである。
@@ -82,6 +82,13 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                         ('MI2', 'i2'), ('MB2', 'b2'), ('MU2', 'u2')):
             A(f"field {nm} : max bound {nmp}")
             A(f"{nm}[x] <- {col}   {MP}")
+        # **原子の剰余は表が知っている。** enc_M1 / enc_M2 は綴りから前段が
+        # 計算するデータであり、走らせる側は番号で引くだけ（綴り順の番号は
+        # そのまま —— 比較の正しさを動かさない）。
+        A(f"field AE1 : flat bound {nat}")
+        A(f"field AE2 : flat bound {nat}")
+        A("AE1[x] <- e1   for (x,e1,e2) in ate")
+        A("AE2[x] <- e2   for (x,e1,e2) in ate")
     for lt in lats:
         pl, nm = PLANE[lt]
         A(f"field v{pl} : {nm} bound {ns} {nc}")
@@ -189,6 +196,15 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             elif kd == 2:
                 A(f"pa[s, pb + t] <- mu * pa[s, p1 + t] + pa[s, p2 + t]   "
                   f"{PL0} if kd == 2")
+            elif kd == 5:
+                A(f"pa[s, pb + t] <- AE1[{_map('am', PS)}]   {PL0} if kd == 5")
+            elif kd == 6:
+                A(f"pa[s, pb + t] <- AE2[{_map('am', PS)}]   {PL0} if kd == 6")
+            elif kd == 7:
+                # 間接の対を一本に畳む（mu·pa + mo·pa）—— 枠は二本のままで、
+                # 間接は何本でも届く。
+                A(f"pa[s, pb + t] <- mu * pa[s, p1 + t] + mo * pa[s, p2 + t]   "
+                  f"{PL0} if kd == 7")
 
     if fsh:
         A("# ── 多面体の寄与。辺一本が空間ひとつを覆う。──────────────")
@@ -321,7 +337,7 @@ def close_upto(fl):
         t = fl.tables()
         k = fl.strata() - 1
         names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc',
-                                       'fp') if fl.fg else ())
+                                       'fp', 'ate') if fl.fg else ())
         src = "".join(tbl(n, t[n]) for n in names)
         eng = src + engine_text(fl.ncell() + 1, fl.nid + 1, len(fl.ix) + 1,
                                 k + 1, sh, fl.ixlat, fl.fsh if fl.fg else (),
@@ -331,7 +347,8 @@ def close_upto(fl):
                                 max((r[1] for r in fl.spc), default=0) + 1,
                                 fl.fcsh if fl.fc else (),
                                 max((r[1] for r in fl.ssz), default=1),
-                                fl.fpsh if fl.fp else (), fl.pab + 1)
+                                fl.fpsh if fl.fp else (), fl.pab + 1,
+                                fl.ATOMB + len(fl.atl) + 1)
         open('/tmp/close_gen.lx', 'w', encoding='utf-8').write(eng)
         q = L.parse(eng); L.check(q); L.stratify(q); L.io_rounds(q); L.certify(q)
         st2, _, _ = L.run(q, out=io.StringIO())
@@ -351,8 +368,8 @@ def build(path):
     fl, p = flatten(path, close_upto)
     t = fl.tables()
     sh = fl.shapes()
-    names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp')
-                                   if fl.fg else ())
+    names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp',
+                                   'ate') if fl.fg else ())
     src = "".join(tbl(n, t[n]) for n in names)
     eng = engine_text(fl.ncell() + 1, fl.nid + 1, len(fl.ix) + 1,
                       fl.strata(), sh, fl.ixlat, fl.fsh if fl.fg else (),
@@ -361,7 +378,8 @@ def build(path):
                       max((r[1] for r in fl.spc), default=0) + 1,
                       fl.fcsh if fl.fc else (),
                       max((r[1] for r in fl.ssz), default=1),
-                      fl.fpsh if fl.fp else (), fl.pab + 1)
+                      fl.fpsh if fl.fp else (), fl.pab + 1,
+                      fl.ATOMB + len(fl.atl) + 1)
     return src + eng, fl, p
 
 
