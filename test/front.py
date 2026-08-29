@@ -45,6 +45,33 @@ def assemble():
 SRC = assemble()
 
 
+def _dynd(fl):
+    """値で決まる座標を持つ (場, 次元) —— 広さは走らせて測るしかないので、
+    測った置き場を口（ext）から渡す（BSP の継ぎ目。orc と同じ判断）。"""
+    from flat import _frefs
+    dyn = set()
+    def keyd(f, keys):
+        for d, k in enumerate(keys):
+            if isinstance(k, tuple) and any(True for _ in _frefs(k)):
+                dyn.add((f, d))
+            walk(k)
+    def walk(e):
+        if not isinstance(e, tuple) or not e: return
+        if e[0] == 'fref':
+            keyd(e[1], e[2]); return
+        for x in e[1:]:
+            if isinstance(x, tuple): walk(x)
+            elif isinstance(x, list):
+                for y in x: walk(y)
+    for r in fl.p.rules:
+        keyd(r.target, r.keys)
+        walk(r.value)
+        for q in r.guards: walk(q)
+        for _vs, srcx in (r.sources or []):
+            if isinstance(srcx, tuple): walk(srcx)
+    return dyn
+
+
 def extrows(fl):
     """合成の場（_size と 引数場）の測った置き場を、走らせた側の口として渡す。"""
     named = list(fl.p.fields)
@@ -65,7 +92,12 @@ def extrows(fl):
         b, sz, st, lo = fl.lay[f]
         for d in range(len(sz)):
             rows.append((fnum[f], d, lo[d], sz[d]))
-    return sorted(rows)
+    for f, d in sorted(_dynd(fl)):           # 値で決まる座標の次元も口から
+        if f not in fl.lay or f not in fnum or f in syn: continue
+        b, sz, st, lo = fl.lay[f]
+        if d < len(sz):
+            rows.append((fnum[f], d, lo[d], sz[d]))
+    return sorted(set(rows))
 
 
 def oracle(fl):
@@ -323,7 +355,7 @@ BOOKS = [
     'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
     'examples/16_lex.lx', 'work/t/z_atomarg.lx', 'examples/35_noema.lx',
     'examples/20_lex_full.lx', 'examples/21_lex.lx',
-    'examples/29_dataflow.lx',
+    'examples/29_dataflow.lx', 'examples/17_render.lx', 'work/t/w_indir.lx',
 ]
 
 if __name__ == '__main__':

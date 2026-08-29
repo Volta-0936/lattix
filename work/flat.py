@@ -340,13 +340,17 @@ class Flatten:
             pass
         if e[0] == 'ctor':
             return self.pctor(e, sl, axes, st, sp, npt)
-        # `A + m·g[…]` の形に分ける（`g[…]` はちょうど一つ）
+        # `A + m·g[…]` の形に分ける（`g[…]` はちょうど一つ）。座標は
+        # 単調性が要らないので、引かれた読み（`i - owner[i]`、m = -1）も
+        # そのまま間接に畳める —— _addok（値の形の検査）はここでは強すぎる。
         fl = list(_tops(e))
-        if len(fl) != 1 or not _addok(e):
+        if len(fl) != 1:
             raise NotImplementedError(f"多面体にできない座標: {e}")
         g = fl[0]
-        c, ss = self.affine(_strip(e, [g]), sl)
         m = _coef(e, g)
+        if m == 0:
+            raise NotImplementedError(f"多面体にできない座標: {e}")
+        c, ss = self.affine(_strip(e, [g]), sl)
         am = self.pmapcell(g[1], g[2], sl, axes, st, sp, npt)
         lt = self.flat[g[1]]
         if self.fstr.get(g[1], 0) >= st:
@@ -664,9 +668,11 @@ class Flatten:
             # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
             # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
             vf, srcs = 0, []
-        elif e[0] == 'bin' and e[1] in '*/%':
+        elif e[0] == 'bin' and e[1] in '*/%' and not _addok(e):
             # **定数の掛け・割り・剰余の鎖。** 読みひとつに外へ重ねた形は
             # pa の変換の鎖で書ける（pchain）。値の写像はその間接を読むだけ。
+            # _addok が通る形（`i * 2` の一次式、`f[i] * 10` の係数つき読み）は
+            # 加法の枝が同じ行を出す —— 鎖は割り・剰余が要るときだけ。
             vf, srcs = 0, []
         else:
             # 項は **加法の骨組みの上の読み**だけ（_tops）。_frefs は添字の
@@ -709,7 +715,7 @@ class Flatten:
         if e[0] == 'ctor':
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
-        elif e[0] == 'bin' and e[1] in '*/%':
+        elif e[0] == 'bin' and e[1] in '*/%' and not _addok(e):
             iv = self.pchain(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
         elif vf in (0, 1):
@@ -1535,7 +1541,10 @@ def _addok(e):
     if e[0] == 'fref': return True
     if e[0] == 'bin' and e[1] == '+': return _addok(e[2]) and _addok(e[3])
     if e[0] == 'bin' and e[1] == '-':
-        return _addok(e[2]) and not any(True for _ in _frefs(e[3]))
+        # 引かれた読みも一次の項である（`diff[n] <- pow3[n] - pow2[n]`）——
+        # 係数 -1 は間接の m に畳まれ、成層が先に読みを閉じさせる
+        # （引き算の右は非単調。同層に居られない）。
+        return _addok(e[2]) and _addok(e[3])
     if e[0] == 'bin' and e[1] == '*':
         for a, b in ((e[2], e[3]), (e[3], e[2])):
             if isinstance(b, tuple) and b and b[0] == 'int':
