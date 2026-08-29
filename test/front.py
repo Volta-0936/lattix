@@ -59,13 +59,13 @@ def extrows(fl):
         for k, f in enumerate(fs):
             fnum[f"{nm}_{f}"] = base + k
         base += len(fs)
-    rows = []
+    rows = [(1022, 0, fl.ATOMB - 1, 1)]      # 数の上端の印（原子の基 − 1）
     for f in syn:
         if f not in fl.lay: continue
         b, sz, st, lo = fl.lay[f]
         for d in range(len(sz)):
             rows.append((fnum[f], d, lo[d], sz[d]))
-    return sorted(rows) or [(0, 0, 0, 0)]
+    return sorted(rows)
 
 
 def oracle(fl):
@@ -138,13 +138,13 @@ def front_family(g):
     fg = []
     for (r,) in st:
         n = nsv.get((r,), 0)
-        zero = r * 64 + 4
-        am = r * 64 + 1 if hasa.get((r,)) else zero
+        zero = r * 128 + 4
+        am = r * 128 + 1 if hasa.get((r,)) else zero
         am = g('zfgam').get((r,), am)
-        bm = r * 64 + 2 if n == 2 else zero
+        bm = r * 128 + 2 if n == 2 else zero
         wm = g('zwm').get((r,), zero)
         fg.append((r, spof[(r,)], st[(r,)], lat[(r,)], vf.get((r,), 0), n,
-                   r * 64, am, bm, wm))
+                   r * 128, am, bm, wm))
     zfck, zfclt, zfcam, zfcop, zfcwm = (g('zfck'), g('zfclt'), g('zfcam'),
                                         g('zfcop'), g('zfcwm'))
     zrnm = g('zrn')
@@ -152,7 +152,7 @@ def front_family(g):
     for (s, i), k in zfck.items():
         r = zrnm.get((s,))
         if r is None: continue
-        zero = r * 64 + 4
+        zero = r * 128 + 4
         fc.append((r, spof[(r,)], st[(r,)], k, zfclt.get((s, i), 0),
                    zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
                    zfcwm.get((s, i), zero)))
@@ -181,9 +181,10 @@ def run_flat(path):
     live = lambda rs: [tuple(r) for r in rs if len(r) > 2 and r[2] != 999]
     fg = [tuple(r) for r in t['fg'] if len(r) == 10]
     maps = {r[0]: tuple(r[1:]) for r in t['mp']}
+    ate = sorted(tuple(r) for r in t['ate'] if r[1] != 999)
     return (sorted(map(tuple, t['dat'])), sorted(map(tuple, t['spc'])),
             sorted(map(tuple, t['ssz'])), fl,
-            fg, live(t['fc']), live(t['fp']), maps)
+            fg, live(t['fc']), live(t['fp']), maps, ate)
 
 
 def paexp(b, maps, fpbyb, depth):
@@ -194,6 +195,9 @@ def paexp(b, maps, fpbyb, depth):
         return (fpr[3], fpr[7], paexp(fpr[8], maps, fpbyb, depth + 1))
     if fpr[3] == 2:
         return (2, paexp(fpr[8], maps, fpbyb, depth + 1),
+                paexp(fpr[9], maps, fpbyb, depth + 1), fpr[10])
+    if fpr[3] == 7:
+        return (7, fpr[7], paexp(fpr[8], maps, fpbyb, depth + 1),
                 paexp(fpr[9], maps, fpbyb, depth + 1), fpr[10])
     return (fpr[3], fpr[4], mapexp(fpr[6], maps, fpbyb, depth + 1))
 
@@ -228,7 +232,9 @@ def famnorm(fg, fc, fp, maps, spmap):
                      ex(q[10])) for q in fcby.get(eid, []))
         out.append((spmap.get(sp), st, lat, vf, nsc, ex(row[6]), ex(row[7]),
                     ex(row[8]), ex(row[9]), tuple(gs)))
-    loosefp = sorted(paexp(r[5], maps, fpbyb, 0) for r in fp)
+    # 面の写しの「多重度」は比べない —— flat は規則ごとに写しを作り直し、
+    # front は内容の同じ写しを共有することがある（どちらも答えは同じ）。
+    loosefp = sorted(set(paexp(r[5], maps, fpbyb, 0) for r in fp))
     return sorted(out), loosefp
 
 
@@ -282,7 +288,7 @@ BOOKS = [
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
     'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
-    'examples/16_lex.lx',
+    'examples/16_lex.lx', 'work/t/z_atomarg.lx', 'examples/35_noema.lx',
 ]
 
 if __name__ == '__main__':
@@ -294,7 +300,7 @@ if __name__ == '__main__':
     for f in files:
         n = os.path.basename(f)
         try:
-            dat2, spc2, ssz2, fl, ffg, ffc, ffp, fmaps = run_flat(f)
+            dat2, spc2, ssz2, fl, ffg, ffc, ffp, fmaps, fate = run_flat(f)
             if fl.nofam:
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
@@ -303,6 +309,12 @@ if __name__ == '__main__':
             got = normalize(dat1, spc1, ssz1)
             want = normalize(dat2, spc2, ssz2)
             why = diff(got, want)
+            if why is None:
+                zatbv = g('zatb').get((0,))
+                gate = sorted((zatbv + i, e1, g('zate2')[(i,)])
+                              for (i,), e1 in g('zate1').items()) if zatbv else []
+                if gate != fate:
+                    why = f"ate: {str(gate)[:40]} ≠ {str(fate)[:40]}"
             if why is None:
                 gfg, gfc, gfp, gmaps = front_family(g)
                 a = famnorm(gfg, gfc, gfp, gmaps, got[3])
