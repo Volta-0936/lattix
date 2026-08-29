@@ -111,12 +111,12 @@ def front_family(g):
     fg = []
     for (r,) in st:
         n = nsv.get((r,), 0)
-        zero = r * 32 + 4
-        am = r * 32 + 1 if hasa.get((r,)) else zero
-        bm = r * 32 + 2 if n == 2 else zero
+        zero = r * 64 + 4
+        am = r * 64 + 1 if hasa.get((r,)) else zero
+        bm = r * 64 + 2 if n == 2 else zero
         wm = g('zwm').get((r,), zero)
         fg.append((r, spof[(r,)], st[(r,)], lat[(r,)], vf.get((r,), 0), n,
-                   r * 32, am, bm, wm))
+                   r * 64, am, bm, wm))
     zfck, zfclt, zfcam, zfcop, zfcwm = (g('zfck'), g('zfclt'), g('zfcam'),
                                         g('zfcop'), g('zfcwm'))
     zrnm = g('zrn')
@@ -124,7 +124,7 @@ def front_family(g):
     for (s, i), k in zfck.items():
         r = zrnm.get((s,))
         if r is None: continue
-        zero = r * 32 + 4
+        zero = r * 64 + 4
         fc.append((r, spof[(r,)], st[(r,)], k, zfclt.get((s, i), 0),
                    zfcam[(s, i)], zfcop.get((s, i), 0), 0, zero, zero,
                    zfcwm.get((s, i), zero)))
@@ -240,7 +240,7 @@ BOOKS = [
     'examples/26_reach.lx', 'work/t/x_sumstrata.lx', 'work/t/y_paseam.lx',
     'examples/08_belnap.lx', 'examples/18_ubound.lx', 'examples/27_elf.lx',
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
-    'work/t/z_chain.lx',
+    'work/t/z_chain.lx', 'work/t/z_nestwm.lx',
 ]
 
 if __name__ == '__main__':
