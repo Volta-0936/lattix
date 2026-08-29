@@ -695,9 +695,10 @@ class Flatten:
         elif vf in (0, 1):
             rest = _strip(e, srcs + mis)
             c, ss = self.affine(rest, sl)
-            for j, col, _m in ss:
-                if (axes[j][0], col) in self.atomcol:
-                    raise _NoFam('原子を値にしている')
+            # **原子の値も番号である。** dat に置いた番号（ATOMB + i）が
+            # そのまま升に入り、見せるときに obs が綴りへ戻す —— 座標と
+            # 同じ扱いでよい。断っていたのは観測を疑っていた頃の名残で、
+            # 番号づけは綴りの順なので min/max/比較も文字列と同じ答えを出す。
             ivs = []
             for x in mis:
                 cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
