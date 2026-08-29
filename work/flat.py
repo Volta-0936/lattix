@@ -548,6 +548,18 @@ class Flatten:
                         zero, zero, self.mapof(cb, sb, axes))
             if a[0] != 'fref':
                 if b[0] != 'fref':
+                    # **鎖も升である** —— 読みに定数の * / % を重ねた形
+                    # （`quotes[i] % 2 == 1` など）は pa に畳んでから比べる。
+                    # 値の鎖（pchain）とガードの鎖は同じ算術 —— 別の規則は
+                    # 要らず、種1（pa 対 写像）にそのまま乗る。
+                    for x, y, o in ((a, b, op), (b, a, self.FLIP[op])):
+                        try:
+                            cy, sy = self.affine(y, sl)
+                        except NotImplementedError:
+                            continue
+                        iv = self.pchain(x, sl, axes, st, sp, npt)
+                        return (sp, st, 1, 0, self.mapof(0, [], axes, iv),
+                                OP[o], 0, zero, zero, self.mapof(cy, sy, axes))
                     raise NotImplementedError("多面体のガード: 両辺が升でない")
                 op, a, b = self.FLIP[op], b, a
             fl = [a[1]] + [x[1] for x in _frefs(b)]

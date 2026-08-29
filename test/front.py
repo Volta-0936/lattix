@@ -289,6 +289,7 @@ BOOKS = [
     'work/t/z_mixlat.lx', 'work/t/z_twoind.lx', 'work/t/v_poly.lx',
     'work/t/z_chain.lx', 'work/t/z_nestwm.lx', 'work/t/z_twoctor.lx',
     'examples/16_lex.lx', 'work/t/z_atomarg.lx', 'examples/35_noema.lx',
+    'examples/20_lex_full.lx',
 ]
 
 if __name__ == '__main__':
