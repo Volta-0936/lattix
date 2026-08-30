@@ -356,6 +356,9 @@ BOOKS = [
     'examples/16_lex.lx', 'work/t/z_atomarg.lx', 'examples/35_noema.lx',
     'examples/20_lex_full.lx', 'examples/21_lex.lx',
     'examples/29_dataflow.lx', 'examples/17_render.lx', 'work/t/w_indir.lx',
+    'examples/15_parse.lx', 'examples/19_mod.lx', 'examples/23_big.lx',
+    'examples/34_decimal.lx', 'examples/02_strata.lx', 'examples/05_pipeline.lx',
+    'examples/06_order_free.lx', 'examples/09_upset.lx',
 ]
 
 if __name__ == '__main__':

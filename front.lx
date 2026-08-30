@@ -56,12 +56,12 @@ zhsen[s] <- 2 for (s) in 0 .. nstz[0] if hfl[s] >= 1
 zhsen[s] <- 2 for (s) in 0 .. nstz[0] if hfl[s] >= 1
       if zlatf[hfl[s] - 1] >= 5
 field zrq : max bound 262144            # 比較の辺の要る向き（1 下る / 2 昇る / 4 座標）
-zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] >= 5
+zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 5
 zrq[oppv[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 3
 zrq[oppv[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 4
 zrq[oppv[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 6
 zrq[oppv[t]] <- 4 for (t,zc) in ch if iscmp2[t] if opc2[t] <= 2
-zrq[opnx[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] >= 5
+zrq[opnx[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 5
 zrq[opnx[t]] <- 1 for (t,zc) in ch if iscmp2[t] if opc2[t] == 3
 zrq[opnx[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 4
 zrq[opnx[t]] <- 2 for (t,zc) in ch if iscmp2[t] if opc2[t] == 6
@@ -469,6 +469,9 @@ zfbk[0] <- 0
 zfbk[k] <- zfbk[k-1] + zfvol[zford[k-1]] for (k) in 1 .. znf2m[0]
 field zfb : max bound 1024              # 場 f の基
 zfb[f] <- zfbk[zfrk[f] - 1] for (f) in 0 .. znf2m[0] if zfrk[f] >= 1
+field zkwst : or bound 524288           # `set` の語
+zkwst[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t]
+      if tch[t,0] == 115 if tch[t,1] == 101 if tch[t,2] == 116
 field zkw4 : or bound 524288            # `fourv` の語
 zkw4[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t]
       if tch[t,0] == 102 if tch[t,1] == 111 if tch[t,2] == 117
@@ -478,6 +481,7 @@ zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] <= 3
 zlatf[f] <- 5 for (f) in 0 .. nfdz[0] if flatt[f] == 6
 zlatf[f] <- flatt[f] for (f) in 0 .. nfdz[0] if flatt[f] >= 8
 zlatf[fdno[t]] <- 6 for (t,zc) in ch if isdcl[t] if zkw4[latt[t]]
+zlatf[fdno[t]] <- 7 for (t,zc) in ch if isdcl[t] if zkwst[latt[t]]
 zlatf[zszf[z]] <- 2 for (z) in 0 .. 0 if zhuse[z]
 zlatf[f] <- 5 for (f) in 0 .. znf2m[0] for (z) in 0 .. 0 if f >= znf0[z] + 1
 field zfws : max bound 1024             # 場 f を書く最大の層（fstr）
@@ -1930,8 +1934,18 @@ zmm0[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
 field zgpo : max bound 4096 8           # 肯定/否定の読みの出現
 zgpo[snum[t], gno2[t]] <- oseq[t] for (t,zc) in ch if isgrd[t]
       if not clcmp[snum[t], cnum[t]]
+field zgis : or bound 4096 8            # ガード (s,i) は `is`
+zgis[snum[t], gno2[t]] <- true for (t,zc) in ch if zkwis[t]
+field zgisn : max bound 4096 8          # is の右辺（数）
+zgisn[snum[t], gno2[t]] <- tval[nextw[t]] for (t,zc) in ch if zkwis[t]
+      if isnum[nextw[t]]
+zgisn[snum[t], gno2[t]] <- zatct[nextw[nextw[t]]] for (t,zc) in ch
+      if zkwis[t] if zqt34[nextw[t]]
+      if zatct[nextw[nextw[t]]] >= 1
 zfck[s, i] <- 3 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 9 if zgpo[s, i] >= 0
+      if gkd[s, i] == 9 if zgpo[s, i] >= 0 if not zgis[s, i]
+zfck[s, i] <- 4 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if gkd[s, i] == 9 if zgpo[s, i] >= 0 if zgis[s, i]
 zfck[s, i] <- 2 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if gkd[s, i] == 2 if zgpo[s, i] >= 0
       if zlatf[ofl[zgpo[s, i]] - 1] <= 5
@@ -1953,6 +1967,13 @@ zfcam[s, i] <- zgr2[s, i] * 128 + 8 + 3 * i for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zgpo[s, i] >= 0 if zgr2[s, i] >= 0
 zrdq[zgpo[s, i]] <- zgr2[s, i] * 128 + 8 + 3 * i for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zgpo[s, i] >= 0 if zgr2[s, i] >= 0
+zfcwm[s, i] <- zgr2[s, i] * 128 + 9 + 3 * i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgis[s, i] if zgpo[s, i] >= 0 if zgr2[s, i] >= 0
+zmu[zgr2[s, i] * 128 + 9 + 3 * i] <- true for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgis[s, i] if zgpo[s, i] >= 0 if zgr2[s, i] >= 0
+zmc[zgr2[s, i] * 128 + 9 + 3 * i] <- zgisn[s, i] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgis[s, i] if zgpo[s, i] >= 0 if zgr2[s, i] >= 0
+      if zgisn[s, i] >= 0
 
 # ── fg の行 ────────────────────────────────────────────────────────
 field ztn : max bound 4096              # 文 s の項の数
@@ -1961,6 +1982,15 @@ field zone1 : or bound 4096             # 値が同じ束の読み一つだけ�
 zone1[zrn[s]] <- true for (s) in 0 .. nstz[0] if zisr[s] if zrn[s] >= 0
       if ztn[s] == 1 if zns[zrn[s]] == 1
 field zfgvf : max bound 4096
+# 一元の集合 {v} は vf 3（wm がその元の写像）
+field zisbr : or bound 262144           # 一文字の `{`
+zisbr[t] <- true for (t,zc) in ch if tlen[t] == 1 if not tcom[t]
+      if tch[t,0] == 123
+field zsetv : or bound 4096             # 値が { … }
+zsetv[s] <- true for (s) in 0 .. nstz[0] if isrec[s]
+      if zisbr[nextw[nextw[arrowt[s]]]]
+zfgvf[zrn[s]] <- 3 for (s) in 0 .. nstz[0] if zisr[s] if zsetv[s]
+      if zrn[s] >= 0
 zfgvf[zrn[s]] <- 2 for (s) in 0 .. nstz[0] if zisr[s] if ztrue[s]
       if zrn[s] >= 0
 zfgvf[zrn[s]] <- 5 for (s) in 0 .. nstz[0] if zisr[s] if zfalse[s]
@@ -2665,22 +2695,34 @@ field zqtk : or bound 262144            # 綴りのトークン（表の升の�
 # 数でない語は、どちらも原子である（29_dataflow の none / x / y …）。
 zqtk[t] <- true for (t,zc) in ch if tkind[t] == 1 if not isnum[t]
       if istb[snum[t]] if tdep[t] == 1 if not tcom[t]
+# is の右辺の綴り（`status[j] is "done"`）も原子の候補である ——
+# 参照実装の _allatoms はガードの綴りも数えて番号を配る。
+field zkwis : or bound 262144           # `is` の語
+zkwis[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t]
+      if tch[t,0] == 105 if tch[t,1] == 115 if isrec[snum[t]]
+field zqt34 : or bound 262144           # 一文字の `"`
+zqt34[t] <- true for (t,zc) in ch if tlen[t] == 1 if not tcom[t]
+      if tch[t,0] == 34
+field zqtka : or bound 262144           # 原子の候補（表 + is の右辺）
+zqtka[t] <- true for (t,zc) in ch if zqtk[t]
+zqtka[nextw[nextw[t]]] <- true for (t,zc) in ch if zkwis[t]
+      if zqt34[nextw[t]]
 field zqac : or bound 262144            # 綴りのトークンに属する文字
-zqac[i] <- true for (i,c) in ch if zqtk[tnum[i]]
+zqac[i] <- true for (i,c) in ch if zqtka[tnum[i]]
 field zprc : max bound 262144           # 綴りのトークンの通し番号（鎖）
-zprc[0] <- 0 for (z) in 0 .. 0 if not zqtk[0]
-zprc[0] <- 1 for (z) in 0 .. 0 if zqtk[0]
-zprc[t] <- zprc[t-1] for (t,zc) in ch if t >= 1 if not zqtk[t]
-zprc[t] <- zprc[t-1] + 1 for (t,zc) in ch if t >= 1 if zqtk[t]
+zprc[0] <- 0 for (z) in 0 .. 0 if not zqtka[0]
+zprc[0] <- 1 for (z) in 0 .. 0 if zqtka[0]
+zprc[t] <- zprc[t-1] for (t,zc) in ch if t >= 1 if not zqtka[t]
+zprc[t] <- zprc[t-1] + 1 for (t,zc) in ch if t >= 1 if zqtka[t]
 field zprov : max bound 262144          # トークン → 仮番号（0 起点）
-zprov[t] <- zprc[t] - 1 for (t,zc) in ch if zqtk[t]
+zprov[t] <- zprc[t] - 1 for (t,zc) in ch if zqtka[t]
 field znpv : max bound 1                # 仮番号の数
 znpv[z] <- 0 for (z) in 0 .. 0
 znpv[z] <- zprc[t] for (t,zc) in ch for (z) in 0 .. 0
 field znpvm : max bound 1
 znpvm[z] <- znpv[z] - 1 for (z) in 0 .. 0
 field zatok : max bound 64              # 仮番号 → トークン（最初の出現）
-zatok[zprov[t]] <- t for (t,zc) in ch if zqtk[t] if zprov[t] >= 0
+zatok[zprov[t]] <- t for (t,zc) in ch if zqtka[t] if zprov[t] >= 0
       if zprc[t] >= 1
 field zaltk : max bound 64 24           # 仮番号 a の k 文字目（無い所は 0）
 zaltk[zprov[tnum[i]], cpos[i]] <- c for (i,c) in ch if zqac[i]
@@ -2746,7 +2788,7 @@ zatb[z] <- zamx[z] + 1 for (z) in 0 .. 0 if zamx[z] >= 0
 # ── dat と ate ─────────────────────────────────────────────────────
 field zatct : max bound 262144          # 綴りのトークン → 番号（ATOMB + 順位）
 zatct[t] <- zatb[z] + zaof[zprov[t]] for (t,zc) in ch for (z) in 0 .. 0
-      if zqtk[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0 if zatb[z] >= 1
+      if zqtka[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0 if zatb[z] >= 1
 ztbh2[ztrw[t], colc[t]] <- true for (t,zc) in ch if zqtk[t]
       if ztrw[t] >= 1
 field ztbva : max bound 8192 8          # (通し行, 列) の原子の番号
@@ -2768,10 +2810,10 @@ zaf2[i] <- (zaf2[i-1] * 1000033 + c + 1) % 268435367 for (i,c) in ch
       if zqac[i] if i >= tstart[tnum[i]] + 1
 field zate1 : max bound 64              # 順位 → enc（M1）
 zate1[zaof[zprov[t]]] <- 3 * zaf1[tstart[t] + tlen[t] - 1] + 1
-      for (t,zc) in ch if zqtk[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0
+      for (t,zc) in ch if zqtka[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0
 field zate2 : max bound 64              # 順位 → enc（M2）
 zate2[zaof[zprov[t]]] <- 3 * zaf2[tstart[t] + tlen[t] - 1] + 1
-      for (t,zc) in ch if zqtk[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0
+      for (t,zc) in ch if zqtka[t] if zprov[t] >= 0 if zaof[zprov[t]] >= 0
 
 # ── 構成子の綴りの引数（種 8）: AE を pa に写して係数 co で足す ──────
 zuak[u, k] <- 8 for (u) in 0 .. znusem[0] for (k) in 0 .. 7

@@ -8,7 +8,7 @@
 #   辺の上限: 6136   指し番号の上限: 3996
 #
 #   プログラムごとに変わるのは **表だけ**である。
-#   規則の数 316 行は、言語の形の数であって
+#   規則の数 319 行は、言語の形の数であって
 #   プログラムの大きさではない。
 
 # ══ 走らせる物 —— 寄与の関係を閉じる ════════════════════════════
@@ -179,6 +179,9 @@ pa[s, pb + t] <- pa[s, p1 + t] / mo   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,
 pa[s, pb + t] <- AE1[MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 5
 pa[s, pb + t] <- AE2[MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 6
 pa[s, pb + t] <- mu * pa[s, p1 + t] + mo * pa[s, p2 + t]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 7
+pa[s, pb + t] <- pa[s, p1 + t] / pa[s, p2 + t]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 8
+pa[s, pb + t] <- pa[s, p1 + t] % pa[s, p2 + t]   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 9
+pa[s, pb + t] <- (MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]) / mo   for (s) in 0 .. 15 for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s if kd == 11
 # ── 多面体の寄与。辺一本が空間ひとつを覆う。──────────────
 fq[s, e] <- true   for (s) in 0 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if st == s
 fq[s, e] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc if st == s

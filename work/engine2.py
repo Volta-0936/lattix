@@ -280,6 +280,7 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             if vf == 0:   A(f"{D} <- {_map('wm', PS)}   {g}")
             elif vf == 2: A(f"{D} <- true   {g}")
             elif vf == 5: A(f"{D} <- false  {g}")
+            elif vf == 3: A(f"{D} <- {{ {_map('wm', PS)} }}   {g}")
             elif vf == 4: A(f"{D} <- v{pl}[s, {_map('am', PS)}]   {g}")
             elif vf == 1 and n == 1:
                 A(f"{D} <- v{pl}[s, {_map('am', PS)}] + {_map('wm', PS)}   {g} if n == 1")

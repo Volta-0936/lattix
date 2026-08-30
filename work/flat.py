@@ -639,6 +639,8 @@ class Flatten:
                     rm[0], rm[1], self.mapof(c, ss, axes))
         if q[0] == 'geq' and q[1][0] == 'fref':
             bv = self.val(q[2], {})
+            if isinstance(bv, str):
+                bv = self.atom(bv)          # 原子も番号である（綴りの順）
             if not isinstance(bv, int) or isinstance(bv, bool):
                 raise NotImplementedError("多面体の `is` の右辺")
             return (sp, st, 4, self.flat[q[1][1]],
@@ -695,6 +697,10 @@ class Flatten:
             # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
             # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
             vf, srcs = 0, []
+        elif e[0] == 'set' and len(e[1]) == 1:
+            # **一元の集合も写像で書ける**（vf 3: v7 ← { wm }）。
+            # 元は軸の一次式 —— 点の道の形3（{w}）と同じ判断。
+            vf, srcs = 3, []
         elif e[0] == 'bin' and (e[1] in '/%' or
                                 (e[1] == '*' and not _addok(e))):
             # **割り・剰余は常に鎖**（i/2 も —— 写像は割れないので pa が要る）。
@@ -742,6 +748,9 @@ class Flatten:
         if e[0] == 'ctor':
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
+        elif vf == 3:
+            c, ss = self.affine(e[1][0], sl)
+            wm = self.mapof(c, ss, axes)
         elif e[0] == 'bin' and (e[1] in '/%' or
                                 (e[1] == '*' and not _addok(e))):
             iv = self.pchain(e, sl, axes, st, sp, n)
