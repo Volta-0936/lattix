@@ -205,6 +205,18 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 # 間接は何本でも届く。
                 A(f"pa[s, pb + t] <- mu * pa[s, p1 + t] + mo * pa[s, p2 + t]   "
                   f"{PL0} if kd == 7")
+            elif kd == 8:
+                # **割る数も升である**（pow2[n] / pow2[n-1]）。⊥ は火を消す。
+                A(f"pa[s, pb + t] <- pa[s, p1 + t] / pa[s, p2 + t]   "
+                  f"{PL0} if kd == 8")
+            elif kd == 9:
+                A(f"pa[s, pb + t] <- pa[s, p1 + t] % pa[s, p2 + t]   "
+                  f"{PL0} if kd == 9")
+            elif kd == 11:
+                # (写像) / 法 —— 種1 の割り算版。係数も一次式も間接も
+                # 写像が運ぶので、種10（mu·pa/法）は要らなかった。
+                A(f"pa[s, pb + t] <- ({_map('am', PS)}) / mo   "
+                  f"{PL0} if kd == 11")
 
     if fsh:
         A("# ── 多面体の寄与。辺一本が空間ひとつを覆う。──────────────")

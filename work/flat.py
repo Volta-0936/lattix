@@ -396,18 +396,45 @@ class Flatten:
             g = self.ground(b)
             if g is None and e[1] == '*':
                 g = self.ground(a); a = e[3]
-            if not isinstance(g, int) or isinstance(g, bool) or \
-               (e[1] in '/%' and g <= 0):
-                raise NotImplementedError("鎖の定数でない")
-            iv = self.pchain(a, sl, axes, st, sp, npt)
             if e[1] == '*':
+                if not isinstance(g, int) or isinstance(g, bool):
+                    raise NotImplementedError("鎖の定数でない")
+                iv = self.pchain(a, sl, axes, st, sp, npt)
                 return (iv[0] * g, iv[1], iv[2])
-            if iv[0] != 1:
-                raise NotImplementedError("係数を持ったまま割れない")
-            kd = 4 if e[1] == '/' else 3
+            if not isinstance(g, int) or isinstance(g, bool):
+                # **割る数も升である**（pow2[n] / pow2[n-1] —— 種8/9）。
+                # ⊥ は火を消すので、割る数の升が育つ前に割ることはない。
+                iv = self.pchain(a, sl, axes, st, sp, npt)
+                iv2 = self.pchain(b, sl, axes, st, sp, npt)
+                if iv[0] != 1 or iv2[0] != 1:
+                    raise NotImplementedError("係数を持ったまま pa で割れない")
+                b0 = self.pslot(npt)
+                self.fp.append((self.newid(), sp, st,
+                                8 if e[1] == '/' else 9, 0, b0,
+                                self.mapof(0, [], axes), 0, iv[1], iv2[1], 0))
+                return (1, b0, 1)
+            if g <= 0:
+                raise NotImplementedError("鎖の定数でない")
+            # 芯を (定数, 枠, 間接) に開く。読みだけなら種3/4 のまま、
+            # 一次式（i/2）・「一次式+読み」（(120+codelen[])%256）・係数つき
+            # （tri[i]·μ/M）は **写像が係数と一次式を運ぶ** —— (am)%mo は
+            # 種1（折り込みと同じ行）、(am)/mo は種11。種10 は要らなかった。
+            try:
+                c, ss, iv = 0, [], self.pchain(a, sl, axes, st, sp, npt)
+            except NotImplementedError:
+                try:
+                    c, ss = self.affine(a, sl); iv = (0, 0, 0)
+                except NotImplementedError:
+                    c, ss, iv = self.pcell(a, sl, axes, st, sp, npt)
             b0 = self.pslot(npt)
-            self.fp.append((self.newid(), sp, st, kd, 0, b0,
-                            self.mapof(0, [], axes), g, iv[1], 0, 0))
+            if not c and not ss and iv[2] and iv[0] == 1:
+                kd = 4 if e[1] == '/' else 3
+                self.fp.append((self.newid(), sp, st, kd, 0, b0,
+                                self.mapof(0, [], axes), g, iv[1], 0, 0))
+            else:
+                kd = 1 if e[1] == '%' else 11
+                self.fp.append((self.newid(), sp, st, kd, 0, b0,
+                                self.mapof(c, ss, axes, iv), g, 0, 0, 0))
             return (1, b0, 1)
         raise NotImplementedError(f"鎖の形でない: {e}")
 
@@ -668,11 +695,11 @@ class Flatten:
             # **構成した値も番地である。** 座標と同じ算術で折れる（`pctor`）——
             # 折った結果は番地の面に一升あるので、値の写像はそこを読むだけ。
             vf, srcs = 0, []
-        elif e[0] == 'bin' and e[1] in '*/%' and not _addok(e):
-            # **定数の掛け・割り・剰余の鎖。** 読みひとつに外へ重ねた形は
-            # pa の変換の鎖で書ける（pchain）。値の写像はその間接を読むだけ。
-            # _addok が通る形（`i * 2` の一次式、`f[i] * 10` の係数つき読み）は
-            # 加法の枝が同じ行を出す —— 鎖は割り・剰余が要るときだけ。
+        elif e[0] == 'bin' and (e[1] in '/%' or
+                                (e[1] == '*' and not _addok(e))):
+            # **割り・剰余は常に鎖**（i/2 も —— 写像は割れないので pa が要る）。
+            # 掛けは _addok が通る形（`i * 2` の一次式、`f[i] * 10` の係数つき
+            # 読み）なら加法の枝が同じ行を出す —— 鎖は割れたときだけ。
             vf, srcs = 0, []
         else:
             # 項は **加法の骨組みの上の読み**だけ（_tops）。_frefs は添字の
@@ -715,7 +742,8 @@ class Flatten:
         if e[0] == 'ctor':
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
-        elif e[0] == 'bin' and e[1] in '*/%' and not _addok(e):
+        elif e[0] == 'bin' and (e[1] in '/%' or
+                                (e[1] == '*' and not _addok(e))):
             iv = self.pchain(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
         elif vf in (0, 1):
