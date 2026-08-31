@@ -359,6 +359,7 @@ BOOKS = [
     'examples/15_parse.lx', 'examples/19_mod.lx', 'examples/23_big.lx',
     'examples/34_decimal.lx', 'examples/02_strata.lx', 'examples/05_pipeline.lx',
     'examples/06_order_free.lx', 'examples/09_upset.lx',
+    'examples/28_asm.lx',
 ]
 
 if __name__ == '__main__':

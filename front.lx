@@ -561,6 +561,29 @@ zdnv[oseq[t]] <- tval[t+3] for (t,zc) in ch if isocc[t] if ismin[t+2]
 zdk[oseq[t], 0] <- 4 for (t,zc) in ch if isocc[t] if ismin[t+2]
       if isnum[t+3]
 zdk[oseq[t], 0] <- 7 for (t,zc) in ch if isocc[t] if isocc[t+2]
+# 次元0 が「定数 + 読み」（`out[120 + off[i]]`、後ろの `+ 1` も定数の和へ）
+field zdcr : or bound 8192              # 次元0 は 定数 + 読み
+zdcr[oseq[t]] <- true for (t,zc) in ch if isocc[t] if isnum[t+2]
+      if isplus[nextw[t+2]] if isocc[nextw[nextw[t+2]]]
+zdk[oseq[t], 0] <- 7 for (t,zc) in ch if isocc[t] if isnum[t+2]
+      if isplus[nextw[t+2]] if isocc[nextw[nextw[t+2]]]
+zdro[oseq[t], 0] <- oseq[nextw[nextw[t+2]]] for (t,zc) in ch if isocc[t]
+      if isnum[t+2] if isplus[nextw[t+2]] if isocc[nextw[nextw[t+2]]]
+field zdcs : sum bound 8192             # その定数の和（頭 + 末尾のずれ）
+zdcs[oseq[t]] <- tval[t+2] for (t,zc) in ch if isocc[t] if isnum[t+2]
+      if isplus[nextw[t+2]] if isocc[nextw[nextw[t+2]]]
+field zdcri : max bound 8192            # その内の読みのトークン
+zdcri[oseq[t]] <- nextw[nextw[t+2]] for (t,zc) in ch if isocc[t]
+      if isnum[t+2] if isplus[nextw[t+2]] if isocc[nextw[nextw[t+2]]]
+field zdcrc : max bound 8192            # その読みの閉じ括弧のトークン
+zdcrc[o] <- tnum[zclch[tstart[nextw[zdcri[o]]]]] for (o) in 0 .. nocz[0]
+      if zdcr[o] if zdcri[o] >= 0
+      if zclch[tstart[nextw[zdcri[o]]]] >= 1
+zdcs[o] <- tval[nextw[nextw[zdcrc[o]]]] for (o) in 0 .. nocz[0]
+      if zdcr[o] if zdcrc[o] >= 0 if isplus[nextw[zdcrc[o]]]
+      if isnum[nextw[nextw[zdcrc[o]]]]
+zdof[o, 0] <- zdcs[o] for (o) in 0 .. nocz[0] if zdcr[o]
+      if zdcs[o] >= 1
 zdk[oseq[t], 0] <- 0 for (t,zc) in ch if isocc[t] if not isnum[t+2]
       if not isocc[t+2] if not isclo[t+2] if lkd[snum[t], zvlpz[t+2]] == 0
 zdk[oseq[t], 0] <- 1 for (t,zc) in ch if isocc[t] if not isnum[t+2]
@@ -700,9 +723,9 @@ zrdq[zho[r]] <- r * 128 for (r) in 0 .. znrm[0] if zho[r] >= 0
 # ある。33_self は種を定数としか見ないので、ここで項の印を種にも広げる
 #（33_self の istm の鎖と trkd の表がそのまま種にも働く）。
 istrm[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t]
-      if isseed[snum[t]] if not isbnd[t]
+      if isseed[snum[t]] if not isbnd[t] if not tcom[t]
 istrmn[t] <- true for (t,zc) in ch if aftarw[t] if isnum[t]
-      if isseed[snum[t]]
+      if isseed[snum[t]] if not tcom[t]
 field ztmo : max bound 524288           # 項トークン → 出現番号
 ztmo[t] <- oseq[t] for (t,zc) in ch if istrm[t]
 field ztml : max bound 524288           # 読みの項の束
@@ -793,10 +816,15 @@ zchav[s] <- true for (s) in 0 .. nstz[0] if zhdvt[s] if not znotca[s]
 field zchpoc : min bound 4096           # 括弧の芯の読み（出現）
 zchpoc[snum[t]] <- oseq[t] for (t,zc) in ch if isocc[t] if tdep[t] == 1
       if cnum[t] == 0 if t >= arrowt[snum[t]] + 1 if isrec[snum[t]]
+zchpoc[snum[t]] <- oseq[t] for (t,zc) in ch if isocc[t] if tdep[t] == 1
+      if cnum[t] == 0 if t >= arrowt[snum[t]] + 1 if isseed[snum[t]]
 field zchpc : sum bound 4096            # 括弧の芯の定数の和
 zchpc[snum[t]] <- tval[t] for (t,zc) in ch if isnum[t] if tdep[t] == 1
       if not tcom[t] if cnum[t] == 0 if t >= arrowt[snum[t]] + 1
       if isrec[snum[t]]
+zchpc[snum[t]] <- tval[t] for (t,zc) in ch if isnum[t] if tdep[t] == 1
+      if not tcom[t] if cnum[t] == 0 if t >= arrowt[snum[t]] + 1
+      if isseed[snum[t]]
 field zchpp : or bound 4096             # 文 s は括弧の芯の鎖
 zchpp[s] <- true for (s) in 0 .. nstz[0] if zhdvt[s] if zchpoc[s] >= 0
       if trkd[s, 0] >= 7 if trkd[s, 0] <= 8
@@ -1591,7 +1619,7 @@ zmc0[zchr[snum[t]] * 128 + 58] <- 0 for (t,zc) in ch
 zmm0[zchr[snum[t]] * 128 + 58] <- 1 for (t,zc) in ch
       if istrmv[t] if tcnt[t] == 0 if zchav[snum[t]]
       if zchr[snum[t]] >= 0
-zfpam[zchr[s], 7] <- zchr[s] * 128 + 4 for (s) in 0 .. nstz[0] if zchn[s]
+zfpam[zchr[s], 7] <- zchr[s] * 128 + 4 for (s) in 0 .. nstz[0] if zchny[s]
       if zchr[s] >= 0 if zchnn[s] >= 2
 # 鎖の wm: 定数 0 + 間接（係数, 最後の枠, 1）
 field zchlb : max bound 4096            # 最後の枠の番地

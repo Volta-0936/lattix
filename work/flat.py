@@ -144,6 +144,7 @@ class Flatten:
         # していたが、測るようにした以上、全部を算術で並べても広さは締まる。
         # （原子も構成子の番地も、番号として同じ段に載る。）
         need = _needs_arith(prog)           # 値で決まる座標を持つ場（算術が要る）
+        self.measuring = extent is None     # 一巡目 = 測る回
         if extent is None:
             self.ar = set(prog.fields)      # 一巡目は全部を仮の算術で測る
         else:
@@ -758,6 +759,15 @@ class Flatten:
         # 数えるときに、書けない物と混ぜてはいけない。
         # 地上の規則（源が無い）は点が一つなので、どちらに置いても同じ費用である
         # —— 選択の余地が無いものを閾値で振り分けない。
+        if self.measuring and any(
+                isinstance(k, tuple) and any(True for _ in _frefs(k))
+                for k in r.keys):
+            # **値で決まる座標を持つ規則だけは、一巡目は点で測る。**
+            # その次元の広さは走らせた値の範囲そのもので、区間算術では
+            # 出ない（28_asm の out が 146/154 に痩せた —— 三面鏡が出した）。
+            # 他の規則は家のまま —— そちらの測りは区間算術で、前段
+            # （front.lx）が静的に写せる形に保つ。
+            raise _NoFam('※一巡目は点で測る（値で決まる座標）')
         if r.sources and n < FAMILY_MIN: raise _NoFam('※空間が小さい（選択）')
         sl = self.slots(r)
         if any(x[1] not in self.lay for x in srcs): raise _NoFam('読む場が密でない')
