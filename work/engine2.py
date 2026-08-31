@@ -382,7 +382,7 @@ def close_upto(fl):
                 h = hashlib.sha1(eng.encode()).hexdigest()[:16]
                 cc = os.path.join(os.path.dirname(os.path.dirname(
                     os.path.abspath(__file__))), '_gen', 'close')
-                info = RT.build(eng, keep=os.path.join(cc, h), opt='-O0')
+                info = RT.build(eng, keep=os.path.join(cc, h), opt='-O1')
                 d = RT.write_data(info['prog'],
                                   os.path.join(info['dir'], 'data.lxd'),
                                   atom=info['atom'])

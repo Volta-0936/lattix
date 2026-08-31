@@ -65,6 +65,13 @@ def _dynd(fl):
                 for y in x: walk(y)
     for r in fl.p.rules:
         keyd(r.target, r.keys)
+        # 座標に升の読みが一つでもあれば、その規則は一巡目を **点で測る**
+        # （flat.py の measuring の門と同じ判断）。点で測った広さは静的な
+        # 区間算術では出ない —— 書き先の **全次元**を口から渡す。
+        if any(isinstance(k, tuple) and any(True for _ in _frefs(k))
+               for k in r.keys):
+            for d in range(len(r.keys)):
+                dyn.add((r.target, d))
         walk(r.value)
         for q in r.guards: walk(q)
         for _vs, srcx in (r.sources or []):
