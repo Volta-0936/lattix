@@ -344,29 +344,39 @@ class Flatten:
         # 単調性が要らないので、引かれた読み（`i - owner[i]`、m = -1）も
         # そのまま間接に畳める —— _addok（値の形の検査）はここでは強すぎる。
         fl = list(_tops(e))
-        if len(fl) != 1:
+        if not fl:
             raise NotImplementedError(f"多面体にできない座標: {e}")
-        g = fl[0]
-        m = _coef(e, g)
-        if m == 0:
-            raise NotImplementedError(f"多面体にできない座標: {e}")
-        c, ss = self.affine(_strip(e, [g]), sl)
-        am = self.pmapcell(g[1], g[2], sl, axes, st, sp, npt)
-        lt = self.flat[g[1]]
-        if self.fstr.get(g[1], 0) >= st:
-            # **まだ閉じていない場でも、昇る束なら写せる。** この層に居られた
-            # のは定義（lattix.py の classify）がその読みを単調と認めたから
-            # である —— 非単調な読み（座標にする・向きの合わない比較・引き算
-            # の右）は成層が先に層を割るので、ここには閉じた姿しか来ない。
-            # 下る束（min / and）と符号の要る束（sum / bag）は別で、生きた
-            # まま pa（flat・昇る文脈）へ写す規則は run.lx 自身が成層でき
-            # ない —— そこだけは断る（同束の直読み am/bm は元から生きてよい）。
-            if lt not in (2, 3, 5, 6, 9):
-                raise NotImplementedError(f"`{g[1]}` は同じ層で育つので番地にできない")
-            lt = -lt                      # 生きた面から読む合図（`ix` と同じ）
-        b = self.pslot(npt)
-        self.fp.append((self.newid(), sp, st, 0, lt, b, am, 0, 0, 0, 0))
-        return c, ss, (m, b, 1)
+        ivs = []
+        for g in fl:
+            m = _coef(e, g)
+            if m == 0:
+                raise NotImplementedError(f"多面体にできない座標: {e}")
+            am = self.pmapcell(g[1], g[2], sl, axes, st, sp, npt)
+            lt = self.flat[g[1]]
+            if self.fstr.get(g[1], 0) >= st:
+                # **まだ閉じていない場でも、昇る束なら写せる。** この層に
+                # 居られたのは定義（classify）がその読みを単調と認めたから
+                # である —— 非単調な読みは成層が先に層を割るので、ここには
+                # 閉じた姿しか来ない。下る束（min / and）と符号の要る束
+                # （sum / bag）は別で、生きたまま pa（flat・昇る文脈）へ写す
+                # 規則は run.lx 自身が成層できない —— そこだけは断る。
+                if lt not in (2, 3, 5, 6, 9):
+                    raise NotImplementedError(
+                        f"`{g[1]}` は同じ層で育つので番地にできない")
+                lt = -lt                  # 生きた面から読む合図（`ix` と同じ）
+            b = self.pslot(npt)
+            self.fp.append((self.newid(), sp, st, 0, lt, b, am, 0, 0, 0, 0))
+            ivs.append((m, b, 1))
+        c, ss = self.affine(_strip(e, fl), sl)
+        # **読みは何本でも一本に畳める**（種7: μ·pa + ν·pa）—— pctor の
+        # 間接の畳みと同じ算術を、座標そのものに使うだけである。
+        while len(ivs) > 1:
+            (c1, b1, _u1), (c2, b2, _u2) = ivs.pop(), ivs.pop()
+            bm = self.pslot(npt)
+            self.fp.append((self.newid(), sp, st, 7, 0, bm,
+                            self.mapof(0, [], axes), c2, b1, b2, c1))
+            ivs.append((1, bm, 1))
+        return c, ss, ivs[0]
 
     def _affrange(self, cst, ss, axes):
         """一次式の取りうる下端・上端（軸の幅が言う）。"""
@@ -485,8 +495,7 @@ class Flatten:
             if lo < 0 or hi >= min(L.CTOR_M1, L.CTOR_M2):
                 raise NotImplementedError("構成子の引数が法の外（折る前に畳めない）")
             terms.append(('aff', c, ss))
-        if sum(1 for t in terms if t[0] == 'slot') > 2:
-            raise NotImplementedError("折り込みに畳めない引数が三つ")
+        # slot 引数が三つ以上でも、下の間接の畳み（種7）が一本にする。
         b = []
         for m, k in ((L.CTOR_M1, L.CTOR_K1), (L.CTOR_M2, L.CTOR_K2)):
             cst = (L._fold(name.encode(), m, k) * k + n + 1) % m
@@ -547,7 +556,13 @@ class Flatten:
                 elif not ind2[2]:
                     ind2 = (iv[0] * stp[i], iv[1], 1)
                 else:
-                    raise NotImplementedError("一つの写像に間接の項が三つ")
+                    # **三本目も畳める**（種7: μ·pa + ν·pa）—— 枠は二本の
+                    # ままで、間接は何本でも届く（pctor と同じ判断）。
+                    bm = self.pslot(npt)
+                    self.fp.append((self.newid(), sp, st, 7, 0, bm,
+                                    self.mapof(0, [], axes),
+                                    iv[0] * stp[i], ind2[1], iv[1], ind2[0]))
+                    ind2 = (1, bm, 1)
             a = z = c
             for j, col, m in ss:
                 b0, _w, _nc = axes[j]
@@ -594,8 +609,15 @@ class Flatten:
                             cy, sy = self.affine(y, sl)
                         except NotImplementedError:
                             continue
-                        iv = self.pchain(x, sl, axes, st, sp, npt)
-                        return (sp, st, 1, 0, self.mapof(0, [], axes, iv),
+                        try:
+                            iv = self.pchain(x, sl, axes, st, sp, npt)
+                            cm = self.mapof(0, [], axes, iv)
+                        except NotImplementedError:
+                            # 鎖でなくても「一次式 + 読み」なら pcell が
+                            # 畳む（`match[k] + 1 == k` —— 写像が全部運ぶ）
+                            cx, sx, ivx = self.pcell(x, sl, axes, st, sp, npt)
+                            cm = self.mapof(cx, sx, axes, ivx)
+                        return (sp, st, 1, 0, cm,
                                 OP[o], 0, zero, zero, self.mapof(cy, sy, axes))
                     raise NotImplementedError("多面体のガード: 両辺が升でない")
                 op, a, b = self.FLIP[op], b, a
