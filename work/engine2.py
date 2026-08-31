@@ -363,8 +363,41 @@ def close_upto(fl):
                                 fl.fpsh if fl.fp else (), fl.pab + 1,
                                 fl.ATOMB + len(fl.atl) + 1)
         open('/tmp/close_gen.lx', 'w', encoding='utf-8').write(eng)
-        q = L.parse(eng); L.check(q); L.stratify(q); L.io_rounds(q); L.certify(q)
-        st2, _, _ = L.run(q, out=io.StringIO())
+        # 一巡目の升番号は仮の帯（ATOMB0*2 = 2^63）を使うことがある。
+        # 測定器は i64 —— 溢れる番号は flat の ⊤ と衝突する。**収まる
+        # ものだけ測定器で閉じ、収まらないものは解釈で閉じる**（区間算術
+        # の仮の上は、道具の語れる幅の中でだけ仮でいられる）。
+        big = max((abs(v) for n in names for row in t[n] for v in row),
+                  default=0)
+        st2 = obs = None
+        if big < (1 << 62) and os.environ.get('LATTIX_CLOSE_INTERP') != '1':
+            # **閉じるのも測定器で走る。** 生成した engine は本ごとに違うが
+            # 内容が同じなら焼き直さない（sha1 の置き場 —— 学びの輪が回る）。
+            # 測定器が語れない形（set の文字通り・原子の座標…）は下の
+            # 解釈実行に落ちるだけである —— 器の広さは正しさを縛らない。
+            import hashlib
+            import runtime as RT
+            import native as N
+            try:
+                h = hashlib.sha1(eng.encode()).hexdigest()[:16]
+                cc = os.path.join(os.path.dirname(os.path.dirname(
+                    os.path.abspath(__file__))), '_gen', 'close')
+                info = RT.build(eng, keep=os.path.join(cc, h), opt='-O0')
+                d = RT.write_data(info['prog'],
+                                  os.path.join(info['dir'], 'data.lxd'),
+                                  atom=info['atom'])
+                st2, _m = RT.run(info['exe'], d)
+                # 測定器の出力は **もう観測済みの数**である —— observe を
+                # 二重にかけない（sum の閉じ値が落ちて x_sumstrata が割れた）
+                obs = {f: (lambda v: v) for f in info['prog'].fields}
+            except N.Unsupported:
+                st2 = obs = None
+        if st2 is None:
+            # 逃げ道: 解釈実行（遅い。測定器が語れない・疑わしいときだけ）
+            q = L.parse(eng); L.check(q); L.stratify(q)
+            L.io_rounds(q); L.certify(q)
+            st2, _, _ = L.run(q, out=io.StringIO())
+            obs = {f: q.fields[f].observe for f in q.fields}
         for lt in sh[2]:
             nmf = f'v{PLANE[lt][0]}'
             for (sx, c), v in st2.get(nmf, {}).items():
@@ -372,7 +405,8 @@ def close_upto(fl):
                 fl.measure(c)          # 触れた升をそのまま上端に（一巡目の測り）
                 try: f, keys = fl.name_of(c)
                 except (KeyError, IndexError): continue
-                fl.closed[(f, keys)] = q.fields[nmf].observe(v)
+                try: fl.closed[(f, keys)] = obs[nmf](v)
+                except Exception: continue
         fl.upto = len(fl.eg) + len(fl.fg)
     return go
 
