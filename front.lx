@@ -632,7 +632,7 @@ zdof[o, 1] <- ixnv[zd1[o]] for (o) in 0 .. nocz[0] if zd1[o] >= 0
       if isplus[ixop[zd1[o]]] if isnum[ixnm[zd1[o]]]
 zdof[o, 1] <- 0 - ixnv[zd1[o]] for (o) in 0 .. nocz[0] if zd1[o] >= 0
       if ismin[ixop[zd1[o]]] if isnum[ixnm[zd1[o]]]
-field zdro : max bound 8192 2           # 読みの種のときの内側の出現
+field zdro : max bound 8192 3           # 読みの種のときの内側の出現
 zdro[o, 0] <- zinoc[o] for (o) in 0 .. nocz[0] if zdk[o, 0] == 7
 zdro[o, 1] <- oseq[zd1[o]] for (o) in 0 .. nocz[0] if zdk[o, 1] == 7
       if zd1[o] >= 0
@@ -664,6 +664,10 @@ zd1cm[o] <- nextw[zd1[o]] for (o) in 0 .. nocz[0] if zd1[o] >= 0
       if not ixhf[zd1[o]]
 zd1cm[o] <- nextw[ixnm[zd1[o]]] for (o) in 0 .. nocz[0] if zd1[o] >= 0
       if ixhf[zd1[o]]
+# 次元1 が読み（rn[k]）なら、その閉じ括弧の次の語へ（角括弧を跨ぐ）
+zd1cm[o] <- nextw[tnum[zclch[tstart[nextw[zd1[o]]]]]] for (o) in 0 .. nocz[0]
+      if zd1[o] >= 0 if isocc[zd1[o]]
+      if zclch[tstart[nextw[zd1[o]]]] >= 1
 field zd2 : max bound 8192              # 次元2 の添字トークン
 zd2[o] <- nextw[zd1cm[o]] for (o) in 0 .. nocz[0] if zd1cm[o] >= 0
       if iscom[zd1cm[o]]
@@ -673,6 +677,7 @@ field zd2s : max bound 8192             # 次元2 の変数の for 節
 zd2s[o] <- zvlpz[zd2[o]] for (o) in 0 .. nocz[0] if zd2[o] >= 0
       if not isnum[zd2[o]] if not isocc[zd2[o]]
 zdk[o, 2] <- 4 for (o) in 0 .. nocz[0] if zd2[o] >= 0 if isnum[zd2[o]]
+zdk[o, 2] <- 7 for (o) in 0 .. nocz[0] if zd2[o] >= 0 if isocc[zd2[o]]
 zdk[o, 2] <- 0 for (o) in 0 .. nocz[0] if zd2[o] >= 0 if not isnum[zd2[o]]
       if not isocc[zd2[o]] if lkd[osn[o], zd2s[o]] == 0
 zdk[o, 2] <- 1 for (o) in 0 .. nocz[0] if zd2[o] >= 0 if not isnum[zd2[o]]
@@ -1002,6 +1007,8 @@ zq2[o] <- zdc[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdk[o, 2] == 4
 zq2[o] <- zdof[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdk[o, 2] <= 1
+zq2[o] <- zdof[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 2] == 7
 zmc[zrdq[o]] <- zfb[zrdf[o]] + zq0[o] + zq1[o] + zq2[o]
       for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 # 枠: 次元0 の変数 → 枠0（歩幅 zfs0）、次元1 の変数 → 枠1（歩幅 1）
@@ -1077,7 +1084,7 @@ zmib[zrdq[o]] <- zfpb[zsr[o], zu0k[zrk[o]]] for (o) in 0 .. nocz[0]
 zmiu[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 0
       if zdk[o, 0] == 7 if zu0k[zrk[o]] >= 1
 zmia2[zrdq[o]] <- zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
-      if zdk[o, 1] == 7 if zu1k[zrk[o]] >= 1
+      if zdk[o, 1] == 7 if zu1k[zrk[o]] >= 1 if not zh3r[o]
 zmia2[zrdq[o]] <- zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
       if zdk[o, 1] == 8 if zd1sg[o] == 1 if zu1k[zrk[o]] >= 1
 zmia2[zrdq[o]] <- 0 - zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
@@ -1085,6 +1092,7 @@ zmia2[zrdq[o]] <- 0 - zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 zmib2[zrdq[o]] <- zfpb[zsr[o], zu1k[zrk[o]]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdrd1[o] if zrk[o] >= 0
       if zu1k[zrk[o]] >= 1 if zfpb[zsr[o], zu1k[zrk[o]]] >= 1
+      if not zh3r[o]
 zmiu2[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 0
       if zdrd1[o] if zu1k[zrk[o]] >= 1
 # 内側の読みの fp（束: 閉じていれば +束、生きた flat は −5）と写像
@@ -1199,6 +1207,51 @@ zfpam[zsr[o], zdu0[o]] <- zsr[o] * 128 + zdm0v[o] for (o) in 0 .. nocz[0]
 zfpam[zsr[o], zdu0[o] + 1] <- zsr[o] * 128 + zdm0v[o] + 1
       for (o) in 0 .. nocz[0] if zdpo[o] if zrdq[o] >= 0 if zdrd1[o]
       if zdu0[o] >= 68
+
+
+# ── 次元2 の読み（trow[nm[..], rn[k], cn[k]]）—— 間接は二本のまま、
+# 次元1 と次元2 を fp 種7 で一本に畳む（μ = 次元1 の歩幅、ν = 1）。
+field zh3r : or bound 8192              # 三つの次元がぜんぶ読み
+zh3r[o] <- true for (o) in 0 .. nocz[0] if zdk[o, 0] == 7
+      if zdrd1[o] if zdk[o, 2] == 7
+zdro[o, 2] <- oseq[zd2[o]] for (o) in 0 .. nocz[0] if zdk[o, 2] == 7
+      if zd2[o] >= 0
+zrdq[zdro[o, 2]] <- zsr[o] * 128 + 127 for (o) in 0 .. nocz[0]
+      if zh3r[o] if zdro[o, 2] >= 0
+field zinf2 : max bound 8192            # 次元2 の内側の読みの場
+zinf2[o] <- ofl[zdro[o, 2]] - 1 for (o) in 0 .. nocz[0] if zh3r[o]
+      if zdro[o, 2] >= 0
+zfpu[zsr[o], 94] <- true for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0
+zfplt[zsr[o], 94] <- zlatf[zinf2[o]] for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0 if zinf2[o] >= 0
+      if zfws[zinf2[o]] <= zfgst[zsr[o]] - 1
+zfplt[zsr[o], 94] <- 0 - 5 for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0 if zinf2[o] >= 0 if zlatf[zinf2[o]] == 5
+      if zfws[zinf2[o]] >= zfgst[zsr[o]]
+zfpam[zsr[o], 94] <- zsr[o] * 128 + 127 for (o) in 0 .. nocz[0]
+      if zh3r[o] if zrdq[o] >= 0
+zfpu[zsr[o], 95] <- true for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0
+zfpk[zsr[o], 95] <- 7 for (o) in 0 .. nocz[0] if zh3r[o] if zrdq[o] >= 0
+zfpmo[zsr[o], 95] <- zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0
+zfpx[zsr[o], 95] <- 1 for (o) in 0 .. nocz[0] if zh3r[o] if zrdq[o] >= 0
+zfplt[zsr[o], 95] <- 0 for (o) in 0 .. nocz[0] if zh3r[o] if zrdq[o] >= 0
+zfpsr[zsr[o], 95] <- zfpb[zsr[o], zu1k[zrk[o]]] for (o) in 0 .. nocz[0]
+      if zh3r[o] if zrdq[o] >= 0 if zu1k[zrk[o]] >= 1
+      if zfpb[zsr[o], zu1k[zrk[o]]] >= 1
+zfpsr[zsr[o], 95] <- zfpb[zsr[o], zdu0[o] + 1] for (o) in 0 .. nocz[0]
+      if zh3r[o] if zrdq[o] >= 0 if zdpo[o] if zdu0[o] >= 68
+      if zfpb[zsr[o], zdu0[o] + 1] >= 1
+zfps2[zsr[o], 95] <- zfpb[zsr[o], 94] for (o) in 0 .. nocz[0]
+      if zh3r[o] if zrdq[o] >= 0 if zfpb[zsr[o], 94] >= 1
+zfpam[zsr[o], 95] <- zsr[o] * 128 + 4 for (o) in 0 .. nocz[0]
+      if zh3r[o] if zrdq[o] >= 0
+zmia2[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zh3r[o] if zrdq[o] >= 0
+zmib2[zrdq[o]] <- zfpb[zsr[o], 95] for (o) in 0 .. nocz[0] if zh3r[o]
+      if zrdq[o] >= 0 if zfpb[zsr[o], 95] >= 1
+zmiu2[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zh3r[o] if zrdq[o] >= 0
 
 # ── zam / zmis を枠へ写す規則は閉じた値だけを見る（min は動く。気づき24）──
 # （上の zrdq の規則に比較の門を足した形で書き直してある）
