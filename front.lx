@@ -509,10 +509,27 @@ field zoar0 : or bound 8192             # 出現 o は添字なし（`n[]`）
 zoar0[oseq[t]] <- true for (t,zc) in ch if isocc[t] if isclo[t+2]
 field zsof : max bound 8192             # 出現 o のずれ（符号付き）
 zsof[oseq[t]] <- 0 for (t,zc) in ch if isocc[t] if not ixhf[t+2]
+      if not isocc[t+2]
 zsof[oseq[t]] <- ixnv[t+2] for (t,zc) in ch if isocc[t]
       if isplus[ixop[t+2]] if isnum[ixnm[t+2]]
 zsof[oseq[t]] <- 0 - ixnv[t+2] for (t,zc) in ch if isocc[t]
       if ismin[ixop[t+2]] if isnum[ixnm[t+2]]
+# 次元0 が読みで、閉じ括弧の後ろに ± 数が続く形（mulop[ast[k]-1]）
+field zdrc0 : max bound 8192            # 内の読みの閉じ括弧のトークン
+zdrc0[oseq[t]] <- tnum[zclch[tstart[nextw[t+2]]]] for (t,zc) in ch
+      if isocc[t] if isocc[t+2] if zclch[tstart[nextw[t+2]]] >= 1
+zsof[oseq[t]] <- 0 for (t,zc) in ch if isocc[t] if isocc[t+2]
+      if zdrc0[oseq[t]] >= 0
+      if not isplus[nextw[zdrc0[oseq[t]]]]
+      if not ismin[nextw[zdrc0[oseq[t]]]]
+zsof[oseq[t]] <- tval[nextw[nextw[zdrc0[oseq[t]]]]] for (t,zc) in ch
+      if isocc[t] if isocc[t+2] if zdrc0[oseq[t]] >= 0
+      if isplus[nextw[zdrc0[oseq[t]]]]
+      if isnum[nextw[nextw[zdrc0[oseq[t]]]]]
+zsof[oseq[t]] <- 0 - tval[nextw[nextw[zdrc0[oseq[t]]]]] for (t,zc) in ch
+      if isocc[t] if isocc[t+2] if zdrc0[oseq[t]] >= 0
+      if ismin[nextw[zdrc0[oseq[t]]]]
+      if isnum[nextw[nextw[zdrc0[oseq[t]]]]]
 # ── 束縛 6/7 の補い —— 33_self の照合は bp0..bp5（六変数）まで。
 # `for (pc,op,d,s1,s2,tg) in prog for (v) in vars` の v は 7 本目である。
 field zbp6 : max bound 4096             # 文 s の 6 番目の束縛
@@ -2868,46 +2885,46 @@ zsyak[r] <- zuak[zsyru[r], zsyj[r]] for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zuak[zsyru[r], zsyj[r]] >= 0
 zfgvf[r] <- 4 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if not zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] == zfglat[r]
 zfgns[r] <- 1 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if not zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] == zfglat[r]
 # 深い読みの引数（座標に読みがある）: 値は pa 写し越し（vf0・wm 間接）
 zfgvf[r] <- 0 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zfgns[r] <- 0 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zmu[r * 128 + 3] <- true for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zmc[r * 128 + 3] <- 0 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zmia[r * 128 + 3] <- 1 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zmib[r * 128 + 3] <- zfpb[r, zuca[zsyj[r]]] for (r) in 0 .. znr2m[0]
       if zissy[r] if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]] if zfpb[r, zuca[zsyj[r]]] >= 1
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r] if zfpb[r, zuca[zsyj[r]]] >= 1
 zmiu[r * 128 + 3] <- 1 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 zfgam[r] <- zur[zsyru[r]] * 128 + zuam[zsyj[r]] for (r) in 0 .. znr2m[0]
       if zissy[r] if zsyj[r] <= zucar[zsyru[r]] - 1 if zur[zsyru[r]] >= 0
       if zsyak[r] == 7 if tdep[zut[zsyru[r]]] == 0
-      if not zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] == zfglat[r]
 zfgam[r] <- zur[zsyru[r]] * 128 + 124 + zsyj[r] for (r) in 0 .. znr2m[0]
       if zissy[r] if zsyj[r] <= zucar[zsyru[r]] - 1 if zur[zsyru[r]] >= 0
       if zsyak[r] == 7 if tdep[zut[zsyru[r]]] >= 1
-      if not zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] == zfglat[r]
 zwm[r] <- r * 128 + 4 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if not zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] == zfglat[r]
 zwm[r] <- r * 128 + 3 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] == 7
-      if zdpo[zuao[zsyru[r], zsyj[r]]]
+      if zlatf[zuaf[zsyru[r], zsyj[r]]] != zfglat[r]
 # 変数・定数の引数場: vf0、値は wm の一次式
 zfgvf[r] <- 0 for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyj[r] <= zucar[zsyru[r]] - 1 if zsyak[r] <= 4
