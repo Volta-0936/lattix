@@ -2722,7 +2722,9 @@ zuh1[u, k+1] <- zuh1[u, k] for (u) in 0 .. znusem[0] for (k) in 0 .. 6
       if k <= zucar[u] - 1 if zuak[u, k] >= 0
       if zuak[u, k] != 4 if zuak[u, k] != 9
 zuh1[u, k+1] <- (zuh1[u, k] + zpwa[zucar[u] - 1 - k] * (3 * zuav[u, k] % 268435399)) % 268435399 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 4
-zuh1[u, k+1] <- (zuh1[u, k] + zpwa[zucar[u] - 1 - k] * (3 * ((zuad1[zuau[u, k]] * 268435367 + zuad2[zuau[u, k]]) % 268435399) % 268435399)) % 268435399 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 9
+zuh1[u, k+1] <- (zuh1[u, k] + zpwa[zucar[u] - 1 - k] * (3 * ((zuad1[zuau[u, k]] * 268435367 + zuad2[zuau[u, k]]) % 268435399) % 268435399)) % 268435399 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 9 if not zuhrd[zuau[u, k]]
+zuh1[u, k+1] <- zuh1[u, k] for (u) in 0 .. znusem[0] for (k) in 0 .. 6
+      if k <= zucar[u] - 1 if zuak[u, k] == 9 if zuhrd[zuau[u, k]]
 field zuh2 : flat bound 4096 8          # M2 の残差
 zuh2[u, 0] <- zcc2[zuc[u]] for (u) in 0 .. znusem[0]
       if zuc[u] >= 0 if zcc2[zuc[u]] >= 0
@@ -2730,7 +2732,9 @@ zuh2[u, k+1] <- zuh2[u, k] for (u) in 0 .. znusem[0] for (k) in 0 .. 6
       if k <= zucar[u] - 1 if zuak[u, k] >= 0
       if zuak[u, k] != 4 if zuak[u, k] != 9
 zuh2[u, k+1] <- (zuh2[u, k] + zpwb[zucar[u] - 1 - k] * (3 * zuav[u, k] % 268435367)) % 268435367 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 4
-zuh2[u, k+1] <- (zuh2[u, k] + zpwb[zucar[u] - 1 - k] * (3 * zuad2[zuau[u, k]] % 268435367)) % 268435367 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 9
+zuh2[u, k+1] <- (zuh2[u, k] + zpwb[zucar[u] - 1 - k] * (3 * zuad2[zuau[u, k]] % 268435367)) % 268435367 for (u) in 0 .. znusem[0] for (k) in 0 .. 6 if k <= zucar[u] - 1 if zuak[u, k] == 9 if not zuhrd[zuau[u, k]]
+zuh2[u, k+1] <- zuh2[u, k] for (u) in 0 .. znusem[0] for (k) in 0 .. 6
+      if k <= zucar[u] - 1 if zuak[u, k] == 9 if zuhrd[zuau[u, k]]
 field zuad1 : flat bound 4096           # 使用 u の残差（M1。定数の引数だけ見た分）
 zuad1[u] <- zuh1[u, zucar[u]] for (u) in 0 .. znusem[0]
       if zucar[u] >= 1 if zuh1[u, zucar[u]] >= 0
