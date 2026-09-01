@@ -69,8 +69,12 @@ zrq[opnx[t]] <- 4 for (t,zc) in ch if iscmp2[t] if opc2[t] <= 2
 field zonm : or bound 8192              # 精密な非単調の読み
 zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if isneg[t]
       if zosen[oseq[t]] <= 5
+# 構成子の使用の引数の読みは **値の写し**である —— 昇る束なら生きたまま
+# 単調（参照実装の live copy と同じ）。下る束だけ閉じる（成層できない）。
 zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tdep[t] >= 1
-      if zosen[oseq[t]] <= 4
+      if zosen[oseq[t]] <= 4 if not zisua[oseq[t]]
+zonm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tdep[t] >= 1
+      if zosen[oseq[t]] == 1 if zisua[oseq[t]]
 zonm[oseq[tmatch[oppv[t]]]] <- true for (t,zc) in ch if iscmp2[t]
       if isclo[oppv[t]] if zosen[oseq[tmatch[oppv[t]]]] <= 4
       if zrq[oppv[t]] != zosen[oseq[tmatch[oppv[t]]]]
@@ -83,7 +87,7 @@ zonm[oseq[opnx[t]]] <- true for (t,zc) in ch if iscmp2[t]
 zonm[oseq[t]] <- true for (t,zc) in ch if istrm[t] if ofl[oseq[t]] >= 1
       if hfl[snum[t]] >= 1 if zosen[oseq[t]] <= 4
       if zosen[oseq[t]] != zhsen[snum[t]]
-      if trkd[snum[t], tcnt[t]] != 9
+      if trkd[snum[t], tcnt[t]] != 9 if not zisua[oseq[t]]
 zonm[oseq[t]] <- true for (t,zc) in ch if istrm[t] if ofl[oseq[t]] >= 1
       if hfl[snum[t]] >= 1 if zosen[oseq[t]] <= 4
       if zosen[oseq[t]] == zhsen[snum[t]]
@@ -2571,6 +2575,18 @@ zfplt[r, zuca[k]] <- 0 - 5 for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
       if zcrr[r] if zuaf[zcru[r], k] >= 0
       if zlatf[zuaf[zcru[r], k]] == 5
       if zfws[zuaf[zcru[r], k]] >= zfgst[r]
+zfplt[r, zuca[k]] <- 0 - zlatf[zuaf[zcru[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zcrr[r] if zuaf[zcru[r], k] >= 0
+      if zlatf[zuaf[zcru[r], k]] >= 2 if zlatf[zuaf[zcru[r], k]] <= 3
+      if zfws[zuaf[zcru[r], k]] >= zfgst[r]
+zfplt[r, zuca[k]] <- 0 - zlatf[zuaf[zcru[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zcrr[r] if zuaf[zcru[r], k] >= 0
+      if zlatf[zuaf[zcru[r], k]] == 6
+      if zfws[zuaf[zcru[r], k]] >= zfgst[r]
+zfplt[r, zuca[k]] <- 0 - zlatf[zuaf[zcru[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zcrr[r] if zuaf[zcru[r], k] >= 0
+      if zlatf[zuaf[zcru[r], k]] == 9
+      if zfws[zuaf[zcru[r], k]] >= zfgst[r]
 zfpam[r, zuca[k]] <- zur[zcru[r]] * 128 + zuam[k] for (r) in 0 .. znr2m[0]
       for (k) in 0 .. 2 if zcrr[r] if k <= zucar[zcru[r]] - 1
       if zur[zcru[r]] >= 0 if zuak[zcru[r], k] == 7
@@ -2879,6 +2895,18 @@ zfplt[r, 25] <- 0 - 5 for (r) in 0 .. znr2m[0] if zissy[r] if zsyk[r] >= 0
       if zuaf[zsyru[r], zsyk[r]] >= 0
       if zlatf[zuaf[zsyru[r], zsyk[r]]] == 5
       if zfws[zuaf[zsyru[r], zsyk[r]]] >= zfgst[r]
+zfplt[r, 25] <- 0 - zlatf[zuaf[zsyru[r], zsyk[r]]] for (r) in 0 .. znr2m[0] if zissy[r] if zsyk[r] >= 0
+      if zuaf[zsyru[r], zsyk[r]] >= 0
+      if zlatf[zuaf[zsyru[r], zsyk[r]]] >= 2 if zlatf[zuaf[zsyru[r], zsyk[r]]] <= 3
+      if zfws[zuaf[zsyru[r], zsyk[r]]] >= zfgst[r]
+zfplt[r, 25] <- 0 - zlatf[zuaf[zsyru[r], zsyk[r]]] for (r) in 0 .. znr2m[0] if zissy[r] if zsyk[r] >= 0
+      if zuaf[zsyru[r], zsyk[r]] >= 0
+      if zlatf[zuaf[zsyru[r], zsyk[r]]] == 6
+      if zfws[zuaf[zsyru[r], zsyk[r]]] >= zfgst[r]
+zfplt[r, 25] <- 0 - zlatf[zuaf[zsyru[r], zsyk[r]]] for (r) in 0 .. znr2m[0] if zissy[r] if zsyk[r] >= 0
+      if zuaf[zsyru[r], zsyk[r]] >= 0
+      if zlatf[zuaf[zsyru[r], zsyk[r]]] == 9
+      if zfws[zuaf[zsyru[r], zsyk[r]]] >= zfgst[r]
 zfpam[r, 25] <- zur[zsyru[r]] * 128 + zuam[zsyk[r]] for (r) in 0 .. znr2m[0]
       if zissy[r] if zsyk[r] >= 0 if zur[zsyru[r]] >= 0
       if tdep[zut[zsyru[r]]] == 0
@@ -3028,6 +3056,18 @@ zfplt[r, 80 + k] <- zlatf[zuaf[zniu[r], k]] for (r) in 0 .. znr2m[0]
 zfplt[r, 80 + k] <- 0 - 5 for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
       if zniu[r] >= 0 if zuaf[zniu[r], k] >= 0 if zuak[zniu[r], k] == 7
       if zlatf[zuaf[zniu[r], k]] == 5
+      if zfws[zuaf[zniu[r], k]] >= zfgst[r]
+zfplt[r, 80 + k] <- 0 - zlatf[zuaf[zniu[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zniu[r] >= 0 if zuaf[zniu[r], k] >= 0 if zuak[zniu[r], k] == 7
+      if zlatf[zuaf[zniu[r], k]] >= 2 if zlatf[zuaf[zniu[r], k]] <= 3
+      if zfws[zuaf[zniu[r], k]] >= zfgst[r]
+zfplt[r, 80 + k] <- 0 - zlatf[zuaf[zniu[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zniu[r] >= 0 if zuaf[zniu[r], k] >= 0 if zuak[zniu[r], k] == 7
+      if zlatf[zuaf[zniu[r], k]] == 6
+      if zfws[zuaf[zniu[r], k]] >= zfgst[r]
+zfplt[r, 80 + k] <- 0 - zlatf[zuaf[zniu[r], k]] for (r) in 0 .. znr2m[0] for (k) in 0 .. 2
+      if zniu[r] >= 0 if zuaf[zniu[r], k] >= 0 if zuak[zniu[r], k] == 7
+      if zlatf[zuaf[zniu[r], k]] == 9
       if zfws[zuaf[zniu[r], k]] >= zfgst[r]
 zfpam[r, 80 + k] <- zur[zniu[r]] * 128 + 124 + k for (r) in 0 .. znr2m[0]
       for (k) in 0 .. 2 if zniu[r] >= 0 if k <= zucar[zniu[r]] - 1
