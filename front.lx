@@ -1157,9 +1157,17 @@ ztbl[zchdo2[s]] <- true for (s) in 0 .. nstz[0] if zchdo2[s] >= 0
 field zisua : or bound 8192             # 出現 o は構成子の使用の引数
 zisua[zuao[u, k]] <- true for (u) in 0 .. znusem[0] for (k) in 0 .. 7
       if zuao[u, k] >= 0
+field zdin : or bound 8192              # 出現 o は内側の読み（親がいる）
+zdin[zdro[o, 0]] <- true for (o) in 0 .. nocz[0] if zdk[o, 0] == 7
+      if zdro[o, 0] >= 0
+zdin[zdro[o, 1]] <- true for (o) in 0 .. nocz[0] if zdrd1[o]
+      if zdro[o, 1] >= 0
 field zdpo : or bound 8192              # 鎖で席を配る親（表に席が無く、読みを持つ）
 zdpo[o] <- true for (o) in 0 .. nocz[0] if not ztbl[o] if zdk[o, 0] == 7
 zdpo[o] <- true for (o) in 0 .. nocz[0] if not ztbl[o] if zdrd1[o]
+# 内側の読みは席が鎖から来る —— zam に拾われていても鎖が親（head の arrow）
+zdpo[o] <- true for (o) in 0 .. nocz[0] if zdin[o] if zdk[o, 0] == 7
+zdpo[o] <- true for (o) in 0 .. nocz[0] if zdin[o] if zdrd1[o]
 # 使用の引数の読みは席が 64+k / 124+k —— zam に拾われていても鎖が親
 zdpo[o] <- true for (o) in 0 .. nocz[0] if zisua[o] if zdk[o, 0] == 7
 zdpo[o] <- true for (o) in 0 .. nocz[0] if zisua[o] if zdrd1[o]

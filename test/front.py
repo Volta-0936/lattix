@@ -212,6 +212,7 @@ def front_family(g):
     zsyrr = g('zsyrr')
     zrs = {r: s for (s,), r in zrnm.items()}
     zglfd, zgcfd, zgch = g('zglfd'), g('zgcfd'), g('zgch')
+    zgflfd = g('zgflfd')
     zlatf, zfws = g('zlatf'), g('zfws')
     BIG = 10 ** 9
     hostfc = {}
@@ -225,7 +226,8 @@ def front_family(g):
             if (row[3] == 1 and sh is not None and 0 <= i < 8
                     and (rh, 32 + i) in zfpu):
                 ch = zgch.get((sh, i))
-                fd = (zgcfd.get((sh, i)) if ch else zglfd.get((sh, i)))
+                fd = (zgcfd.get((sh, i)) if ch else
+                      zglfd.get((sh, i), zgflfd.get((sh, i))))
                 if fd is not None:
                     lat = zlatf[(fd,)]
                     lt = lat if zfws.get((fd,), 0) <= st[(rp,)] - 1 else -lat
