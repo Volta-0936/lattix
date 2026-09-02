@@ -155,8 +155,22 @@ rqC を連鎖で一つ下げていた（左辺 読み±定数 の向きの zonm�
 _family を monkeypatch して eid→規則を残す —— まず環境変数
 LATTIX_FAMILY_MIN=1 を flat の import 前に）。
 
-まだ: 25_eval の front 側（22 の後なら近いはず。FM=1 flatten が遅いのが
-律速 —— prep を回して差分から）。33_self 自己適用、24_space（i*j の
+まだ: 25_eval は **flat 側で先に断られる**（front 以前）。原因は
+**依存する区間** `ev[..,..,rw] <- … for (rw) in 0 .. nrs[snum[k]]` ——
+上端 nrs[snum[k]] が外側の変数 k に依るので矩形の箱にできない
+（work/flat.py region() が「多面体にできない区間」で断る、行 340/344/353）。
+直し方は **矩形 × ガード**（多面体 = 箱 ∩ 半空間）: 区間を
+`0 .. MAX` の矩形にし、元の端を家のガード `rw <= nrs[snum[k]]`（fc の
+種1/6）として残す。詰まったのは **MAX の出どころ**: nrs は家（dense）の
+場なので fl.closed にも self.seen にも出ない（closed にあるのは点の道の
+場だけ、seen は書き先の測った目盛りだけ）。試した二つ（closed 走査で
+_bmax / 書き先 ev の次元2 の seen）はどちらも空だった —— この一巡目に
+nrs の測った最大が **どこに残っているか**を先に突き止めるのが次の一手。
+候補: (a) 測りの点の道で ev の dim2 を測るよう仕向ける、(b) 家の run の
+出力から nrs の最大を口 orc/ext に足す、(c) region() の測り自体を
+「点で測った上端」で置く。work/flat.py の変更はこのセッションでは
+戻してある（48+22 の基準を壊さないため。/tmp/dbg25*.py に足場は残る）。
+その後は front 側（22 の後なら近いはず。FM=1 flatten が律速）。33_self 自己適用、24_space（i*j の
 二次座標）、budget/source/emit/component/include（10/12/13/14/30 ——
 PLAN 2.5）、誤りの報告（2.7）。04 は機械側、07/11 は断られるべき本。
 
