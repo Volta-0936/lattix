@@ -410,7 +410,14 @@ class Flatten:
                 g = self.ground(a); a = e[3]
             if e[1] == '*':
                 if not isinstance(g, int) or isinstance(g, bool):
-                    raise NotImplementedError("鎖の定数でない")
+                    # **掛ける数も升である**（`f[x] * g[y]` —— 種10: 枠の積）。
+                    # 係数は積に畳まれる（(c1·pa1)·(c2·pa2) = c1c2·pa1pa2）。
+                    iv = self.pchain(e[2], sl, axes, st, sp, npt)
+                    iv2 = self.pchain(e[3], sl, axes, st, sp, npt)
+                    b0 = self.pslot(npt)
+                    self.fp.append((self.newid(), sp, st, 10, 0, b0,
+                                    self.mapof(0, [], axes), 0, iv[1], iv2[1], 0))
+                    return (iv[0] * iv2[0], b0, 1)
                 iv = self.pchain(a, sl, axes, st, sp, npt)
                 return (iv[0] * g, iv[1], iv[2])
             if not isinstance(g, int) or isinstance(g, bool):
@@ -785,6 +792,7 @@ class Flatten:
             # 二つ目の実装（front.lx）が突き合わせで出した（気づき49）。
             fl = [x for x in _tops(e)]
             if not _addok(e): raise _NoFam('値が足し算の形でない')
+            chs = list(_chains(e))       # 鎖の項（読み×読み など）—— 間接で届く
             # **束の合わない読みは、閉じた面から `pa` に写して間接で読む。**
             # 点の道の tolat（閉じた面から写す）と同じ判断で、機構は
             # pcell が座標のために持っている物そのものである。
@@ -792,9 +800,9 @@ class Flatten:
             # 重み 1 しか書けないが、間接の m には係数が畳める。
             srcs = [x for x in fl
                     if self.flat[x[1]] == lat and _coef(e, x) == 1]
-            mis  = [x for x in fl if x not in srcs]
+            mis  = [x for x in fl if x not in srcs] + chs
             if srcs and lat not in ARITH: raise _NoFam('数でない束に読みがある')
-            if mis and lat not in ARITH and (srcs or len(fl) > 1):
+            if mis and lat not in ARITH and (srcs or len(fl) + len(chs) > 1):
                 raise _NoFam('数でない束に読みがある')
             vf = 1 if srcs else 0
         if len(srcs) > 2: raise _NoFam('読みが三つ以上')
@@ -857,7 +865,10 @@ class Flatten:
             # 番号づけは綴りの順なので min/max/比較も文字列と同じ答えを出す。
             ivs = []
             for x in mis:
-                cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
+                if _ischain(x):
+                    iv = self.pchain(x, sl, axes, st, sp, n)
+                else:
+                    cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
                 ivs.append((iv[0] * _coef(e, x), iv[1], iv[2]))
             while len(ivs) < 2: ivs.append((0, 0, 0))
             wm = self.mapof(c, ss, axes, ivs[0], ivs[1])
@@ -1664,13 +1675,44 @@ class Flatten:
         return n
 
 
+def _ischain(e):
+    """加法の骨組みの上の **鎖の項**: 読みを含む掛け・割り・剰余で、定数×読み
+    （係数）ではないもの（`f[x] * g[y]`、`f[x] / 2`、`f[x] % g[y]`）。
+    pa の枠の変換（pchain）で運ぶ —— 読みと同じく、値には間接で届く。"""
+    if not (isinstance(e, tuple) and e and e[0] == 'bin' and e[1] in '*/%'):
+        return False
+    if not any(True for _ in _frefs(e)): return False
+    if e[1] == '*':
+        for a, b in ((e[2], e[3]), (e[3], e[2])):
+            if isinstance(b, tuple) and b and b[0] == 'int':
+                return False            # 係数つきの読み —— 鎖ではなく項の係数
+    return True
+
+
+def _chains(e):
+    """加法の骨組みの上の鎖の項（_tops の鎖版）。"""
+    if not isinstance(e, tuple) or not e: return
+    if _ischain(e):
+        yield e; return
+    if e[0] == 'bin' and e[1] in ('+', '-'):
+        for x in (e[2], e[3]):
+            for y in _chains(x): yield y
+    elif e[0] == 'bin' and e[1] == '*':
+        for a, b in ((e[2], e[3]), (e[3], e[2])):
+            if isinstance(b, tuple) and b and b[0] == 'int':
+                for y in _chains(a): yield y
+                return
+
+
 def _addok(e):
     """場の読みが **足し算の枝にだけ**あるか。掛け算や割り算の中にあると、
     「Σ源 + 重み」に分けられない（`pow2[n-1] * 2` はそれ）——
     ただし **定数を掛けた読み**は別である。係数は間接の m に畳めるので
-    （`acc[i-1] * 10 + c - 48`）、pa 経由の項として一次のまま届く。"""
+    （`acc[i-1] * 10 + c - 48`）、pa 経由の項として一次のまま届く。
+    鎖の項（`f[x] * g[y]`）も **一つの項**である（_ischain）。"""
     if not isinstance(e, tuple) or not e: return True
     if e[0] == 'fref': return True
+    if _ischain(e): return True
     if e[0] == 'bin' and e[1] == '+': return _addok(e[2]) and _addok(e[3])
     if e[0] == 'bin' and e[1] == '-':
         # 引かれた読みも一次の項である（`diff[n] <- pow3[n] - pow2[n]`）——
@@ -1687,10 +1729,12 @@ def _addok(e):
 def _tops(e):
     """**加法の骨組みの上にある読み**だけを返す（添字の中には降りない）。
     `match[owt[i]] + 1` の頂上は `match[…]` ひとつである —— 内側の `owt` は
-    座標であって、この式の項ではない（気づき28）。"""
+    座標であって、この式の項ではない（気づき28）。鎖の項の中にも降りない
+    （その読みは鎖の枠が運ぶ）。"""
     if not isinstance(e, tuple) or not e: return
     if e[0] == 'fref':
         yield e; return
+    if _ischain(e): return
     if e[0] == 'bin' and e[1] in ('+', '-', '*'):
         for x in (e[2], e[3]):
             for y in _tops(x): yield y

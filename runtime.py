@@ -1618,14 +1618,31 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
             and open(cf, encoding='utf-8').read() == csrc)
     if not same:
         open(cf, "w").write(csrc)
-        # 大きな生成 C（数十万行）で cc1 が記憶で死ぬ —— GC を強制する。
-        # 意味は変わらず、時間が少し増えるだけ（正しさの焼きには十分）。
-        r = subprocess.run(["gcc", opt, "-w",
-                            "--param", "ggc-min-expand=10",
-                            "--param", "ggc-min-heapsize=32768",
-                            "-o", ex, cf],
-                           capture_output=True, text=True)
-        if r.returncode: raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
+        # **C が同じなら実行ファイルも同じ** —— 置き場（keep）が違っても焼き直さない。
+        # 閉じの測定器は表ごとに置き場を変えるが、C は表に依らず同一だった
+        # （10MB の C を 2 分ずつ、同じものを何十回も焼いていた）。内容で引く。
+        import hashlib, shutil
+        h = hashlib.sha1((opt + "\n" + csrc).encode('utf-8')).hexdigest()[:16]
+        cdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            '_gen', 'ccache', h)
+        cex = os.path.join(cdir, 'prog')
+        if os.path.exists(cex):
+            shutil.copy2(cex, ex)
+        else:
+            # 大きな生成 C（数十万行）で cc1 が記憶で死ぬ —— GC を強制する。
+            # 意味は変わらず、時間が少し増えるだけ（正しさの焼きには十分）。
+            r = subprocess.run(["gcc", opt, "-w",
+                                "--param", "ggc-min-expand=10",
+                                "--param", "ggc-min-heapsize=32768",
+                                "-o", ex, cf],
+                               capture_output=True, text=True)
+            if r.returncode: raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
+            try:
+                os.makedirs(cdir, exist_ok=True)
+                tmp = cex + f'.{os.getpid()}'
+                shutil.copy2(ex, tmp); os.replace(tmp, cex)
+            except OSError:
+                pass
     LATS[ex] = _lats
     CTX[ex] = (dict(ATOM), KINDS, VKINDS)
     return dict(prog=prog, exe=ex, csrc=cf, arity=arity, atom=dict(ATOM),

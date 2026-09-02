@@ -491,7 +491,7 @@ BOOKS = [
     'examples/28_asm.lx', 'work/t/z_depint.lx', 'work/t/z_unit0.lx',
     'work/t/z_accread.lx', 'work/t/z_dim2rd.lx', 'examples/25_eval.lx',
     'examples/10_library.lx', 'examples/12_world.lx', 'examples/13_budget.lx',
-    'examples/14_iosig.lx', 'examples/30_build.lx',
+    'examples/14_iosig.lx', 'examples/30_build.lx', 'work/t/z_prod.lx',
 ]
 
 if __name__ == '__main__':

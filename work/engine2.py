@@ -205,6 +205,10 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 # 間接は何本でも届く。
                 A(f"pa[s, pb + t] <- mu * pa[s, p1 + t] + mo * pa[s, p2 + t]   "
                   f"{PL0} if kd == 7")
+            elif kd == 10:
+                # **掛ける数も升である**（`f[x] * g[y]` —— 枠の積）。
+                A(f"pa[s, pb + t] <- pa[s, p1 + t] * pa[s, p2 + t]   "
+                  f"{PL0} if kd == 10")
             elif kd == 8:
                 # **割る数も升である**（pow2[n] / pow2[n-1]）。⊥ は火を消す。
                 A(f"pa[s, pb + t] <- pa[s, p1 + t] / pa[s, p2 + t]   "

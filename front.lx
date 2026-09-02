@@ -917,7 +917,7 @@ field zsamel : or bound 524288          # 同じ束の読みの項（足す形�
 zsamel[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if not zchdv[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if ztml[t] == zrlat[t]
-      if not zco6[t]
+      if not zco6[t] if not zprd1[t]
 field zmisl : or bound 524288           # pa 経由の読みの項（束ちがい / 係数つき / 引かれた）
 zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if ztml[t] != zrlat[t]
@@ -925,6 +925,40 @@ zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if zco6[t]
 zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 9
+# ── 読み × 読み（`f[x] * g[y]`、flat.py の鎖の項 / 種10 の枠の積）────────
+# 左右の読みは枠3・枠4 の写し（zmis / zmis2 —— 束ちがいの読みと同じ道）、
+# 積は枠107（種10: pa[p1]·pa[p2]）、wm の間接はその積を一本で読む。
+# 積の下ではどちらの読みも向きが壊れる（参照実装は COORD）—— flat/fourv 以外は非単調。
+field zttk : max bound 4096 8           # 文 s の項 k のトークン
+zttk[snum[t], tcnt[t]] <- t for (t,zc) in ch if istm[t] if tcnt[t] <= 7
+field zprd2 : or bound 524288           # 積の右の読みの項（`* g[y]` の g）
+zprd2[t] <- true for (t,zc) in ch if istrm[t] if trkd[snum[t], tcnt[t]] == 10
+      if not zchny[snum[t]] if tcnt[t] >= 1
+      if istrm[zttk[snum[t], tcnt[t] - 1]]
+field zprd1 : or bound 524288           # 積の左の読みの項
+zprd1[t] <- true for (t,zc) in ch if istrm[t] if tcnt[t] <= 6
+      if zttk[snum[t], tcnt[t] + 1] >= 0 if zprd2[zttk[snum[t], tcnt[t] + 1]]
+zmisl[t] <- true for (t,zc) in ch if zprd1[t]
+zmisl[t] <- true for (t,zc) in ch if zprd2[t]
+field zhprd : or bound 4096             # 規則 r は積を持つ
+zhprd[zrn[snum[t]]] <- true for (t,zc) in ch if zprd2[t] if zrn[snum[t]] >= 0
+zonm[oseq[t]] <- true for (t,zc) in ch if zprd1[t] if zosen[oseq[t]] <= 4
+zonm[oseq[t]] <- true for (t,zc) in ch if zprd2[t] if zosen[oseq[t]] <= 4
+zfpu[r, 107] <- true for (r) in 0 .. znrm[0] if zhprd[r]
+zfpk[r, 107] <- 10 for (r) in 0 .. znrm[0] if zhprd[r]
+zfplt[r, 107] <- 0 for (r) in 0 .. znrm[0] if zhprd[r]
+zfpam[r, 107] <- r * 128 + 4 for (r) in 0 .. znrm[0] if zhprd[r]
+zfpsr[r, 107] <- zfpb[r, 3] for (r) in 0 .. znrm[0] if zhprd[r]
+      if zfpb[r, 3] >= 1
+zfps2[r, 107] <- zfpb[r, 4] for (r) in 0 .. znrm[0] if zhprd[r]
+      if zfpb[r, 4] >= 1
+zmia[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhprd[r]
+      if not zoneg[zmis[r]]
+zmia[r * 128 + 3] <- 0 - 1 for (r) in 0 .. znrm[0] if zhprd[r]
+      if zoneg[zmis[r]]
+zmib[r * 128 + 3] <- zfpb[r, 107] for (r) in 0 .. znrm[0] if zhprd[r]
+      if zfpb[r, 107] >= 1
+zmiu[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhprd[r]
 field zoneg : or bound 8192             # 出現は引かれている（係数の符号 −）
 zoneg[oseq[t]] <- true for (t,zc) in ch if istrm[t]
       if trkd[snum[t], tcnt[t]] == 9
@@ -1556,30 +1590,30 @@ zfpb[r, u] <- zpab[r] + (zfpc[r, u] - 1) * zsszr[r] for (r) in 0 .. znr2m[0]
       for (u) in 0 .. 127 if zfpu[r, u] if zpab[r] >= 1
 
 # wm の間接（束ちがい・係数つきの読みは番地の面から足す。係数は m に畳む）
-zmia[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r]
+zmia[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if not zmco[zmis[r]] if not zoneg[zmis[r]]
-zmia[r * 128 + 3] <- zocof[zmis[r]] for (r) in 0 .. znrm[0] if zhasm[r]
+zmia[r * 128 + 3] <- zocof[zmis[r]] for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zmco[zmis[r]] if zocof[zmis[r]] >= 1 if not zoneg[zmis[r]]
-zmia[r * 128 + 3] <- 0 - 1 for (r) in 0 .. znrm[0] if zhasm[r]
+zmia[r * 128 + 3] <- 0 - 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if not zmco[zmis[r]] if zoneg[zmis[r]]
-zmia[r * 128 + 3] <- 0 - zocof[zmis[r]] for (r) in 0 .. znrm[0] if zhasm[r]
+zmia[r * 128 + 3] <- 0 - zocof[zmis[r]] for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zmco[zmis[r]] if zocof[zmis[r]] >= 1 if zoneg[zmis[r]]
-zmib[r * 128 + 3] <- zfpb[r, 3] for (r) in 0 .. znrm[0] if zhasm[r]
+zmib[r * 128 + 3] <- zfpb[r, 3] for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zfpb[r, 3] >= 1
-zmiu[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r]
-zmia2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if zmis2[r] >= 1
+zmiu[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
+zmia2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r] if zmis2[r] >= 1
       if not zmco[zmis2[r]] if not zoneg[zmis2[r]]
-zmia2[r * 128 + 3] <- zocof[zmis2[r]] for (r) in 0 .. znrm[0] if zhasm[r]
+zmia2[r * 128 + 3] <- zocof[zmis2[r]] for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zmis2[r] >= 1 if zmco[zmis2[r]] if zocof[zmis2[r]] >= 1
       if not zoneg[zmis2[r]]
-zmia2[r * 128 + 3] <- 0 - 1 for (r) in 0 .. znrm[0] if zhasm[r]
+zmia2[r * 128 + 3] <- 0 - 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zmis2[r] >= 1 if not zmco[zmis2[r]] if zoneg[zmis2[r]]
 zmia2[r * 128 + 3] <- 0 - zocof[zmis2[r]] for (r) in 0 .. znrm[0]
-      if zhasm[r] if zmis2[r] >= 1 if zmco[zmis2[r]]
+      if zhasm[r] if not zhprd[r] if zmis2[r] >= 1 if zmco[zmis2[r]]
       if zocof[zmis2[r]] >= 1 if zoneg[zmis2[r]]
-zmib2[r * 128 + 3] <- zfpb[r, 4] for (r) in 0 .. znrm[0] if zhasm[r]
+zmib2[r * 128 + 3] <- zfpb[r, 4] for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r]
       if zmis2[r] >= 1 if zfpb[r, 4] >= 1
-zmiu2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if zmis2[r] >= 1
+zmiu2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r] if zmis2[r] >= 1
 
 # ══ ガード ═════════════════════════════════════════════════════════
 # 比較は (s, ガード番号) の左の行が持つ。演算子の左右のトークンから

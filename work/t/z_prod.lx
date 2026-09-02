@@ -1,0 +1,12 @@
+# 読み × 読み —— `f[x] * g[y]` は一次式でない。pa の枠の積（種10）で運ぶ。
+table t = (0,3), (1,5), (2,7)
+field a : max bound 8
+a[i] <- v            for (i,v) in t
+field b : max bound 8
+b[i] <- v + 1        for (i,v) in t
+field p : max bound 8
+p[i] <- a[i] * b[i] + 1       for (i,v) in t
+field q : max bound 8
+q[i] <- a[i] * b[i] + a[i]      for (i,v) in t
+print p
+print q
