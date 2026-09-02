@@ -722,8 +722,20 @@ def fuse_plan(prog, g):
     返り値: (表, 掃く列, 符号, 規則の順) か None。"""
     plan = L.sweep_plan(prog, g)
     if plan is None: return None
-    if any(not isinstance(src, str) for r in g for _v, src in r.sources):
-        return None
+    # 源0 が共有の表であればよい。二本目以降の源（`for (d) in 0 .. 15` の区間や
+    # 別の表）は行の内側のループになる —— 鎖の座標は源0 の列なので、行を
+    # 外側にすれば内側の直積は一行ぶんまとめて閉じる。区間の端がこの SCC の
+    # 場を読む形だけは並べられない（端が一掃の途中で育つ）。
+    here = {r.target for r in g}
+    for r in g:
+        if not r.sources or not isinstance(r.sources[0][1], str): return None
+        for _v, sc in r.sources[1:]:
+            if isinstance(sc, str): continue
+            bad = []
+            for e in (sc[1], sc[2]):
+                L._walk(e, lambda n: bad.append(1)
+                        if n[0] == 'fref' and n[1] in here else None)
+            if bad: return None
     dim, sign, rank = plan
     src = col = None
     for r in g:
