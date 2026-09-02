@@ -1615,9 +1615,15 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
     # **同じ C を二度焼かない。** keep で置き場を指定すれば、道具は残る ——
     # プログラムが同じなら（表が違っても）実行ファイルは同じものでよい。
     same = (os.path.exists(ex) and os.path.exists(cf)
+            and os.path.getmtime(ex) >= os.path.getmtime(cf) - 1
             and open(cf, encoding='utf-8').read() == csrc)
     if not same:
-        open(cf, "w").write(csrc)
+        # **焼けてから C を置く。** 先に prog.c を書いて gcc が落ちると、次の
+        # 呼び出しが「同じ C だ」と見て古い実行ファイルを使い続ける（踏んだ）。
+        # C は仮の名で書き、実行ファイルが出来てから本名に替える。
+        if os.path.exists(ex): os.remove(ex)
+        ctmp = os.path.join(d, f'prog.{os.getpid()}.c')   # gcc は拡張子で言語を見る
+        open(ctmp, "w").write(csrc)
         # **C が同じなら実行ファイルも同じ** —— 置き場（keep）が違っても焼き直さない。
         # 閉じの測定器は表ごとに置き場を変えるが、C は表に依らず同一だった
         # （10MB の C を 2 分ずつ、同じものを何十回も焼いていた）。内容で引く。
@@ -1634,15 +1640,18 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
             r = subprocess.run(["gcc", opt, "-w",
                                 "--param", "ggc-min-expand=10",
                                 "--param", "ggc-min-heapsize=32768",
-                                "-o", ex, cf],
+                                "-o", ex, ctmp],
                                capture_output=True, text=True)
-            if r.returncode: raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
+            if r.returncode:
+                os.remove(ctmp)
+                raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
             try:
                 os.makedirs(cdir, exist_ok=True)
                 tmp = cex + f'.{os.getpid()}'
                 shutil.copy2(ex, tmp); os.replace(tmp, cex)
             except OSError:
                 pass
+        os.replace(ctmp, cf)
     LATS[ex] = _lats
     CTX[ex] = (dict(ATOM), KINDS, VKINDS)
     return dict(prog=prog, exe=ex, csrc=cf, arity=arity, atom=dict(ATOM),

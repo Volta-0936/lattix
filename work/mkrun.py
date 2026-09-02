@@ -117,6 +117,19 @@ def family_shapes():
     # 種11（生きた単調な比較）だけが面に残るが、それは測量に任せる（下の union）。
     fcsh = {(6, 0, op, 0) for op in range(1, 7)} | \
            {(1, 0, op, 0) for op in range(1, 7)}
+    # 種11（生きた単調な比較）は束 × 演算子 × 右の直読みの数（0..2）で閉じる。
+    # 生きたまま比べられるのは flat.py の fcond が認める束（sum/count/bag 以外）。
+    # 測量に任せると本ごとに違う run.lx になる —— それは処理系ではない。
+    # 右に生きた直読み（n ≥ 1）を持つ形は run.lx 自身が成層できない
+    # （`x >= y` の y は下る向き）—— 定義が刈る。n = 0 だけ数える。
+    # 向きも数える: 昇る束（max/or/count）は `>=` `>` だけが単調、下る束
+    # （min/and）は `<=` `<`、flat/fourv（LVar）はどの演算子でも読める。
+    # flat/fourv の比較は pa を通る種1 なので種11 には来ない。下る束（min/and）は
+    # 測量に任せる（コーパスに無い形を増やすと、焼く C が記憶に収まらない —— 8GB で
+    # cc1 が落ちた。形は言語の側から数えるが、**焼ける大きさも資源**である）。
+    for lt, ops in ((2, (3, 5)), (3, (3, 5))):
+        for op in ops:
+            fcsh.add((11, lt, op, 0))
     for lt in PLANE:
         if lt == 7:
             # set をガードの主語にする形は測定器（C）が `is` を焼けない。
@@ -136,8 +149,18 @@ def family_shapes():
     return fsh, fcsh, fpsh
 
 
-def write(path):
-    (vals, cond, lats, ixl, ns, nc, ne, nq, fsh, fcsh, fpsh, dim) = survey()
+def write(path, fromjson=None):
+    if fromjson:
+        # 測量は済んでいる（work/shapes.json）—— 形の数え上げだけ更新して書き直す
+        import json as _json
+        sh = _json.load(open(fromjson))
+        tt = lambda xs: [tuple(x) if isinstance(x, list) else (x,) for x in xs]
+        vals, cond, ixl = set(tt(sh['vals'])), set(tt(sh['cond'])), set(sh['ixlat'])
+        lats = {x[0] for x in vals if x[0] in PLANE} | {x[0] for x in tt(sh['fsh']) if x[0] in PLANE}
+        fsh, fcsh, fpsh = set(tt(sh['fsh'])), set(tt(sh['fcsh'])), set(tt(sh['fpsh']))
+        dim, nc, ne, nq, ns = sh['dim'], sh['nc'], sh['ne'], sh['nq'], NS
+    else:
+        (vals, cond, lats, ixl, ns, nc, ne, nq, fsh, fcsh, fpsh, dim) = survey()
     if ns > NS:
         raise SystemExit(f"層が {ns} —— 宣言した上限 {NS} を超えた")
     efsh, efcsh, efpsh = family_shapes()
@@ -189,7 +212,9 @@ def write(path):
                             r'(?:.*if n == (\d+))?', ln)
             if mc:
                 kk, lt = int(mc.group(1)), int(mc.group(2))
-                drop = {t for t in fcsh if t[0] == kk and t[1] == lt}
+                op = int(mc.group(3)) if mc.group(3) else None
+                drop = {t for t in fcsh if t[0] == kk and t[1] == lt
+                        and (op is None or t[2] == op)}
             elif mg:
                 lt, vf = int(mg.group(1)), int(mg.group(2))
                 drop = {t for t in fsh if t[0] == lt and t[1] == vf}
@@ -220,5 +245,6 @@ def write(path):
 
 if __name__ == '__main__':
     out = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, 'run.lx')
-    nv, ncd, nl, ns, nline, nc = write(out)
+    fj = os.path.join(ROOT, 'work', 'shapes.json') if os.environ.get('LATTIX_FROMJSON') else None
+    nv, ncd, nl, ns, nline, nc = write(out, fromjson=fj)
     print(f"{out}  形 {nv} / 条件 {ncd} / 束 {nl} / 見た層 {ns} / 升 {nc:,} / {nline} 行")

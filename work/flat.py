@@ -346,9 +346,16 @@ class Flatten:
         # 単調性が要らないので、引かれた読み（`i - owner[i]`、m = -1）も
         # そのまま間接に畳める —— _addok（値の形の検査）はここでは強すぎる。
         fl = list(_tops(e))
-        if not fl:
+        chs = list(_chains(e))          # 座標の中の積（`comp[i * j]`）も枠で届く
+        if not fl and not chs:
             raise NotImplementedError(f"多面体にできない座標: {e}")
         ivs = []
+        for x in chs:
+            m = _coef(e, x)
+            if m == 0:
+                raise NotImplementedError(f"多面体にできない座標: {e}")
+            iv = self.pchain(x, sl, axes, st, sp, npt)
+            ivs.append((m * iv[0], iv[1], 1))
         for g in fl:
             m = _coef(e, g)
             if m == 0:
@@ -369,7 +376,7 @@ class Flatten:
             b = self.pslot(npt)
             self.fp.append((self.newid(), sp, st, 0, lt, b, am, 0, 0, 0, 0))
             ivs.append((m, b, 1))
-        c, ss = self.affine(_strip(e, fl), sl)
+        c, ss = self.affine(_strip(e, fl + chs), sl)
         # **読みは何本でも一本に畳める**（種7: μ·pa + ν·pa）—— pctor の
         # 間接の畳みと同じ算術を、座標そのものに使うだけである。
         while len(ivs) > 1:
@@ -403,6 +410,14 @@ class Flatten:
             if cc or sss or not iv[2]:
                 raise NotImplementedError("鎖の芯が読みでない")
             return iv
+        if k == 'var' or (k == 'bin' and e[1] in '+-'):
+            # **軸の一次式も枠に写せる**（`i * j` の i —— 写像 ÷ 1、種11）。
+            # 積は枠どうしでしか書けないので、軸を一度 pa に落とす。
+            c, ss = self.affine(e, sl)
+            b0 = self.pslot(npt)
+            self.fp.append((self.newid(), sp, st, 11, 0, b0,
+                            self.mapof(c, ss, axes), 1, 0, 0, 0))
+            return (1, b0, 1)
         if k == 'bin' and e[1] in '*/%':
             a, b = e[2], e[3]
             g = self.ground(b)
@@ -438,11 +453,13 @@ class Flatten:
             # 一次式（i/2）・「一次式+読み」（(120+codelen[])%256）・係数つき
             # （tri[i]·μ/M）は **写像が係数と一次式を運ぶ** —— (am)%mo は
             # 種1（折り込みと同じ行）、(am)/mo は種11。種10 は要らなかった。
+            # 芯が一次式なら (写像)÷法 の一枚（pchain が変数も枠に落とせる
+            # ようになったので、先に一次式を試す —— 19_mod の `i / 2` が二枚になる）
             try:
-                c, ss, iv = 0, [], self.pchain(a, sl, axes, st, sp, npt)
+                c, ss = self.affine(a, sl); iv = (0, 0, 0)
             except NotImplementedError:
                 try:
-                    c, ss = self.affine(a, sl); iv = (0, 0, 0)
+                    c, ss, iv = 0, [], self.pchain(a, sl, axes, st, sp, npt)
                 except NotImplementedError:
                     c, ss, iv = self.pcell(a, sl, axes, st, sp, npt)
             b0 = self.pslot(npt)
@@ -636,7 +653,7 @@ class Flatten:
             # **加法の骨組みの上の読みだけが項である**（気づき28）。添字の中の
             # 読みは座標であって項ではない —— _frefs で拾うと `q[a[i]] + 1` の
             # `a[i]` が重みに化けて、答えに足し込まれる（黙って違う答え）。
-            rb = list(_tops(b))
+            rb = list(_tops(b)) + list(_chains(b))   # 鎖の項（`i * j`）も升
             if len(rb) > 2:
                 raise NotImplementedError("多面体のガードの右辺が三つ以上の升")
             # **閉じた読みと flat の読みは pa に写せる** —— そうすれば比較は
@@ -644,11 +661,18 @@ class Flatten:
             # 比較の規則が 束×演算子×数 で増えていたのは、比較が面を直接
             # 読んでいたからで、pa を通せば六行に潰れる。閉じ方は pcell が
             # 見張る（⊥→v で止まる flat だけが生きた面でよい）。
+            fl = [a[1]] + [x[1] for x in _frefs(b)]
             if all(self.flat[f] == 5 or self.fstr.get(f, -1) < st for f in fl):
                 cc, css, civ = self.pcell(a, sl, axes, st, sp, npt)
                 cm = self.mapof(cc, css, axes, civ)
                 c, ss = self.affine(_strip(b, rb), sl)
-                ivs = [self.pcell(x, sl, axes, st, sp, npt)[2] for x in rb]
+                ivs = []
+                for x in rb:
+                    if _ischain(x):
+                        iv = self.pchain(x, sl, axes, st, sp, npt)
+                    else:
+                        iv = self.pcell(x, sl, axes, st, sp, npt)[2]
+                    ivs.append((iv[0] * _coef(b, x), iv[1], iv[2]))
                 while len(ivs) < 2: ivs.append((0, 0, 0))
                 return (sp, st, 1, 0, cm, OP[op], 0,
                         zero, zero, self.mapof(c, ss, axes, ivs[0], ivs[1]))
@@ -663,11 +687,16 @@ class Flatten:
             if not k:
                 raise NotImplementedError("閉じた読みと生きた読みが混ざる比較")
             cm = self.pmapcell(a[1], a[2], sl, axes, st, sp, npt)
+            rr = [x for x in rb if not _ischain(x)]      # 面の直読み
+            rc = [x for x in rb if _ischain(x)]          # 鎖の項は wm の間接へ
             rm = [self.pmapcell(x[1], x[2], sl, axes, st, sp, npt)
-                  for x in rb] + [zero, zero]
+                  for x in rr] + [zero, zero]
             c, ss = self.affine(_strip(b, rb), sl)
-            return (sp, st, 11, lt, cm, OP[op], len(rb),
-                    rm[0], rm[1], self.mapof(c, ss, axes))
+            ivs = [(iv[0] * _coef(b, x), iv[1], iv[2]) for x in rc
+                   for iv in [self.pchain(x, sl, axes, st, sp, npt)]]
+            while len(ivs) < 2: ivs.append((0, 0, 0))
+            return (sp, st, 11, lt, cm, OP[op], len(rr),
+                    rm[0], rm[1], self.mapof(c, ss, axes, ivs[0], ivs[1]))
         if q[0] == 'geq' and q[1][0] == 'fref':
             bv = self.val(q[2], {})
             if isinstance(bv, str):
@@ -807,6 +836,13 @@ class Flatten:
             vf = 1 if srcs else 0
         if len(srcs) > 2: raise _NoFam('読みが三つ以上')
         if len(mis) > 2: raise _NoFam('束の合わない読みが三つ以上')
+        # **空の軸を持つ規則は実例が無い**（`for (s) in 1 .. nstz[0]` で
+        # nstz が 0）。家にも点にも要らない —— 空間を作らずに消える（幅 0 の
+        # 軸は機械の割り算を壊すので、空間には載せない）。
+        for _vs, srcx in r.sources:
+            if isinstance(srcx, tuple) and srcx[0] == '..':
+                _b0, w0, _c0 = self.region(srcx, st)
+                if w0 <= 0: return True
         sp, axes = self.space(r, st)
         n = 1
         for _b, w, _c in axes: n *= w
@@ -1681,12 +1717,12 @@ def _ischain(e):
     pa の枠の変換（pchain）で運ぶ —— 読みと同じく、値には間接で届く。"""
     if not (isinstance(e, tuple) and e and e[0] == 'bin' and e[1] in '*/%'):
         return False
-    if not any(True for _ in _frefs(e)): return False
     if e[1] == '*':
         for a, b in ((e[2], e[3]), (e[3], e[2])):
             if isinstance(b, tuple) and b and b[0] == 'int':
                 return False            # 係数つきの読み —— 鎖ではなく項の係数
-    return True
+        return True                     # 読み×読み・変数×変数（`i * j`）は積の枠
+    return any(True for _ in _frefs(e))
 
 
 def _chains(e):

@@ -143,8 +143,13 @@ zlevg[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if zlvg[s, k]
 
 # ── 家の規則 = 矢印のある文（種も規則も同じ扱い —— 点が一つの空間） ──
 field zisr : or bound 4096              # 文 s は家の規則になる
+# 空の区間（`for (s) in 1 .. nstz[0]` で nstz が 0）を持つ文は実例が無い ——
+# 家にも点にも要らない（flat.py は空間を作らずに消す）。
+field zlemp : or bound 4096             # 文 s に空の区間ループがある
+zlemp[zlps[g]] <- true for (g) in 0 .. znglm[0] if lpk[g] >= 1 if zlps[g] >= 0
+      if zlphi2[g] <= lplo[g] - 1
 zisr[s] <- true for (s) in 0 .. nstz[0] if isseed[s]
-zisr[s] <- true for (s) in 0 .. nstz[0] if isrec[s]
+zisr[s] <- true for (s) in 0 .. nstz[0] if isrec[s] if not zlemp[s]
 field zrc : max bound 4096              # 文 s までの家の規則の数（s を含む）
 zrc[0] <- 0                for (z) in 0 .. 0 if not zisr[0]
 zrc[0] <- 1                for (z) in 0 .. 0 if zisr[0]
@@ -228,6 +233,7 @@ field zrky : max bound 2048             # 区間ループ g の鍵
 zrky[g] <- lplo[g] * 1048576 + zlphi2[g] for (g) in 0 .. znglm[0]
       if lpk[g] == 1 if zlphi2[g] >= lplo[g]
 zrky[g] <- 1099511627776 + lplo[g] * 1073741824 + lpbf[g] * 1048576 + lpbc[g] for (g) in 0 .. znglm[0] if lpk[g] == 2 if lpbf[g] >= 0
+      if zlphi2[g] >= lplo[g]
 zrky[g] <- lplo[g] * 1048576 + zlphi2[g] for (g) in 0 .. znglm[0]
       if lpk[g] == 3 if zlphi2[g] >= lplo[g]
 field zrdup : or bound 2048             # 前に同じ鍵がある
@@ -818,6 +824,68 @@ zdc[o, 1] <- zvcolz[zd1[o]] for (o) in 0 .. nocz[0] if zdk[o, 1] == 8
 zdc[o, 1] <- 0 for (o) in 0 .. nocz[0] if zdk[o, 1] == 8
       if zd1[o] >= 0 if lkd[osn[o], zd1s[o]] >= 1
 zdj[o, 1] <- zd1s[o] for (o) in 0 .. nocz[0] if zdk[o, 1] == 8
+
+# ── 次元0 が 変数 × 変数（`comp[i * j]` —— 24_space）: 種12 ────────────
+# 軸の一次式は写像で書けるが積は書けない —— 二つの変数を枠108/109（種11:
+# 写像 ÷ 1）に落とし、積を枠110（種10）に置き、番地の間接でその積を読む
+# （flat.py の pcell → _chains → pchain の道と同じ）。
+field zdvv : or bound 8192              # 次元0 は 変数 × 変数
+zdvv[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tkind[t+2] == 1
+      if not isnum[t+2] if not isocc[t+2] if isstar[nextw[t+2]]
+      if tkind[nextw[nextw[t+2]]] == 1 if not isnum[nextw[nextw[t+2]]]
+zdk[oseq[t], 0] <- 12 for (t,zc) in ch if isocc[t] if zdvv[oseq[t]]
+field zdv1 : max bound 8192             # 左の変数のトークン
+zdv1[oseq[t]] <- t + 2 for (t,zc) in ch if isocc[t] if zdvv[oseq[t]]
+field zdv2 : max bound 8192             # 右の変数のトークン
+zdv2[oseq[t]] <- nextw[nextw[t+2]] for (t,zc) in ch if isocc[t] if zdvv[oseq[t]]
+field zdvm1 : max bound 8192            # 左の変数の写像（63）
+zdvm1[o] <- zsr[o] * 128 + 63 for (o) in 0 .. nocz[0] if zdvv[o] if zsr[o] >= 0
+field zdvm2 : max bound 8192            # 右の変数の写像（119）
+zdvm2[o] <- zsr[o] * 128 + 119 for (o) in 0 .. nocz[0] if zdvv[o] if zsr[o] >= 0
+zmu[zdvm1[o]] <- true for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmn[zdvm1[o]] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmc[zdvm1[o]] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmj0[zdvm1[o]] <- zvlpz[zdv1[o]] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmc0[zdvm1[o]] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+      if lkd[osn[o], zvlpz[zdv1[o]]] >= 1
+zmc0[zdvm1[o]] <- zvcolz[zdv1[o]] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+      if lkd[osn[o], zvlpz[zdv1[o]]] == 0
+zmm0[zdvm1[o]] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmu[zdvm2[o]] <- true for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmn[zdvm2[o]] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmc[zdvm2[o]] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmj0[zdvm2[o]] <- zvlpz[zdv2[o]] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zmc0[zdvm2[o]] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+      if lkd[osn[o], zvlpz[zdv2[o]]] >= 1
+zmc0[zdvm2[o]] <- zvcolz[zdv2[o]] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+      if lkd[osn[o], zvlpz[zdv2[o]]] == 0
+zmm0[zdvm2[o]] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpu[zsr[o], 108] <- true for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpk[zsr[o], 108] <- 11 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfplt[zsr[o], 108] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpmo[zsr[o], 108] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpam[zsr[o], 108] <- zdvm1[o] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpu[zsr[o], 109] <- true for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpk[zsr[o], 109] <- 11 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfplt[zsr[o], 109] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpmo[zsr[o], 109] <- 1 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpam[zsr[o], 109] <- zdvm2[o] for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpu[zsr[o], 110] <- true for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpk[zsr[o], 110] <- 10 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfplt[zsr[o], 110] <- 0 for (o) in 0 .. nocz[0] if zdvv[o] if zrdq[o] >= 0
+zfpam[zsr[o], 110] <- zsr[o] * 128 + 4 for (o) in 0 .. nocz[0] if zdvv[o]
+      if zrdq[o] >= 0
+zfpsr[zsr[o], 110] <- zfpb[zsr[o], 108] for (o) in 0 .. nocz[0] if zdvv[o]
+      if zrdq[o] >= 0 if zfpb[zsr[o], 108] >= 1
+zfps2[zsr[o], 110] <- zfpb[zsr[o], 109] for (o) in 0 .. nocz[0] if zdvv[o]
+      if zrdq[o] >= 0 if zfpb[zsr[o], 109] >= 1
+zq0[o] <- (0 - zflo0[zrdf[o]]) * zfs0[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 0] == 12
+zmia[zrdq[o]] <- zfs0[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+      if zdk[o, 0] == 12
+zmib[zrdq[o]] <- zfpb[zsr[o], 110] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+      if zdk[o, 0] == 12 if zfpb[zsr[o], 110] >= 1
+zmiu[zrdq[o]] <- 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 0 if zdk[o, 0] == 12
 
 # ── 次元2（`rd[pc, v, d]` —— 三次元の場）。写像の枠は三本目（zmj2）へ ──
 field zd1cm : max bound 8192            # 次元1 の直後の語（i+1 はずれの後ろ）
@@ -1615,11 +1683,29 @@ zmib2[r * 128 + 3] <- zfpb[r, 4] for (r) in 0 .. znrm[0] if zhasm[r] if not zhpr
       if zmis2[r] >= 1 if zfpb[r, 4] >= 1
 zmiu2[r * 128 + 3] <- 1 for (r) in 0 .. znrm[0] if zhasm[r] if not zhprd[r] if zmis2[r] >= 1
 
+# ── 家のガード番号。33_self の gno2 は点の道の `cd` の行番号（比較は左右で
+# 二行）なので 8 席に 4 つしか入らない。家では **if 節ひとつ = ガード一つ**
+# —— 節ごとに +1 で数え直す（zgn）。種（2 否定 / 3 比較 / 9 肯定）も同じ番号で。
+field zgcn : max bound 4096 32          # 節 c の手前までの家のガードの数（鎖）
+zgcn[s, 0] <- 0 for (s) in 0 .. nstz[0]
+zgcn[s, c] <- zgcn[s, c-1] for (s) in 0 .. nstz[0] for (c) in 1 .. 31
+      if not clif2[s, c-1]
+zgcn[s, c] <- zgcn[s, c-1] + 1 for (s) in 0 .. nstz[0] for (c) in 1 .. 31
+      if clif2[s, c-1]
+field zgn : max bound 262144            # そのトークンの属する家のガード番号
+zgn[t] <- zgcn[snum[t], cnum[t]] for (t,zc) in ch
+field zgkd : max bound 4096 32          # 家のガードの種（2 否定 / 3 比較 / 9 肯定）
+zgkd[snum[t], zgn[t]] <- 3 for (t,zc) in ch if iscmp2[t]
+zgkd[snum[t], zgn[t]] <- 2 for (t,zc) in ch if isgrd[t]
+      if isneg[t] if not clcmp[snum[t], cnum[t]]
+zgkd[snum[t], zgn[t]] <- 9 for (t,zc) in ch if isgrd[t]
+      if not isneg[t] if not clcmp[snum[t], cnum[t]]
+
 # ══ ガード ═════════════════════════════════════════════════════════
 # 比較は (s, ガード番号) の左の行が持つ。演算子の左右のトークンから
 # 「定数 / 変数（列・計数器）/ 升の読み」を見分け、写像に落とす。
 field zgt : max bound 4096 8            # ガード i の演算子のトークン
-zgt[snum[t], gno2[t]] <- t for (t,zc) in ch if iscmp2[t]
+zgt[snum[t], zgn[t]] <- t for (t,zc) in ch if iscmp2[t]
 field zgl : max bound 4096 8            # 左辺の末尾のトークン
 zgl[s, i] <- oppv[zgt[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgt[s, i] >= 0
@@ -2084,32 +2170,32 @@ zgpo2[t] <- true for (t,zc) in ch if cmpcl[gcl[t]] if tdep[t] == 0
       if not tcom[t]
 field zgro : max bound 4096 8           # 右辺の一本目の読みの出現（min で拾う）
 field zgro1m : min bound 4096 8
-zgro1m[snum[t], gno2[t]] <- oseq[t] for (t,zc) in ch if zgpo2[t]
+zgro1m[snum[t], zgn[t]] <- oseq[t] for (t,zc) in ch if zgpo2[t]
       if isocc[t] if not isbnd[t]
 zgro[s, i] <- zgro1m[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgro1m[s, i] >= 0
 field zgro2 : min bound 4096 8          # 二本目
-zgro2[snum[t], gno2[t]] <- oseq[t] for (t,zc) in ch if zgpo2[t]
+zgro2[snum[t], zgn[t]] <- oseq[t] for (t,zc) in ch if zgpo2[t]
       if isocc[t] if not isbnd[t]
-      if oseq[t] >= zgro1m[snum[t], gno2[t]] + 1
+      if oseq[t] >= zgro1m[snum[t], zgn[t]] + 1
 field zgrst : sum bound 4096 8          # 右辺の定数の和（符号つき）
-zgrst[snum[t], gno2[t]] <- tval[t] for (t,zc) in ch if zgpo2[t]
+zgrst[snum[t], zgn[t]] <- tval[t] for (t,zc) in ch if zgpo2[t]
       if isnum[t] if not pminus[t]
-zgrst[snum[t], gno2[t]] <- 0 - tval[t] for (t,zc) in ch if zgpo2[t]
+zgrst[snum[t], zgn[t]] <- 0 - tval[t] for (t,zc) in ch if zgpo2[t]
       if isnum[t] if pminus[t]
 field zgrhc : or bound 4096 8           # 右辺に定数がある
-zgrhc[snum[t], gno2[t]] <- true for (t,zc) in ch if zgpo2[t]
+zgrhc[snum[t], zgn[t]] <- true for (t,zc) in ch if zgpo2[t]
       if isnum[t]
 field zgrvt : min bound 4096 8          # 右辺の変数のトークン
-zgrvt[snum[t], gno2[t]] <- t for (t,zc) in ch if zgpo2[t]
+zgrvt[snum[t], zgn[t]] <- t for (t,zc) in ch if zgpo2[t]
       if tkind[t] == 1 if not isnum[t] if not isocc[t] if vbnd[t] >= 0
 
 # ── 反転の比較 —— 左辺が一次式で右辺が裸の読み（`pc < maxpc[]`）。
 # 参照実装は読みを左へ置き替えて演算子を裏返す（FLIP）。
 field zgrhv : or bound 4096 8           # 右辺の区域に変数がある
-zgrhv[snum[t], gno2[t]] <- true for (t,zc) in ch if zgpo2[t]
+zgrhv[snum[t], zgn[t]] <- true for (t,zc) in ch if zgpo2[t]
       if tkind[t] == 1 if not isnum[t] if not isocc[t] if vbnd[t] >= 0
-zgrhv[snum[t], gno2[t]] <- true for (t,zc) in ch if zgpo2[t]
+zgrhv[snum[t], zgn[t]] <- true for (t,zc) in ch if zgpo2[t]
       if tkind[t] == 1 if not isnum[t] if not isocc[t] if zvbnd[t] >= 0
 field zgfl : or bound 4096 8            # 反転する
 zgfl[s, i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
@@ -2222,23 +2308,110 @@ zmn[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if isnum[zgl[s, i]]
 zmc[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm2[s, i] >= 1 if zgfl[s, i] if zgl[s, i] >= 0
-      if not isnum[zgl[s, i]]
+      if not isnum[zgl[s, i]] if not zgvv[s, i]
 zmn[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm2[s, i] >= 1 if zgfl[s, i] if zgl[s, i] >= 0
-      if not isnum[zgl[s, i]]
+      if not isnum[zgl[s, i]] if not zgvv[s, i]
 zmj0[zgm2[s, i]] <- zvlpz[zgl[s, i]] for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zgm2[s, i] >= 1 if zgfl[s, i]
-      if zgl[s, i] >= 0 if not isnum[zgl[s, i]]
+      if zgl[s, i] >= 0 if not isnum[zgl[s, i]] if not zgvv[s, i]
 zmc0[zgm2[s, i]] <- zvcolz[zgl[s, i]] for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zgm2[s, i] >= 1 if zgfl[s, i]
-      if zgl[s, i] >= 0 if not isnum[zgl[s, i]]
+      if zgl[s, i] >= 0 if not isnum[zgl[s, i]] if not zgvv[s, i]
       if lkd[s, zvlpz[zgl[s, i]]] == 0
 zmc0[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm2[s, i] >= 1 if zgfl[s, i] if zgl[s, i] >= 0
-      if not isnum[zgl[s, i]] if lkd[s, zvlpz[zgl[s, i]]] >= 1
+      if not isnum[zgl[s, i]] if not zgvv[s, i] if lkd[s, zvlpz[zgl[s, i]]] >= 1
 zmm0[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm2[s, i] >= 1 if zgfl[s, i] if zgl[s, i] >= 0
-      if not isnum[zgl[s, i]]
+      if not isnum[zgl[s, i]] if not zgvv[s, i]
+# 反転の左辺が 変数 × 変数（`if i * j <= n[]` —— 24_space）: 一次式では
+# 書けないので、二つの変数を枠40+i/48+i（種11: 写像 ÷ 1）に落とし、積を
+# 枠56+i（種10）に置いて、右の写像（元の左辺）はその積を間接で読む。
+field zgvv : or bound 4096 8            # ガード (s,i) の左辺は 変数 × 変数
+zgvv[s, i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgfl[s, i]
+      if zgl[s, i] >= 0 if tkind[zgl[s, i]] == 1 if not isnum[zgl[s, i]]
+      if not isocc[zgl[s, i]] if isstar[prevw[zgl[s, i]]]
+      if tkind[prevw[prevw[zgl[s, i]]]] == 1
+      if not isnum[prevw[prevw[zgl[s, i]]]]
+      if not isocc[prevw[prevw[zgl[s, i]]]]
+field zgv1 : max bound 4096 8           # 左の変数のトークン
+zgv1[s, i] <- prevw[prevw[zgl[s, i]]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i]
+field zgv2 : max bound 4096 8           # 右の変数のトークン
+zgv2[s, i] <- zgl[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+field zgvm1 : max bound 4096 8          # 左の変数の写像（32+i）
+zgvm1[s, i] <- zgrul[s, i] * 128 + 32 + i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgvv[s, i] if zgrul[s, i] >= 0
+field zgvm2 : max bound 4096 8          # 右の変数の写像（40+i）
+zgvm2[s, i] <- zgrul[s, i] * 128 + 40 + i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgvv[s, i] if zgrul[s, i] >= 0
+zmu[zgvm1[s, i]] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmn[zgvm1[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmc[zgvm1[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmj0[zgvm1[s, i]] <- zvlpz[zgv1[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i]
+zmc0[zgvm1[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+      if lkd[s, zvlpz[zgv1[s, i]]] >= 1
+zmc0[zgvm1[s, i]] <- zvcolz[zgv1[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if lkd[s, zvlpz[zgv1[s, i]]] == 0
+zmm0[zgvm1[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmu[zgvm2[s, i]] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmn[zgvm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmc[zgvm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zmj0[zgvm2[s, i]] <- zvlpz[zgv2[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i]
+zmc0[zgvm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+      if lkd[s, zvlpz[zgv2[s, i]]] >= 1
+zmc0[zgvm2[s, i]] <- zvcolz[zgv2[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if lkd[s, zvlpz[zgv2[s, i]]] == 0
+zmm0[zgvm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zgvv[s, i]
+zfpu[zgrul[s, i], 40 + i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpk[zgrul[s, i], 40 + i] <- 11 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfplt[zgrul[s, i], 40 + i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpmo[zgrul[s, i], 40 + i] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpam[zgrul[s, i], 40 + i] <- zgvm1[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpu[zgrul[s, i], 48 + i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpk[zgrul[s, i], 48 + i] <- 11 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfplt[zgrul[s, i], 48 + i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpmo[zgrul[s, i], 48 + i] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpam[zgrul[s, i], 48 + i] <- zgvm2[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpu[zgrul[s, i], 56 + i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpk[zgrul[s, i], 56 + i] <- 10 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfplt[zgrul[s, i], 56 + i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgvv[s, i] if zgrul[s, i] >= 0
+zfpam[zgrul[s, i], 56 + i] <- zgrul[s, i] * 128 + 4 for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgvv[s, i] if zgrul[s, i] >= 0
+zfpsr[zgrul[s, i], 56 + i] <- zfpb[zgrul[s, i], 40 + i] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgvv[s, i] if zgrul[s, i] >= 0
+      if zfpb[zgrul[s, i], 40 + i] >= 1
+zfps2[zgrul[s, i], 56 + i] <- zfpb[zgrul[s, i], 48 + i] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgvv[s, i] if zgrul[s, i] >= 0
+      if zfpb[zgrul[s, i], 48 + i] >= 1
+zmc[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zgvv[s, i]
+zmn[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zgvv[s, i]
+zmia[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zgvv[s, i]
+zmib[zgm2[s, i]] <- zfpb[zgrul[s, i], 56 + i] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgm2[s, i] >= 1 if zgvv[s, i]
+      if zgrul[s, i] >= 0 if zfpb[zgrul[s, i], 56 + i] >= 1
+zmiu[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zgvv[s, i]
+
 zfpu[zgrul[s, i], 40 + i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zbf[s, i] if zgrul[s, i] >= 0
 zrdq[zgro[s, i]] <- zgrul[s, i] * 128 + 32 + i for (s) in 0 .. nstz[0]
@@ -2388,34 +2561,34 @@ zmm0[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
 
 # ── or の場の門（肯定 2? 否定…）: gkd 9 = 肯定（種3）/ gkd 2 = 否定（種2）──
 field zgpo : max bound 4096 8           # 肯定/否定の読みの出現
-zgpo[snum[t], gno2[t]] <- oseq[t] for (t,zc) in ch if isgrd[t]
+zgpo[snum[t], zgn[t]] <- oseq[t] for (t,zc) in ch if isgrd[t]
       if not clcmp[snum[t], cnum[t]]
 field zgis : or bound 4096 8            # ガード (s,i) は `is`
-zgis[snum[t], gno2[t]] <- true for (t,zc) in ch if zkwis[t]
+zgis[snum[t], zgn[t]] <- true for (t,zc) in ch if zkwis[t]
 field zgisn : max bound 4096 8          # is の右辺（数）
-zgisn[snum[t], gno2[t]] <- tval[nextw[t]] for (t,zc) in ch if zkwis[t]
+zgisn[snum[t], zgn[t]] <- tval[nextw[t]] for (t,zc) in ch if zkwis[t]
       if isnum[nextw[t]]
-zgisn[snum[t], gno2[t]] <- zatct[nextw[nextw[t]]] for (t,zc) in ch
+zgisn[snum[t], zgn[t]] <- zatct[nextw[nextw[t]]] for (t,zc) in ch
       if zkwis[t] if zqt34[nextw[t]]
       if zatct[nextw[nextw[t]]] >= 1
 zfck[s, i] <- 3 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 9 if zgpo[s, i] >= 0 if not zgis[s, i]
+      if zgkd[s, i] == 9 if zgpo[s, i] >= 0 if not zgis[s, i]
 zfck[s, i] <- 4 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 9 if zgpo[s, i] >= 0 if zgis[s, i]
+      if zgkd[s, i] == 9 if zgpo[s, i] >= 0 if zgis[s, i]
 zfck[s, i] <- 2 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 2 if zgpo[s, i] >= 0
+      if zgkd[s, i] == 2 if zgpo[s, i] >= 0
       if zlatf[ofl[zgpo[s, i]] - 1] <= 5
 zfck[s, i] <- 5 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 2 if zgpo[s, i] >= 0
+      if zgkd[s, i] == 2 if zgpo[s, i] >= 0
       if zlatf[ofl[zgpo[s, i]] - 1] == 6
 zfclt[s, i] <- zlatf[ofl[zgpo[s, i]] - 1] for (s) in 0 .. nstz[0]
-      for (i) in 0 .. 7 if gkd[s, i] >= 2 if gkd[s, i] <= 2 if zgpo[s, i] >= 0
+      for (i) in 0 .. 7 if zgkd[s, i] >= 2 if zgkd[s, i] <= 2 if zgpo[s, i] >= 0
 zfclt[s, i] <- zlatf[ofl[zgpo[s, i]] - 1] for (s) in 0 .. nstz[0]
-      for (i) in 0 .. 7 if gkd[s, i] == 9 if zgpo[s, i] >= 0
+      for (i) in 0 .. 7 if zgkd[s, i] == 9 if zgpo[s, i] >= 0
 zfcop[s, i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 9 if zgpo[s, i] >= 0
+      if zgkd[s, i] == 9 if zgpo[s, i] >= 0
 zfcop[s, i] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
-      if gkd[s, i] == 2 if zgpo[s, i] >= 0
+      if zgkd[s, i] == 2 if zgpo[s, i] >= 0
 field zgr2 : max bound 4096 8           # その規則
 zgr2[s, i] <- zrn[s] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgpo[s, i] >= 0 if zrn[s] >= 0

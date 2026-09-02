@@ -8,7 +8,7 @@
 #   辺の上限: 6136   指し番号の上限: 3996
 #
 #   プログラムごとに変わるのは **表だけ**である。
-#   規則の数 320 行は、言語の形の数であって
+#   規則の数 324 行は、言語の形の数であって
 #   プログラムの大きさではない。
 
 # ══ 走らせる物 —— 寄与の関係を閉じる ════════════════════════════
@@ -123,37 +123,37 @@ ct[s, rz[s, t]] <- ct[s, rz[s, a]] % ct[s, rz[s, b]]   for (s) in 1 .. 15 for (e
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st == s
 ng[s, e] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st == s
 ng[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 0 if op == 1 if n == 1 if ct[s, rz[s, c]] == ct[s, rz[s, r1]] + w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 0 if vn[s - 1, rz[s, c]] == w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 1 if vn[s - 1, rz[s, c]] == vn[s - 1, rz[s, r1]] + w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 2 if vn[s - 1, rz[s, c]] == vn[s - 1, rz[s, r1]] + vn[s - 1, rz[s, r2]] + w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 3 if n == 0 if vn[s - 1, rz[s, c]] >= w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 4 if n == 0 if vn[s - 1, rz[s, c]] <= w
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 5 if n == 0 if vn[s - 1, rz[s, c]] > w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 1 if n == 0 if vx[s - 1, rz[s, c]] == w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 1 if n == 1 if vx[s - 1, rz[s, c]] == vx[s - 1, rz[s, r1]] + w
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 2 if n == 0 if vx[s - 1, rz[s, c]] != w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 3 if n == 0 if vx[s - 1, rz[s, c]] >= w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 1 if n == 1 if vx[s - 1, rz[s, c]] == vx[s - 1, rz[s, r1]] + w
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 4 if n == 0 if vx[s - 1, rz[s, c]] <= w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 5 if n == 0 if vx[s - 1, rz[s, c]] > w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 6 if n == 1 if vx[s - 1, rz[s, c]] < vx[s - 1, rz[s, r1]] + w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 1 if n == 0 if vf[s - 1, rz[s, c]] == w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 2 if n == 0 if vf[s - 1, rz[s, c]] != w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 3 if n == 0 if vf[s - 1, rz[s, c]] >= w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 9 if op == 1 if n == 0 if vc[s - 1, rz[s, c]] == w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 2 if vn[s - 1, rz[s, c]] == vn[s - 1, rz[s, r1]] + vn[s - 1, rz[s, r2]] + w
 nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 9 if op == 3 if n == 0 if vc[s - 1, rz[s, c]] >= w
-nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 2 if lat == 3 if not vo[s - 1, rz[s, c]]
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 3 if lat == 3 if vo[s, rz[s, c]]
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 1 if vn[s, rz[s, c]] is w
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 1 if n == 0 if vf[s, rz[s, c]] == w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 1 if n == 0 if vf[s - 1, rz[s, c]] == w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 3 if n == 0 if vf[s - 1, rz[s, c]] >= w
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 5 if n == 0 if vf[s, rz[s, c]] > w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 1 if n == 0 if vx[s - 1, rz[s, c]] == w
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 2 if n == 1 if vf[s, rz[s, c]] != vf[s, rz[s, r1]] + w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 3 if n == 0 if vx[s - 1, rz[s, c]] >= w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 1 if vn[s - 1, rz[s, c]] == vn[s - 1, rz[s, r1]] + w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 4 if n == 0 if vn[s - 1, rz[s, c]] <= w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 0 if op == 1 if n == 1 if ct[s, rz[s, c]] == ct[s, rz[s, r1]] + w
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 3 if lat == 3 if vo[s, rz[s, c]]
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 5 if n == 0 if vx[s - 1, rz[s, c]] > w
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 5 if vf[s, rz[s, c]] is w
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 4 if lat == 8 if vm[s, rz[s, c]] is w
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 2 if n == 0 if vf[s, rz[s, c]] != w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 5 if op == 2 if n == 0 if vf[s - 1, rz[s, c]] != w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 3 if n == 0 if vn[s - 1, rz[s, c]] >= w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 1 if op == 1 if n == 0 if vn[s - 1, rz[s, c]] == w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 2 if lat == 3 if not vo[s - 1, rz[s, c]]
+nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 2 if op == 5 if n == 0 if vx[s, rz[s, c]] > w
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 5 if lat == 6 if not v4[s, rz[s, c]]
 nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 2 if op == 3 if n == 0 if vx[s, rz[s, c]] >= w
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 2 if op == 5 if n == 0 if vx[s, rz[s, c]] > w
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 1 if n == 0 if vf[s, rz[s, c]] == w
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 2 if n == 0 if vf[s, rz[s, c]] != w
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 2 if n == 1 if vf[s, rz[s, c]] != vf[s, rz[s, r1]] + w
-nc[s, e] <- true   for (s) in 0 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 11 if lat == 5 if op == 5 if n == 0 if vf[s, rz[s, c]] > w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 2 if op == 6 if n == 1 if vx[s - 1, rz[s, c]] < vx[s - 1, rz[s, r1]] + w
+nc[s, e] <- true   for (s) in 1 .. 15 for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st == s if k == 1 if lat == 9 if op == 1 if n == 0 if vc[s - 1, rz[s, c]] == w
 ok[s, e] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st == s if nc[s, e] >= ng[s, e]
 ok[s, e] <- ok[s - 1, e]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st < s
 # ── 値で決まる座標を番地の面へ写す。その層までの写しを全部持つ。──
@@ -227,7 +227,10 @@ fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) i
 fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 6 if lat == 0 if op == 4 if MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] <= MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
 fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 6 if lat == 0 if op == 5 if MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] > MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
 fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 6 if lat == 0 if op == 6 if MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] < MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
+fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 11 if lat == 2 if op == 3 if n == 0 if vx[s, MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] + MI[cm] * pa[s, MB[cm] + MU[cm] * t] + MI2[cm] * pa[s, MB2[cm] + MU2[cm] * t]] >= MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
 fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 11 if lat == 2 if op == 5 if n == 0 if vx[s, MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] + MI[cm] * pa[s, MB[cm] + MU[cm] * t] + MI2[cm] * pa[s, MB2[cm] + MU2[cm] * t]] > MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
+fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 11 if lat == 3 if op == 3 if n == 0 if vo[s, MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] + MI[cm] * pa[s, MB[cm] + MU[cm] * t] + MI2[cm] * pa[s, MB2[cm] + MU2[cm] * t]] >= MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
+fn[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc for (t) in 0 .. SZ[sp] - 1 if st == s if kk == 11 if lat == 3 if op == 5 if n == 0 if vo[s, MC[cm] + MK0[cm] * D[SB[sp,MA0[cm]] + (t / SD[sp,MA0[cm]]) % SW[sp,MA0[cm]], ML0[cm]] + MK1[cm] * D[SB[sp,MA1[cm]] + (t / SD[sp,MA1[cm]]) % SW[sp,MA1[cm]], ML1[cm]] + MK2[cm] * D[SB[sp,MA2[cm]] + (t / SD[sp,MA2[cm]]) % SW[sp,MA2[cm]], ML2[cm]] + MI[cm] * pa[s, MB[cm] + MU[cm] * t] + MI2[cm] * pa[s, MB2[cm] + MU2[cm] * t]] > MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]]
 fo[s, e, t] <- true   for (s) in 0 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg for (t) in 0 .. SZ[sp] - 1 if st == s if fn[s, e, t] >= fq[s, e]
 fo[s, e, t] <- fo[s - 1, e, t]   for (s) in 1 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st < s
 vn[s, MC[dm] + MK0[dm] * D[SB[sp,MA0[dm]] + (t / SD[sp,MA0[dm]]) % SW[sp,MA0[dm]], ML0[dm]] + MK1[dm] * D[SB[sp,MA1[dm]] + (t / SD[sp,MA1[dm]]) % SW[sp,MA1[dm]], ML1[dm]] + MK2[dm] * D[SB[sp,MA2[dm]] + (t / SD[sp,MA2[dm]]) % SW[sp,MA2[dm]], ML2[dm]] + MI[dm] * pa[s, MB[dm] + MU[dm] * t] + MI2[dm] * pa[s, MB2[dm] + MU2[dm] * t]] <- vn[s - 1, MC[dm] + MK0[dm] * D[SB[sp,MA0[dm]] + (t / SD[sp,MA0[dm]]) % SW[sp,MA0[dm]], ML0[dm]] + MK1[dm] * D[SB[sp,MA1[dm]] + (t / SD[sp,MA1[dm]]) % SW[sp,MA1[dm]], ML1[dm]] + MK2[dm] * D[SB[sp,MA2[dm]] + (t / SD[sp,MA2[dm]]) % SW[sp,MA2[dm]], ML2[dm]] + MI[dm] * pa[s, MB[dm] + MU[dm] * t] + MI2[dm] * pa[s, MB2[dm] + MU2[dm] * t]]   for (s) in 1 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg for (t) in 0 .. SZ[sp] - 1 if lat == 1 if st < s
@@ -273,46 +276,46 @@ vb[s, MC[dm] + MK0[dm] * D[SB[sp,MA0[dm]] + (t / SD[sp,MA0[dm]]) % SW[sp,MA0[dm]
 vb[s, MC[dm] + MK0[dm] * D[SB[sp,MA0[dm]] + (t / SD[sp,MA0[dm]]) % SW[sp,MA0[dm]], ML0[dm]] + MK1[dm] * D[SB[sp,MA1[dm]] + (t / SD[sp,MA1[dm]]) % SW[sp,MA1[dm]], ML1[dm]] + MK2[dm] * D[SB[sp,MA2[dm]] + (t / SD[sp,MA2[dm]]) % SW[sp,MA2[dm]], ML2[dm]] + MI[dm] * pa[s, MB[dm] + MU[dm] * t] + MI2[dm] * pa[s, MB2[dm] + MU2[dm] * t]] <- vb[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]] + vb[s, MC[bm] + MK0[bm] * D[SB[sp,MA0[bm]] + (t / SD[sp,MA0[bm]]) % SW[sp,MA0[bm]], ML0[bm]] + MK1[bm] * D[SB[sp,MA1[bm]] + (t / SD[sp,MA1[bm]]) % SW[sp,MA1[bm]], ML1[bm]] + MK2[bm] * D[SB[sp,MA2[bm]] + (t / SD[sp,MA2[bm]]) % SW[sp,MA2[bm]], ML2[bm]] + MI[bm] * pa[s, MB[bm] + MU[bm] * t] + MI2[bm] * pa[s, MB2[bm] + MU2[bm] * t]] + MC[wm] + MK0[wm] * D[SB[sp,MA0[wm]] + (t / SD[sp,MA0[wm]]) % SW[sp,MA0[wm]], ML0[wm]] + MK1[wm] * D[SB[sp,MA1[wm]] + (t / SD[sp,MA1[wm]]) % SW[sp,MA1[wm]], ML1[wm]] + MK2[wm] * D[SB[sp,MA2[wm]] + (t / SD[sp,MA2[wm]]) % SW[sp,MA2[wm]], ML2[wm]] + MI[wm] * pa[s, MB[wm] + MU[wm] * t] + MI2[wm] * pa[s, MB2[wm] + MU2[wm] * t]   for (s) in 0 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg for (t) in 0 .. SZ[sp] - 1 if st <= s if lat == 10 if vf == 1 if fo[s, e, t] if n == 2
 vb[s, MC[dm] + MK0[dm] * D[SB[sp,MA0[dm]] + (t / SD[sp,MA0[dm]]) % SW[sp,MA0[dm]], ML0[dm]] + MK1[dm] * D[SB[sp,MA1[dm]] + (t / SD[sp,MA1[dm]]) % SW[sp,MA1[dm]], ML1[dm]] + MK2[dm] * D[SB[sp,MA2[dm]] + (t / SD[sp,MA2[dm]]) % SW[sp,MA2[dm]], ML2[dm]] + MI[dm] * pa[s, MB[dm] + MU[dm] * t] + MI2[dm] * pa[s, MB2[dm] + MU2[dm] * t]] <- vb[s, MC[am] + MK0[am] * D[SB[sp,MA0[am]] + (t / SD[sp,MA0[am]]) % SW[sp,MA0[am]], ML0[am]] + MK1[am] * D[SB[sp,MA1[am]] + (t / SD[sp,MA1[am]]) % SW[sp,MA1[am]], ML1[am]] + MK2[am] * D[SB[sp,MA2[am]] + (t / SD[sp,MA2[am]]) % SW[sp,MA2[am]], ML2[am]] + MI[am] * pa[s, MB[am] + MU[am] * t] + MI2[am] * pa[s, MB2[am] + MU2[am] * t]]   for (s) in 0 .. 15 for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg for (t) in 0 .. SZ[sp] - 1 if st <= s if lat == 10 if vf == 4 if fo[s, e, t]
 # ── 寄与。これが全部である。──────────────────────────────
-vn[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 0
-vn[s, rz[s, t]] <- vn[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 1 if n == 1 if la == 1
-vn[s, rz[s, t]] <- vn[s, rz[s, a]] + vn[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 1 if n == 2 if la == 1
-vn[s, rz[s, t]] <- vn[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 4 if la == 1
+vf[s, rz[s, t]] <- vf[s, rz[s, a]] % w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 8 if n == 1 if la == 5
+vc[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st <= s if ok[s, e] if lat == 9 if vf == 0
 vx[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 0
-vx[s, rz[s, t]] <- vx[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 1 if la == 2
-vx[s, rz[s, t]] <- vf[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 1 if la == 5
-vx[s, rz[s, t]] <- vx[s, rz[s, a]] + vx[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 2 if la == 2
-vx[s, rz[s, t]] <- vn[s - 1, rz[s, a]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 1
-vx[s, rz[s, t]] <- vx[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 2
-vx[s, rz[s, t]] <- vf[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 5
-vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] * w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == -2
-vx[s, rz[s, t]] <- vx[s, rz[s, a]] * w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == 2
-vx[s, rz[s, t]] <- vf[s, rz[s, a]] * w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == 5
-vx[s, rz[s, t]] <- vx[s, rz[s, a]] / w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 7 if n == 1 if la == 2
+vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % vx[s - 1, rz[s, b]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 2 if la == -2
+vf[s, rz[s, t]] <- vn[s - 1, rz[s, a]] * w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 6 if n == 1 if la == 1
+vm[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st <= s if ok[s, e] if lat == 8 if vf == 0
+vo[s, rz[s, t]] <- vo[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 3 if vf == 4 if la == 3
+vn[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 0
+vs[s, rz[s, t]] <- {w}    for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 7 if vf == 3
+v4[s, rz[s, t]] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 6 if vf == 2
 vx[s, rz[s, t]] <- vf[s, rz[s, a]] / w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 7 if n == 1 if la == 5
 vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] / vx[s - 1, rz[s, b]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 7 if n == 2 if la == -2
-vx[s, rz[s, t]] <- vf[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 1 if la == -5
-vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 1 if la == -2
-vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % vx[s - 1, rz[s, b]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 2 if la == -2
-vo[s, rz[s, t]] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 3 if vf == 2
-vo[s, rz[s, t]] <- vo[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 3 if vf == 4 if la == 3
-vf[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 0
+vn[s, rz[s, t]] <- vn[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 4 if la == 1
+vx[s, rz[s, t]] <- vx[s, rz[s, a]] / w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 7 if n == 1 if la == 2
 vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]] + w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 1 if n == 1 if la == 2
+vx[s, rz[s, t]] <- vf[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 1 if la == -5
 vf[s, rz[s, t]] <- vf[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 1 if n == 1 if la == 5
-vf[s, rz[s, t]] <- vf[s, rz[s, a]] + vf[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 1 if n == 2 if la == 5
-vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 4 if la == -2
+vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 8 if n == 1 if la == -2
+vx[s, rz[s, t]] <- vf[s, rz[s, a]] * w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == 5
+vn[s, rz[s, t]] <- vn[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 1 if n == 1 if la == 1
+vx[s, rz[s, t]] <- vx[s, rz[s, a]] * w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == 2
+vx[s, rz[s, t]] <- vx[s, rz[s, a]] + vx[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 2 if la == 2
+vo[s, rz[s, t]] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 3 if vf == 2
 vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 4 if la == 2
+vx[s, rz[s, t]] <- vx[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 2
 vf[s, rz[s, t]] <- vf[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 4 if la == 5
-vf[s, rz[s, t]] <- vn[s - 1, rz[s, a]] * w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 6 if n == 1 if la == 1
+vx[s, rz[s, t]] <- vf[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 5
+vs[s, rz[s, t]] <- {vf[s, rz[s, a]]}   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 7 if vf == 9 if la == 5
+vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 8 if n == 1 if la == 2
+vx[s, rz[s, t]] <- vx[s - 1, rz[s, a]] * w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 6 if n == 1 if la == -2
 vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]] * w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 6 if n == 1 if la == 2
 vf[s, rz[s, t]] <- vf[s, rz[s, a]] * w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 6 if n == 1 if la == 5
-vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]] % w   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 8 if n == 1 if la == 2
-vf[s, rz[s, t]] <- vf[s, rz[s, a]] % w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 8 if n == 1 if la == 5
-v4[s, rz[s, t]] <- true   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 6 if vf == 2
-vs[s, rz[s, t]] <- {w}    for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 7 if vf == 3
-vs[s, rz[s, t]] <- {vf[s, rz[s, a]]}   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 7 if vf == 9 if la == 5
-vm[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st <= s if ok[s, e] if lat == 8 if vf == 0
+vx[s, rz[s, t]] <- vx[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 1 if la == 2
+vx[s, rz[s, t]] <- vf[s, rz[s, a]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 1 if n == 1 if la == 5
+vf[s, rz[s, t]] <- vx[s - 1, rz[s, a]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 4 if la == -2
+vf[s, rz[s, t]] <- vf[s, rz[s, a]] + vf[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 1 if n == 2 if la == 5
+vf[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 5 if vf == 0
 vm[s, rz[s, t]] <- vf[s, rz[s, a]]   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st <= s if ok[s, e] if lat == 8 if vf == 4 if la == 5
-vc[s, rz[s, t]] <- w      for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st <= s if ok[s, e] if lat == 9 if vf == 0
+vx[s, rz[s, t]] <- vn[s - 1, rz[s, a]]   for (s) in 1 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 1
+vn[s, rz[s, t]] <- vn[s, rz[s, a]] + vn[s, rz[s, b]] + w   for (s) in 0 .. 15 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 1 if n == 2 if la == 1
 
 print vn
 print vx

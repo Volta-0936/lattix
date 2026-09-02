@@ -48,12 +48,13 @@ SRC = assemble()
 def _dynd(fl):
     """値で決まる座標を持つ (場, 次元) —— 広さは走らせて測るしかないので、
     測った置き場を口（ext）から渡す（BSP の継ぎ目。orc と同じ判断）。"""
-    from flat import _frefs
+    from flat import _frefs, _chains
     dyn = set()
     def keyd(f, keys):
         for d, k in enumerate(keys):
-            if isinstance(k, tuple) and any(True for _ in _frefs(k)):
-                dyn.add((f, d))
+            if isinstance(k, tuple) and (any(True for _ in _frefs(k))
+                                         or any(True for _ in _chains(k))):
+                dyn.add((f, d))          # 積の座標（`comp[i * j]`）も測って言う
             walk(k)
     def walk(e):
         if not isinstance(e, tuple) or not e: return
@@ -68,7 +69,8 @@ def _dynd(fl):
         # 座標に升の読みが一つでもあれば、その規則は一巡目を **点で測る**
         # （flat.py の measuring の門と同じ判断）。点で測った広さは静的な
         # 区間算術では出ない —— 書き先の **全次元**を口から渡す。
-        if any(isinstance(k, tuple) and any(True for _ in _frefs(k))
+        if any(isinstance(k, tuple) and (any(True for _ in _frefs(k))
+                                         or any(True for _ in _chains(k)))
                for k in r.keys):
             for d in range(len(r.keys)):
                 dyn.add((r.target, d))
@@ -492,6 +494,7 @@ BOOKS = [
     'work/t/z_accread.lx', 'work/t/z_dim2rd.lx', 'examples/25_eval.lx',
     'examples/10_library.lx', 'examples/12_world.lx', 'examples/13_budget.lx',
     'examples/14_iosig.lx', 'examples/30_build.lx', 'work/t/z_prod.lx',
+    'work/t/z_cont3.lx', 'examples/24_space.lx', 'examples/33_self.lx',
 ]
 
 if __name__ == '__main__':
