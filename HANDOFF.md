@@ -142,16 +142,23 @@ zacd[t,d]、引数の種9 = 入れ子の使用、Horner の鎖は規則ごとで
 （trow —— 次元1+2 を fp 種7 で一本に。枠 94/95・写像 127。zd1cm は
 角括弧を跨ぐ。zq2 に種7）。
 
-まだ: 22_parse の残りは **45/45**（883 規則中）。残りは小さな癖の尾:
-値の vf4/vf0 の選び分け（flat が am 直読みにする条件と pa 写し越しの
-条件 —— ebin_l は vf4、bind_src は vf0。flat.py の accessor 値の道を
-読んで合わせる）、eint_v の層 1↔2、ガード一つの有無が数行。
-学びの輪は /tmp/fam22.py（prep 済み pickle /tmp/flat_22_parse.pkl）と
-/tmp/fam22c.py（A/B を /tmp/AB22.pkl に落とす）、probe22*.py。
-25_eval の front 側はその後（22 が通れば近い）。
-33_self 自己適用と 25 の FM=1 flatten の速さ、24_space（i*j の二次座標）、
-budget/source/emit/component/include（10/12/13/14/30 —— PLAN 2.5）、
-誤りの報告（2.7）。04 は機械側、07/11 は断られるべき本。
+**22_parse は完全一致**（883 規則、0/0。BOOKS 49 本目）。二段の通し運転も
+通った（源 → front.lx → 表 → run.lx → 答え一致、5.1 秒 —— Lattix の
+構文解析器を Lattix の前段が読み、Lattix の機械が走らせる）。
+道中の山: 深い読みの席は前置きの鎖（zu0k の表は一段）/ 読み持ち入れ子の
+帯（80..93）/ 種10 =「読み·定数 + 読み」の畳み / ガードの 読み±定数
+（cm/wm の定数へ。zgrst は符号つき）/ empty の層のずれが args/grp/issep/
+rqC を連鎖で一つ下げていた（左辺 読み±定数 の向きの zonm）/ 定数の
+構成子の合成規則は host の値の読みに縛られない（zlevg で独立に成層）。
+学びの輪の道具: /tmp/fam22.py（BOOK=… prep で他の本にも）、
+/tmp/fam22c.py（A/B 落とし）、/tmp/flatmap2.py（残差→行番号の対応。
+_family を monkeypatch して eid→規則を残す —— まず環境変数
+LATTIX_FAMILY_MIN=1 を flat の import 前に）。
+
+まだ: 25_eval の front 側（22 の後なら近いはず。FM=1 flatten が遅いのが
+律速 —— prep を回して差分から）。33_self 自己適用、24_space（i*j の
+二次座標）、budget/source/emit/component/include（10/12/13/14/30 ——
+PLAN 2.5）、誤りの報告（2.7）。04 は機械側、07/11 は断られるべき本。
 
 **このセッションで参照実装の穴も一つ出た**（気づき49 の再演）: flat.py の
 _frefs は添字の中まで降りるので `_size[a[i]] + 1` の内側の a[i] が重みに
