@@ -407,6 +407,15 @@ def close_upto(fl):
                 except (KeyError, IndexError): continue
                 try: fl.closed[(f, keys)] = obs[nmf](v)
                 except Exception: continue
+            # どの面の升も（区間の上端の最大のため。値は増えるだけなので max）
+            for (sx, c), v in st2.get(nmf, {}).items():
+                try: f, keys = fl.name_of(c)
+                except (KeyError, IndexError): continue
+                try: w = obs[nmf](v)
+                except Exception: continue
+                if isinstance(w, int) and not isinstance(w, bool):
+                    o = fl.closedany.get((f, keys))
+                    fl.closedany[(f, keys)] = w if o is None else max(o, w)
         fl.upto = len(fl.eg) + len(fl.fg)
     return go
 

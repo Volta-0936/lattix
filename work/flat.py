@@ -111,6 +111,7 @@ class Flatten:
         # **超段ごとに交代する** —— これは BSP の構造そのものである。
         self.closer = None                  # 層 k まで閉じる（engine2 が入れる）
         self.closed = {}                    # (場, 座標) → 閉じた値
+        self.closedany = {}                 # 同（どの面にあっても —— 区間の上端の最大のため）
         self.upto = -1                      # どこまで（辺の数）閉じてあるか
         self.ntmp = 0                       # 中間の升の数
         self.nid = 0                        # 辺の通し番号（中間の辺も同じ列に並ぶ）
@@ -708,8 +709,54 @@ class Flatten:
         self.nofam.append((why, r.target, getattr(r, 'id', -1), st))
         return False
 
+    def _bmax(self, e, st):
+        """区間の端の **最大**。非矩形の区間を「矩形 × ガード」に直す上端。
+        家の場の升は自分の層の面にしか居ない（k の面へ運ばれるのは ix の
+        升だけ）ので、閉じたどの面からでも拾う closedany を見る。"""
+        if e[0] == 'int': return e[1]
+        if e[0] == 'fref':
+            def scan():
+                return [v for (f, _k), v in self.closedany.items()
+                        if f == e[1] and isinstance(v, int)]
+            vs = scan()
+            if not vs and self.closer is not None and not self.noclose \
+                    and self.upto != len(self.eg) + len(self.fg):
+                self.closer(); vs = scan()
+            return max(vs) if vs else None
+        if e[0] == 'bin' and e[1] == '+':
+            a, b = self._bmax(e[2], st), self._bmax(e[3], st)
+            return None if a is None or b is None else a + b
+        if e[0] == 'bin' and e[1] == '-' and e[3][0] == 'int':
+            a = self._bmax(e[2], st)
+            return None if a is None else a - e[3][1]
+        return None
+
     def _family(self, r, st, lat):
         if r.target not in self.lay: raise _NoFam('書き先が密でない')
+        # ── 非矩形の区間は 矩形 × ガード（`for (j) in 0 .. ndep[i] - 1`）──
+        # 端が別の変数に依るなら、測った最大で矩形にし、元の端は半空間
+        # `j <= ndep[i] - 1` として fc に残す。多面体は箱 ∩ 半空間である。
+        nsrc, deps, dep = [], [], False
+        for vs, srcx in (r.sources or []):
+            if (isinstance(srcx, tuple) and srcx[0] == '..'
+                    and not isinstance(self.gval(srcx[2], st, {}), int)):
+                lo = self.gval(srcx[1], st, {})
+                if not isinstance(lo, int): raise _NoFam('端の下が閉じていない')
+                H = self._bmax(srcx[2], st)
+                # 測った升が一つも無ければ端は ⊥ —— ガードが全部消すので
+                # 矩形は一点でよい（幅 0 の軸は機械の割り算を壊す）
+                if H is None: H = lo
+                nsrc.append((vs, ('..', ('int', lo), ('int', H))))
+                deps.append(('cmp', '<=', ('var', vs[0]), srcx[2]))
+                dep = True
+                continue
+            nsrc.append((vs, srcx))
+        if dep:
+            import types
+            r = types.SimpleNamespace(
+                target=r.target, keys=r.keys, value=r.value,
+                sources=nsrc, guards=list(r.guards) + deps,
+                id=getattr(r, 'id', -1), lineno=getattr(r, 'lineno', -1))
         e = r.value
         mis = []                        # 束の合わない読み —— pa 経由で wm の間接へ
         if e[0] == 'bool':
@@ -1591,7 +1638,9 @@ class Flatten:
         cond = sorted({(c[2], c[3], c[5], c[6]) for c in self.cd})   # 種,束,演算子,数
         self.ixlat = sorted({r[3] for r in self.ix if r[1] != 0})
         lats = sorted({r[5] for r in self.ix} | {abs(e[2]) for e in self.eg}
-                      | {abs(l) for l in self.ixlat} | {g[3] for g in self.fg} | {5})
+                      | {abs(l) for l in self.ixlat} | {g[3] for g in self.fg} | {5}
+                      | {abs(r[4]) for r in self.fp if r[4]}     # 番地の面が読む束
+                      | {abs(c[4]) for c in self.fc if c[4]})    # ガードが読む束
         return vals, cond, [l for l in lats if l in PLANE]
 
     def ncell(self):
