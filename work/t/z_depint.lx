@@ -1,0 +1,8 @@
+# 依存する区間 —— 端が外側の変数に依る（多面体は 箱 ∩ 半空間）。
+# 家は矩形 0 .. max と半空間のガード j <= n[i]-1 に割る。
+table rows = (0,3),(1,1),(2,2)
+field n : max
+n[i] <- v for (i,v) in rows
+field tot : max
+tot[i] <- j for (i,v) in rows for (j) in 0 .. n[i] - 1
+print tot

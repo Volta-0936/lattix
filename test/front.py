@@ -125,8 +125,16 @@ def oracle(fl):
                 for e in list(frefs(srcx[1])) + list(frefs(srcx[2])):
                     keys = tuple(k[1] if k[0] == 'int' else 0 for k in e[2])
                     v = fl.closed.get((e[1], keys))
-                    if v is None: continue
-                    rows.append((fnum[e[1]], keys[0] if keys else 0, int(v)))
+                    if v is not None:
+                        rows.append((fnum[e[1]], keys[0] if keys else 0, int(v)))
+                    if any(k[0] != 'int' for k in e[2]):
+                        # 依存する区間の端 —— 場の **最大**を座標 63 で渡す
+                        # （flat の _bmax と同じ判断: 閉じたどの面からでも）
+                        vs = [w for (f, _k), w in getattr(fl, 'closedany', {}).items()
+                              if f == e[1] and isinstance(w, int)]
+                        vs += [w for (f, _k), w in fl.closed.items()
+                               if f == e[1] and isinstance(w, int) and not isinstance(w, bool)]
+                        if vs: rows.append((fnum[e[1]], 63, max(vs)))
     return sorted(set(rows)) or [(0, 0, -1)]
 
 
@@ -369,7 +377,7 @@ BOOKS = [
     'examples/15_parse.lx', 'examples/19_mod.lx', 'examples/23_big.lx',
     'examples/34_decimal.lx', 'examples/02_strata.lx', 'examples/05_pipeline.lx',
     'examples/06_order_free.lx', 'examples/09_upset.lx',
-    'examples/28_asm.lx',
+    'examples/28_asm.lx', 'work/t/z_depint.lx',
 ]
 
 if __name__ == '__main__':

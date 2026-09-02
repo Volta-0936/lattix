@@ -175,10 +175,45 @@ field zlphi2 : max bound 2048           # 区間ループ g の実効の上端
 zlphi2[g] <- lphi[g] for (g) in 0 .. znglm[0] if lpk[g] == 1
 zlphi2[g] <- zorc[lpbf[g], lpbc[g]] for (g) in 0 .. znglm[0] if lpk[g] == 2
       if lpbf[g] >= 0
+# ── 依存する区間（`for (j) in 0 .. n[i] - 1`）: 種3 ────────────────
+# 端が外側の変数に依る。多面体は 箱 ∩ 半空間 —— 矩形は場の **最大**
+# （口 orc の座標 63）で取り、元の端は半空間のガード `n[i]-1 >= j` として
+# fc に合成する（参照実装 flat.py の _family と同じ判断）。
+lkd[snum[t], lz[t]] <- 3 for (t,zc) in ch if kwin[t] if isnum[int1[t]]
+      if isocc[int4[t]] if tkind[int4b[t]] == 1 if not isnum[int4b[t]]
+field zlbo2 : max bound 4096 8          # 上端の読みの出現（文, 節）
+zlbo2[snum[t], lz[t]] <- oint4[t] for (t,zc) in ch if kwin[t]
+      if isnum[int1[t]] if isocc[int4[t]]
+field zlbo : max bound 2048             # ループ g の上端の読みの出現
+zlbo[glno[t]] <- zlbo2[snum[t], lz[t]] for (t,zc) in ch if isgl[t]
+field zlps : max bound 2048             # ループ g の文
+zlps[glno[t]] <- snum[t] for (t,zc) in ch if isgl[t]
+field zlbcl2 : max bound 4096 8         # 上端の読みの閉じ括弧のトークン
+zlbcl2[snum[t], lz[t]] <- tnum[zclch[tstart[nextw[int4[t]]]]] for (t,zc) in ch
+      if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+      if zclch[tstart[nextw[int4[t]]]] >= 1
+field zlhof2 : max bound 4096 8         # 上端の読みの後ろの ± 定数
+zlhof2[snum[t], lz[t]] <- 0 for (t,zc) in ch if kwin[t]
+      if zlbcl2[snum[t], lz[t]] >= 0
+      if not isplus[nextw[zlbcl2[snum[t], lz[t]]]]
+      if not ismin[nextw[zlbcl2[snum[t], lz[t]]]]
+zlhof2[snum[t], lz[t]] <- tval[nextw[nextw[zlbcl2[snum[t], lz[t]]]]]
+      for (t,zc) in ch if kwin[t] if zlbcl2[snum[t], lz[t]] >= 0
+      if isplus[nextw[zlbcl2[snum[t], lz[t]]]]
+      if isnum[nextw[nextw[zlbcl2[snum[t], lz[t]]]]]
+zlhof2[snum[t], lz[t]] <- 0 - tval[nextw[nextw[zlbcl2[snum[t], lz[t]]]]]
+      for (t,zc) in ch if kwin[t] if zlbcl2[snum[t], lz[t]] >= 0
+      if ismin[nextw[zlbcl2[snum[t], lz[t]]]]
+      if isnum[nextw[nextw[zlbcl2[snum[t], lz[t]]]]]
+field zlhof : max bound 2048            # ループ g の端のずれ
+zlhof[glno[t]] <- zlhof2[snum[t], lz[t]] for (t,zc) in ch if isgl[t]
+zlphi2[g] <- zorc[lpbf[g], 63] + zlhof[g] for (g) in 0 .. znglm[0]
+      if lpk[g] == 3 if lpbf[g] >= 0
 field zrky : max bound 2048             # 区間ループ g の鍵
 zrky[g] <- lplo[g] * 1048576 + zlphi2[g] for (g) in 0 .. znglm[0]
       if lpk[g] == 1 if zlphi2[g] >= lplo[g]
 zrky[g] <- 1099511627776 + lplo[g] * 1073741824 + lpbf[g] * 1048576 + lpbc[g] for (g) in 0 .. znglm[0] if lpk[g] == 2 if lpbf[g] >= 0
+zrky[g] <- 2199023255552 + lplo[g] * 1073741824 + lpbf[g] * 1048576 + zlhof[g] + 1024 for (g) in 0 .. znglm[0] if lpk[g] == 3 if lpbf[g] >= 0
 field zrdup : or bound 2048             # 前に同じ鍵がある
 zrdup[g] <- true for (g) in 0 .. znglm[0] for (h) in 0 .. znglm[0]
       if h <= g - 1 if zrky[h] == zrky[g]
@@ -3536,6 +3571,55 @@ zmib2[r * 128 + 61] <- zfpb[r, 93] for (r) in 0 .. znr2m[0]
       if zniu[r] >= 0 if zh7f[r] if zfpb[r, 93] >= 1
 zmiu2[r * 128 + 61] <- 1 for (r) in 0 .. znr2m[0] if zniu[r] >= 0
       if zh7f[r]
+
+
+# ── 依存する区間のガードを合成する（文のガード席 7、写像 29/30/31、枠 39）──
+# 半空間 `n[i] − c >= j`: cm = ずれ + 間接（読みの写し）、wm = 計数器 j。
+field zdlr : max bound 4096             # 文 s の依存する区間のループ g
+zdlr[zlps[g]] <- g for (g) in 0 .. znglm[0] if lpk[g] == 3 if zlps[g] >= 0
+zfck[s, 7] <- 1 for (s) in 0 .. nstz[0] if zdlr[s] >= 0 if zrn[s] >= 0
+zfclt[s, 7] <- 0 for (s) in 0 .. nstz[0] if zdlr[s] >= 0 if zrn[s] >= 0
+zfcop[s, 7] <- 3 for (s) in 0 .. nstz[0] if zdlr[s] >= 0 if zrn[s] >= 0
+zfcam[s, 7] <- zrn[s] * 128 + 29 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zfcwm[s, 7] <- zrn[s] * 128 + 30 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zrdq[zlbo[zdlr[s]]] <- zrn[s] * 128 + 31 for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0 if zlbo[zdlr[s]] >= 0
+zfpu[zrn[s], 39] <- true for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zfplt[zrn[s], 39] <- zlatf[lpbf[zdlr[s]]] for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0 if lpbf[zdlr[s]] >= 0
+      if zfws[lpbf[zdlr[s]]] <= zfgst[zrn[s]] - 1
+zfplt[zrn[s], 39] <- 0 - zlatf[lpbf[zdlr[s]]] for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0 if lpbf[zdlr[s]] >= 0
+      if zfws[lpbf[zdlr[s]]] >= zfgst[zrn[s]]
+zfpam[zrn[s], 39] <- zrn[s] * 128 + 31 for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0
+zmu[zrn[s] * 128 + 29] <- true for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmn[zrn[s] * 128 + 29] <- 0 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmc[zrn[s] * 128 + 29] <- zlhof[zdlr[s]] for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0
+zmia[zrn[s] * 128 + 29] <- 1 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmib[zrn[s] * 128 + 29] <- zfpb[zrn[s], 39] for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0 if zfpb[zrn[s], 39] >= 1
+zmiu[zrn[s] * 128 + 29] <- 1 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmu[zrn[s] * 128 + 30] <- true for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmn[zrn[s] * 128 + 30] <- 1 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmc[zrn[s] * 128 + 30] <- 0 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmj0[zrn[s] * 128 + 30] <- lpi[zdlr[s]] for (s) in 0 .. nstz[0]
+      if zdlr[s] >= 0 if zrn[s] >= 0
+zmc0[zrn[s] * 128 + 30] <- 0 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
+zmm0[zrn[s] * 128 + 30] <- 1 for (s) in 0 .. nstz[0] if zdlr[s] >= 0
+      if zrn[s] >= 0
 
 # ══ 原子（綴りの値） ═══════════════════════════════════════════════
 #
