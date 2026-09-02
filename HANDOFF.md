@@ -155,21 +155,31 @@ rqC を連鎖で一つ下げていた（左辺 読み±定数 の向きの zonm�
 _family を monkeypatch して eid→規則を残す —— まず環境変数
 LATTIX_FAMILY_MIN=1 を flat の import 前に）。
 
-まだ: 25_eval は **flat 側で先に断られる**（front 以前）。原因は
-**依存する区間** `ev[..,..,rw] <- … for (rw) in 0 .. nrs[snum[k]]` ——
-上端 nrs[snum[k]] が外側の変数 k に依るので矩形の箱にできない
-（work/flat.py region() が「多面体にできない区間」で断る、行 340/344/353）。
-直し方は **矩形 × ガード**（多面体 = 箱 ∩ 半空間）: 区間を
-`0 .. MAX` の矩形にし、元の端を家のガード `rw <= nrs[snum[k]]`（fc の
-種1/6）として残す。詰まったのは **MAX の出どころ**: nrs は家（dense）の
-場なので fl.closed にも self.seen にも出ない（closed にあるのは点の道の
-場だけ、seen は書き先の測った目盛りだけ）。試した二つ（closed 走査で
-_bmax / 書き先 ev の次元2 の seen）はどちらも空だった —— この一巡目に
-nrs の測った最大が **どこに残っているか**を先に突き止めるのが次の一手。
-候補: (a) 測りの点の道で ev の dim2 を測るよう仕向ける、(b) 家の run の
-出力から nrs の最大を口 orc/ext に足す、(c) region() の測り自体を
-「点で測った上端」で置く。work/flat.py の変更はこのセッションでは
-戻してある（48+22 の基準を壊さないため。/tmp/dbg25*.py に足場は残る）。
+**依存する区間は通した**（1649136 / e703e09）: `for (rw) in 0 .. nrs[snum[k]]`
+は **矩形 × ガード**（多面体 = 箱 ∩ 半空間）。flat 側: 一巡目の点の閉じの
+値を engine2.close_upto が `fl.closedany[(場, 鍵)]` に貯め、_bmax がその最大
+（+定数の寄せ）を上端にして `0 .. H` の矩形へ書き換え、元の端は fc に残す
+（_family の前置き）。front 側: oracle が fref の端に `(fnum, 63, max)` の行を
+送り、lkd 種3（`zorc[…,63] + 寄せ` で zlphi2、無ければ H=lo の一点）、合成
+ガードは席7（ずれ付き or 閉じ → 種1: cm=r·128+29 / 枠39 が pa / 写像31。
+裸の読みで生きた非 flat → 種11: cm=写像31 そのもの。flat.py fcond の判断）。
+種3 の軸の鍵は値 (lo, H)（region は書き換え後の repr で intern —— `0 .. 0` は
+番兵の一点と同じ軸）。試験 z_depint / z_unit0。
+
+**25_eval は front 側も完全一致**（913 規則、0/0）。道中で開いたもの:
+include は字面の取り込み（run_front が lattix._expand_includes と同じ前処理）/
+口 orc の場番号は **front の番号**（宣言 → _size → 引数場。oracle が参照の
+番号で送っていた —— 構成子のある本で初めて割れた。test/front.py frontnum）/
+**合成の場の読み**（`cons_head[efref_args[..]]`, `_size[..]`）は宣言が無いので
+33_self の ofl が行き当たらない → 引数場の綴りから okey/okey2 と同形の鍵
+（zaok/zaok2）を作って ofl を継ぐ（z_accread）/ **次元2 の読み**
+（`trow[stab[..], rw, bind_pos[..]]`）は二本目の間接の席を次元1 と分け合う
+（zdrd2/zdrdb/zdrob/zfsb —— 席で引く。z_dim2rd）/ 深い鎖の枠の生きた読みは
+5 だけでなく昇る束ぜんぶ −束（zlva）。
+前段の速さ: ch × ch の総当たりを二つ潰した（表名は鍵で引く ztdk、囲む使用は
+括弧の相手 opos で引く zenu）。それでも 25_eval（5 万字）の front は約 20 分
+（NATIVE_MS 1.39e6、JOINS 9.7e8、ROUNDS 211 —— 旧版の実測）。次に測るなら
+gprof（-pg で焼き直し）で sweep の塊ごとに見る。
 その後は front 側（22 の後なら近いはず。FM=1 flatten が律速）。33_self 自己適用、24_space（i*j の
 二次座標）、budget/source/emit/component/include（10/12/13/14/30 ——
 PLAN 2.5）、誤りの報告（2.7）。04 は機械側、07/11 は断られるべき本。

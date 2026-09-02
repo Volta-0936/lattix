@@ -79,8 +79,9 @@ def _dynd(fl):
     return dyn
 
 
-def extrows(fl):
-    """合成の場（_size と 引数場）の測った置き場を、走らせた側の口として渡す。"""
+def frontnum(fl):
+    """前段の場番号: 宣言された場、_size、構成子の宣言順に引数場
+    （参照実装は構成子の行で引数場を先に番号づける —— 口はこちらの番号で話す）。"""
     named = list(fl.p.fields)
     syn = {'_size'} | {f"{nm}_{f}" for nm, (fs, _bd) in fl.p.ctors.items()
                        for f in fs}
@@ -93,6 +94,12 @@ def extrows(fl):
         for k, f in enumerate(fs):
             fnum[f"{nm}_{f}"] = base + k
         base += len(fs)
+    return fnum, syn
+
+
+def extrows(fl):
+    """合成の場（_size と 引数場）の測った置き場を、走らせた側の口として渡す。"""
+    fnum, syn = frontnum(fl)
     rows = [(1022, 0, fl.ATOMB - 1, 1)]      # 数の上端の印（原子の基 − 1）
     for f in syn:
         if f not in fl.lay: continue
@@ -117,7 +124,7 @@ def oracle(fl):
             if isinstance(x, tuple): yield from frefs(x)
             elif isinstance(x, list):
                 for y in x: yield from frefs(y)
-    fnum = {f: i for i, f in enumerate(fl.p.fields)}
+    fnum, _syn = frontnum(fl)
     rows = []
     for r in fl.p.rules:
         for _vs, srcx in (r.sources or []):
@@ -141,6 +148,12 @@ def oracle(fl):
 def run_front(path, orc=None, ext=None):
     """front.lx を焼いた測定器で走らせ、家の表を読み出す。"""
     data = open(path, 'rb').read()
+    if b'include ' in data:
+        # include は字面の取り込み（lattix.py の parse と同じ前処理）——
+        # 前段が読むのは取り込んだ後の本文。配る側もこの一枚を渡す。
+        import lattix
+        data = lattix._expand_includes(data.decode('utf-8'),
+                                       os.path.dirname(path)).encode('utf-8')
     rows = [(i, c) for i, c in enumerate(data)] + [(len(data), 32)]
     orc = orc or [(0, 0, -1)]
     ext = ext or [(0, 0, 0, 0)]
@@ -377,7 +390,8 @@ BOOKS = [
     'examples/15_parse.lx', 'examples/19_mod.lx', 'examples/23_big.lx',
     'examples/34_decimal.lx', 'examples/02_strata.lx', 'examples/05_pipeline.lx',
     'examples/06_order_free.lx', 'examples/09_upset.lx',
-    'examples/28_asm.lx', 'work/t/z_depint.lx',
+    'examples/28_asm.lx', 'work/t/z_depint.lx', 'work/t/z_unit0.lx',
+    'work/t/z_accread.lx', 'work/t/z_dim2rd.lx', 'examples/25_eval.lx',
 ]
 
 if __name__ == '__main__':
