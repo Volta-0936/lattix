@@ -828,8 +828,22 @@ class Flatten:
             _c, _ss, iv = self.pctor(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
         elif vf == 3:
-            c, ss = self.affine(e[1][0], sl)
-            wm = self.mapof(c, ss, axes)
+            # 元に読みがあれば（`{profile[u]}`）、値の読みと同じく pa 経由の
+            # 間接で運ぶ（束が合わない読みの mis と同じ判断 —— pcell が閉じ方を見張る）
+            el = e[1][0]
+            rd = list(_tops(el)) if _addok(el) else []
+            if rd:
+                if len(rd) > 2: raise _NoFam('集合の元に読みが三つ以上')
+                c, ss = self.affine(_strip(el, rd), sl)
+                ivs = []
+                for x in rd:
+                    cc, sss, iv = self.pcell(x, sl, axes, st, sp, n)
+                    ivs.append((iv[0] * _coef(el, x), iv[1], iv[2]))
+                while len(ivs) < 2: ivs.append((0, 0, 0))
+                wm = self.mapof(c, ss, axes, ivs[0], ivs[1])
+            else:
+                c, ss = self.affine(el, sl)
+                wm = self.mapof(c, ss, axes)
         elif e[0] == 'bin' and (e[1] in '/%' or
                                 (e[1] == '*' and not _addok(e))):
             iv = self.pchain(e, sl, axes, st, sp, n)

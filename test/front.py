@@ -145,6 +145,100 @@ def oracle(fl):
     return sorted(set(rows)) or [(0, 0, -1)]
 
 
+def expand_uses(text):
+    """component / use は **字面の取り込み**（include と同じ判断）。参照実装は
+    parse の最後に、部品の規則を名前を付け替えて呼び手の末尾へ継ぐ
+    （_instantiate）。同じことを字面でやる: component…end と use の行を外し、
+    末尾に「場の宣言（部品の順）→ 付け替えた規則」を使用ごとに並べる。
+    前段が読むのはこの一枚であり、規則と場の並びは参照実装と同じになる。"""
+    import lattix as L
+    comps, uses, out = {}, [], []
+    cur = None
+    for raw in text.splitlines():
+        t = L._strip_comment(raw).strip()
+        head = t.split()[:1]
+        if cur is not None:
+            if head == ['end']:
+                comps[cur.name] = cur; cur = None
+            else:
+                cur.body.append(raw)
+            out.append('')
+            continue
+        if head == ['component']:
+            cur = L._parse_component_head(t, 0); out.append(''); continue
+        if head == ['use']:
+            uses.append(L._parse_use(t, 0)); out.append(''); continue
+        out.append(raw)
+    if not uses: return text
+
+    def subst(line, ren):
+        # 綴りの置き換え（文字列の中は触らない。語の境界で）
+        parts = re.split(r'("[^"]*")', line)
+        for i in range(0, len(parts), 2):
+            parts[i] = re.sub(r'(?<![A-Za-z0-9_])([A-Za-z_][A-Za-z0-9_]*)(?![A-Za-z0-9_])',
+                              lambda m: ren.get(m.group(1), m.group(1)), parts[i])
+        return "".join(parts)
+
+    for name, args, pfx, _ln in uses:
+        c = comps[name]
+        ren = {}
+        for pname, (kind, val) in zip(c.params, args):
+            ren[pname] = val if kind == 'name' else (str(val) if kind == 'int'
+                                                     else f'"{val}"')
+        # 場（local / field / source の順、次に出口）—— 参照実装と同じ順
+        fields, srcs, body = [], {}, []
+        for raw in c.body:
+            t = L._strip_comment(raw).strip()
+            if not t: continue
+            head = t.split()[:1]
+            if head in (['field'], ['local']):
+                toks = L.tokenize(t, 0)
+                fields.append((toks[1][1], toks[3][1])); continue
+            if head == ['source']:
+                toks = L.tokenize(t, 0)
+                fields.append((toks[1][1], toks[3][1]))
+                srcs[toks[1][1]] = toks[5][1]; continue
+            body.append(raw)
+        for f, lat in c.outs:
+            if f not in dict(fields): fields.append((f, lat))
+        for f, _lat in fields: ren[f] = f"{pfx}_{f}"
+        out.append(f"# --- use {name} as {pfx} ---")
+        for f, lat in fields:
+            if f in srcs:
+                out.append(f'source {pfx}_{f} : {lat} from "{srcs[f]}"')
+            else:
+                out.append(f"field {pfx}_{f} : {lat}")
+        for raw in body:
+            out.append(subst(raw.lstrip(), ren))   # 部品の字下げは外す（文の頭は行頭）
+    return "\n".join(out) + "\n"
+
+
+def desugar_emit(text):
+    """`emit "ch" <- e …` は参照実装の parse で **set の場への規則の糖衣**である
+    （Rule(emit_ch, [], ('set', [e]), …)。場 emit_ch は最初の emit の位置で
+    宣言される）。同じ糖衣を字面で剥く: 最初の emit の前に `field emit_ch : set`
+    を置き、`emit "ch" <-` を `emit_ch[] <- {` … `}` に直す。"""
+    out, seen = [], set()
+    for raw in text.splitlines():
+        t = raw.lstrip()
+        m = re.match(r'emit\s+"([^"]*)"\s*<-\s*(.*)$', t)
+        if not m:
+            out.append(raw); continue
+        ch, rest = m.group(1), m.group(2)
+        fld = 'emit_' + ''.join(c if c.isalnum() else '_' for c in ch)
+        if fld not in seen:
+            seen.add(fld); out.append(f"field {fld} : set")
+        # 値は最初の for/if の手前まで（注釈は落とす）
+        code = rest.split('#', 1)[0]
+        k = re.search(r'\s(for|if)\s', ' ' + code)
+        if k:
+            val, tail = code[:k.start()], code[k.start():]
+        else:
+            val, tail = code, ''
+        out.append(f"{fld}[] <- {{{val.strip()}}} {tail.strip()}".rstrip())
+    return "\n".join(out) + "\n"
+
+
 def run_front(path, orc=None, ext=None):
     """front.lx を焼いた測定器で走らせ、家の表を読み出す。"""
     data = open(path, 'rb').read()
@@ -154,6 +248,10 @@ def run_front(path, orc=None, ext=None):
         import lattix
         data = lattix._expand_includes(data.decode('utf-8'),
                                        os.path.dirname(path)).encode('utf-8')
+    if b'\nuse ' in b'\n' + data:
+        data = expand_uses(data.decode('utf-8')).encode('utf-8')
+    if b'\nemit ' in b'\n' + data:
+        data = desugar_emit(data.decode('utf-8')).encode('utf-8')
     rows = [(i, c) for i, c in enumerate(data)] + [(len(data), 32)]
     orc = orc or [(0, 0, -1)]
     ext = ext or [(0, 0, 0, 0)]
@@ -392,6 +490,8 @@ BOOKS = [
     'examples/06_order_free.lx', 'examples/09_upset.lx',
     'examples/28_asm.lx', 'work/t/z_depint.lx', 'work/t/z_unit0.lx',
     'work/t/z_accread.lx', 'work/t/z_dim2rd.lx', 'examples/25_eval.lx',
+    'examples/10_library.lx', 'examples/12_world.lx', 'examples/13_budget.lx',
+    'examples/14_iosig.lx', 'examples/30_build.lx',
 ]
 
 if __name__ == '__main__':

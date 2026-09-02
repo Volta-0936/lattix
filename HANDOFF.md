@@ -177,9 +177,33 @@ include は字面の取り込み（run_front が lattix._expand_includes と同�
 （zdrd2/zdrdb/zdrob/zfsb —— 席で引く。z_dim2rd）/ 深い鎖の枠の生きた読みは
 5 だけでなく昇る束ぜんぶ −束（zlva）。
 前段の速さ: ch × ch の総当たりを二つ潰した（表名は鍵で引く ztdk、囲む使用は
-括弧の相手 opos で引く zenu）。それでも 25_eval（5 万字）の front は約 20 分
-（NATIVE_MS 1.39e6、JOINS 9.7e8、ROUNDS 211 —— 旧版の実測）。次に測るなら
-gprof（-pg で焼き直し）で sweep の塊ごとに見る。
+括弧の相手 opos で引く zenu）。それでも 20 分だった真因は **測定器側**:
+`zacd[t, d]`（表 × 区間の鎖）が融合の一掃に乗らず、規則の切り替わりぶん
+掃き直していた（gprof: mslot/mget 17e9 回、mjoin_zacd 9.6e8）。runtime.py の
+fuse_plan を「源0 が表なら二本目以降は行の内側」に緩めて 25_eval の前段は
+65 秒（焼き込み）。
+
+**PLAN 2.5 の本も通した**（10_library / 12_world / 13_budget / 14_iosig /
+30_build。BOOKS 59 本、二段の通し運転も ✓）。判断:
+- include / component+use は参照実装でも **字面の取り込み**（_expand_includes
+  / _instantiate は付け替えて末尾に継ぐ）。同じ字面変換を run_front の前に置く
+  （test/front.py expand_uses —— 場の宣言は部品の順、規則は use の順に末尾へ）。
+- emit も参照実装では糖衣（`emit "ch" <- e` = `emit_ch[] <- {e}`、場 emit_ch は
+  最初の emit の位置で宣言）。同じ糖衣を字面で剥く（desugar_emit）。
+- source は宣言（33_self に kwsrc: `source x : lat from "ch"` は isdcl）。往復の
+  辺（応答を読む規則は emit_ch を書く規則より +1 の層）は front.lx が
+  チャネルの語から `emit_ch` の名の鍵を作って宣言に行き当て（zsrcf）、
+  zlvl/zlvg に +1 の辺を足す。書き手の無い場は zfws = −1（fstr.get(f,-1)）、
+  次数は読まれ方から（zfna）。
+- 上端 `n[]` は座標 0。口 orc に無い上端（まだ閉じていない）は種2 でも
+  矩形 × ガードへ（zorch の否定で lkd 3 —— flat の gval が int でない道）。
+  文に依存する区間が二つあれば席 7−q（zdlr[s,q]、写像 8+3i/9+3i/10+3i、枠 32+i）。
+- flat.py: 集合の元に読み（`{profile[u]}`）は pa 経由の間接で wm へ（vf 3）。
+- budget は無視（2.7 で誤りとして扱う）。
+これらの字面変換（include/use/emit）は今は test/front.py の Python にある。
+配る形では Lattix の前々段（bytes → bytes）に移す —— 33_self の道具で書ける。
+残る本: 04_aggregate（機械側）、07/11（断られるべき）、24_space（i*j）、
+31_gen / 32_shape / 33_self（自己適用）。
 その後は front 側（22 の後なら近いはず。FM=1 flatten が律速）。33_self 自己適用、24_space（i*j の
 二次座標）、budget/source/emit/component/include（10/12/13/14/30 ——
 PLAN 2.5）、誤りの報告（2.7）。04 は機械側、07/11 は断られるべき本。

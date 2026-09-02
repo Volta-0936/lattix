@@ -177,8 +177,15 @@ lastw[t] <- t          for (t,zc) in ch if tkind[t] != 3
 lastw[t] <- lastw[t-1] for (t,zc) in ch if t >= 1 if tkind[t] == 3
 field prevw : max bound 262144           # t の直前の非空白トークン
 prevw[t] <- lastw[t-1] for (t,zc) in ch if t >= 1
+# `source x : max from "ch"` も宣言である（外界から育つ場 —— 規則を持たない
+# 場と同じ扱い。`from` は bound ではないので広さは既定のまま）。
+field kwsrc : or bound 262144           # `source`
+kwsrc[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t]
+      if tch[t,0] == 115 if tch[t,1] == 111 if tch[t,2] == 117
+      if tch[t,3] == 114 if tch[t,4] == 99 if tch[t,5] == 101
 field isdcl : or bound 262144
 isdcl[t] <- true for (t,zc) in ch if tkind[t] == 1 if kwfld[prevw[t]]
+isdcl[t] <- true for (t,zc) in ch if tkind[t] == 1 if kwsrc[prevw[t]]
 
 field oseq : max bound 262144            # 出現の通し番号（鎖）
 oseq[0] <- 0
