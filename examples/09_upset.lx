@@ -1,0 +1,31 @@
+# 束空間の網羅探索が教えたこと:
+#   「ある束上の単調述語は、その束の上に閉じた部分集合とちょうど一致する」
+#   そして全ての上閉集合は主上閉集合 x ⊒ c の和で生成される。
+#
+# つまり `is`（= x ⊒ c、「x は少なくとも c だけの情報を持つ」）という
+# 一つの演算子が、あらゆる束の層を消費しないガードを *すべて* 生成する。
+# 手で導いた極性表は、この一つの事実の影にすぎなかった。
+
+table edges = (0,1,4), (0,2,1), (2,1,2), (1,3,5), (3,4,3), (4,5,2), (2,5,20)
+table nodes = (0), (1), (2), (3), (4), (5)
+table jobs  = (a, done), (b, done), (c, failed), (a, done)
+
+field dist : min
+dist[0] <- 0
+dist[j] <- dist[i] + w        for (i,j,w) in edges
+
+# min 束では x ⊒ 8 が「距離が 8 以下」を意味する（順序が数値と逆向きだから）
+field near : set
+near[] <- {v}                 for (v) in nodes if dist[v] is 8
+
+# flat 束では x ⊒ done が「done で確定、または矛盾」を意味する。
+# v0.3 では「== は原理的に層を要求する」と限界に書いたが、それは誤りだった。
+# {done} は上に閉じていないが {done, ⊤} は閉じている。だから単調。
+field status : flat
+status[j] <- s                for (j,s) in jobs
+
+field finished : set
+finished[] <- {j}             for (j,s) in jobs if status[j] is "done"
+
+print near
+print finished

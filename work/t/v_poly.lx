@@ -1,0 +1,9 @@
+# 多面体の道 —— **ガードも写像で書ける**（`fc`）。
+# 点が 1000 あっても、辺は規則の数のままである。
+field a : max bound 2048
+field c : or bound 2048
+field b : max bound 2048
+a[i] <- i          for (i) in 0 .. 999
+c[i] <- true       for (i) in 0 .. 999 if a[i] > 900
+b[i] <- a[i] + 1   for (i) in 0 .. 999 if c[i]
+print b

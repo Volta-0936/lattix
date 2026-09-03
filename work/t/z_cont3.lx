@@ -1,0 +1,9 @@
+# 三行にわたるガード —— 三行目が落ちていないか
+table t = (0,3), (1,5), (2,7)
+field a : max bound 8
+a[i] <- v            for (i,v) in t
+field b : or bound 8
+b[i] <- true for (i,v) in t if v >= 1 if a[i] >= 1
+      if v <= 9 if a[i] <= 9
+      if v >= 4 if a[i] >= 4
+print b

@@ -1,0 +1,9 @@
+# 間接の項が二つ —— 書き先の座標が二つとも場の値で決まる
+table t = (0,1,10), (1,2,20), (2,0,30)
+field g : flat bound 8
+g[i] <- a        for (i,a,v) in t
+field h : flat bound 8
+h[i] <- v        for (i,a,v) in t
+field m : max bound 8 64
+m[g[i], h[i]] <- i + 1   for (i,a,v) in t
+print m

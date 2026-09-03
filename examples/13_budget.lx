@@ -1,0 +1,20 @@
+# コスト署名は型と同じく契約である。
+# 型が「形が合っているか」を守るように、コスト署名は「遅くなっていないか」を守る。
+# テストでもプロファイラでもなく、インタフェースが守る。
+
+budget io <= 2
+
+table users = (1), (2), (3)
+
+emit "a" <- u              for (u) in users
+source ra : flat from "a"
+
+emit "b" <- ra[u]          for (u) in users
+source rb : flat from "b"
+
+emit "c" <- rb[ra[u]]      for (u) in users
+source rc : flat from "c"
+
+field out : set
+out[] <- {u}               for (u) in users if rc[rb[ra[u]]] is 1
+print out

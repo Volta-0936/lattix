@@ -1,0 +1,16 @@
+# 合成の場を **読む** —— 引数場（pair_y）と _size は宣言が無いので、
+# 前段は綴りの鍵で行き当てる（25_eval の `cons_head[efref_args[..]]`）。
+table t = (0,97), (1,98), (2,99)
+field a : flat bound 8
+a[i] <- c            for (i,c) in t
+field b : flat bound 8
+b[i] <- c + 1        for (i,c) in t
+constructor pair(x, y) bound 64
+field p : flat bound 8
+p[i] <- pair(a[i], b[i])   for (i,c) in t
+field q : max bound 8
+q[i] <- pair_y[p[i]] + pair_x[p[i]]  for (i,c) in t
+field n : max bound 8
+n[i] <- _size[p[i]]  for (i,c) in t
+print q
+print n

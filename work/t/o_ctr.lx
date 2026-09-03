@@ -1,0 +1,4 @@
+table e = (0,1,4), (0,2,1), (2,1,2), (1,3,5)
+field d : min bound 16
+d[k] <- k + k   for (k) in 0 .. 5
+print d

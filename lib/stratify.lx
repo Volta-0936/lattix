@@ -1,0 +1,28 @@
+# ── Lattix の中核解析を、Lattix 自身で書く ─────────────────────────────
+#
+# 成層とは何だったか:
+#   辺 (u,v,0) : v は u と同じ層でよい（単調な読み）
+#   辺 (u,v,1) : v は u より真に後の層（非単調な読み・外界との往復）
+#   層番号 = 重み付き最長路。重み1の辺が閉路の中にあれば成層不能。
+#
+# これは束の上の不動点である。つまり Lattix の得意分野そのものだ。
+# Python 版は Tarjan の SCC + 縮約 DAG + トポロジカル順で 60 行。
+# こちらは 6 行で、しかも並列・増分・分散・検査可能である。
+#
+# 入力: dep(u,v,w)  と  node(n)
+# 出力: level[n]（層番号）と unstratifiable[]
+
+component stratifier(dep, node) -> level : max, unstratifiable : or  depth 2
+  local reach : or
+
+  # 到達可能性（単調）
+  reach[a,b] <- true            for (a,b,w) in dep
+  reach[a,c] <- true            for (a,b,w) in dep for (c) in node if reach[b,c]
+
+  # 重み1の辺が閉路の中にある = どんな実行順序でも救えない
+  unstratifiable[] <- true      for (u,v,w) in dep if w > 0 if reach[v,u]
+
+  # 重み付き最長路。閉路の中は重み0だけなので +0 で収束する。
+  level[n] <- 0                 for (n) in node if not unstratifiable[]
+  level[v] <- level[u] + w      for (u,v,w) in dep if not unstratifiable[]
+end

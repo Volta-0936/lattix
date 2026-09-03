@@ -1,0 +1,9 @@
+# 読みで束が混ざる —— max の規則が flat の場を読む（閉じた面から）
+table t = (0,5), (1,7), (2,9)
+field base : flat bound 8
+base[i] <- v          for (i,v) in t
+field top : or bound 8
+top[i] <- true        for (i,v) in t if i >= 2
+field acc : max bound 8
+acc[i] <- base[i] + 100   for (i,v) in t if not top[i]
+print acc

@@ -1,0 +1,12 @@
+# 次元2 の読み —— `trow[stab[..], rw, bind_pos[..]]`（25_eval）の形。
+# 次元0 の読みと次元2 の読みが二本の間接、次元1 は計数器の枠。
+table t = (0,1),(1,2),(2,0)
+field a : flat bound 8
+a[i] <- v            for (i,v) in t
+field b : flat bound 8
+b[i] <- 2 - v        for (i,v) in t
+field w : max
+w[i, j, k] <- i * 100 + j * 10 + k for (i,v) in t for (j) in 0 .. 2 for (k) in 0 .. 2
+field s : max bound 8
+s[i] <- w[a[i], j, b[i]] for (i,v) in t for (j) in 0 .. 2
+print s

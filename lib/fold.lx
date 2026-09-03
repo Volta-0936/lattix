@@ -1,0 +1,331 @@
+# ══ 畳み目 —— 「源のバイト → 規則の形」と「規則の形 → 機械語」を繋ぐ ══
+#
+# 上（33_self）は源のバイトから場・種・規則・ループ・項・ガード・座標を導く。
+# 下（31_gen）はそれらを読んで静的 ELF を書く。**間にホストは居ない** ——
+# 写しは場の名づけ直しであって、判断は一つも持たない。
+#
+# 導出の側は「文番号」で数え、生成の側は「規則番号」で数える。違うのは
+# **並び順だけ**（規則は層の昇順に並べる）なので、鎖を二本引けば足りる。
+
+# ── 場の一覧 ───────────────────────────────────────────────────────
+field nfl : max bound 1                        # 場の数
+nfl[z] <- fdno[t] + 1                for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t]
+field fdlat : max bound 1024                     # 場 f の束
+fdlat[f] <- flatt[f]                for (f) in 0 .. nfdz[0]
+field fdar : max bound 1024                      # 場 f の次数
+fdar[f] <- farr[f]                  for (f) in 0 .. nfdz[0]
+field fw : max bound 1024 2                         # 場 f の次元 d の広さ
+fw[f,0] <- fwid[f]                  for (f) in 0 .. nfdz[0]
+fw[f,1] <- fwid2[f]                 for (f) in 0 .. nfdz[0]
+
+# ── 種の番号（文に沿った前置きの鎖）────────────────────────────────
+field sdcnt : max bound 4096           # 文 s までに数えた種（s を含む）
+sdcnt[s] <- 0                       for (s) in 0 .. nstz[0]
+sdcnt[s] <- sdcnt[s-1]              for (s) in 1 .. nstz[0]
+sdcnt[s] <- sdcnt[s-1] + 1          for (s) in 1 .. nstz[0] if isseed[s]
+sdcnt[s] <- 1                       for (s) in 0 .. 0 if isseed[s]
+field sdno : max bound 4096            # 種の番号（0 起点）
+sdno[s] <- sdcnt[s] - 1             for (s) in 0 .. nstz[0] if isseed[s]
+field nsd : max bound 1
+nsd[z] <- sdno[s] + 1                for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
+field sdf : max bound 1024
+sdf[sdno[s]] <- sedf[s]             for (s) in 0 .. nstz[0] if isseed[s]
+field sdc : max bound 1024
+sdc[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
+sdc[sdno[s]] <- sedc[s]             for (s) in 0 .. nstz[0] if isseed[s]
+field sdv : max bound 1024
+sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
+sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
+
+# ── 規則の番号。**層の昇順**（層ごとに数えて、層の頭を足す）────────────
+field rcnt : max bound 4096 128          # 文 s までに層 k で数えた規則（s を含む）
+rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
+rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+      if isrec[s] if rst[s] == k
+rcnt[s,k] <- 1                      for (s) in 0 .. 0 for (k) in 0 .. 127
+      if isrec[s] if rst[s] == k
+field rtot : max bound 128               # 層 k の規則の数
+# 層 k の規則の数は「最後の文までに数えた数」＝ **s についての最大**である
+# （鎖は増える一方なので、最大がそのまま最後の値）。4095 番を読むのはやめる。
+rtot[k] <- rcnt[s,k]                for (s) in 0 .. nstz[0] for (k) in 0 .. 127
+field rbase : max bound 128              # 層 k の最初の規則番号（前置きの鎖）
+rbase[0] <- 0
+rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
+field rno : max bound 4096             # 文 s の規則番号
+rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
+      for (s) in 0 .. nstz[0] if isrec[s]
+
+field nrl : max bound 1                        # 規則の数
+nrl[z] <- rno[s] + 1                 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isrec[s]
+field rrst : max bound 2048
+rrst[rno[s]] <- rst[s]              for (s) in 0 .. nstz[0] if isrec[s]
+field rrlt : max bound 2048
+rrlt[rno[s]] <- rlt[s]              for (s) in 0 .. nstz[0] if isrec[s]
+field rrar : max bound 2048
+rrar[rno[s]] <- rarr[s]             for (s) in 0 .. nstz[0] if isrec[s]
+field rrwf : max bound 2048
+rrwf[rno[s]] <- hfz[s]              for (s) in 0 .. nstz[0] if isrec[s]
+field rroo : max bound 2048                       # 書き先の座標を持つ出現
+rroo[rsn[o]] <- o              for (o) in 0 .. nocz[0]
+      if okk[o] == 2 if isrec[osn[o]]
+
+# ── ループ。**通し番号は `for` に沿った鎖** ─────────────────────────
+field isgl : or bound 262144            # 規則の for 節の `for`
+isgl[t] <- true                     for (t,zc) in ch if kwfor[t] if isrec[snum[t]]
+field glno : max bound 262144           # ループの通し番号
+glno[t] <- 0                        for (t,zc) in ch
+glno[t] <- glno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgl[t-1]
+glno[t] <- glno[t-1]                for (t,zc) in ch if t >= 1 if not isgl[t-1]
+field ngl : max bound 1
+ngl[z] <- glno[t] + 1               for (t,zc) in ch for (z) in 0 .. 0 if isgl[t]
+field lpr : max bound 2048
+lpr[glno[t]] <- rno[snum[t]]        for (t,zc) in ch if isgl[t]
+field lpi : max bound 2048
+lpi[glno[t]] <- lz[t]               for (t,zc) in ch if isgl[t]
+field lpk : max bound 2048
+lpk[glno[t]] <- lkd[snum[t], lz[t]]      for (t,zc) in ch if isgl[t]
+field lplo : max bound 2048
+lplo[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lplo[glno[t]] <- llo2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lphi : max bound 2048
+lphi[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lphi[glno[t]] <- lhi2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lpar : max bound 2048
+lpar[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lpar[glno[t]] <- lar2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lpbf : max bound 2048                       # 上端が場のとき、その場
+lpbf[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lpbf[glno[t]] <- lbf2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lpbc : max bound 2048                       # その座標
+lpbc[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lpbc[glno[t]] <- lbc2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+
+# ── ガード。**通し番号は節に沿った鎖**（規則をまたいで一本）──────────
+# 一つの節が足すガードは 0 / 1 / 2（比較は左右で二本）。だから節ごとの
+# 前置きの鎖が、そのまま通し番号の基になる —— 同じ規則のガードは
+# 節が連続しているので必ず隣り合う。
+field nclz : max bound 1               # 大域の節の数（最後の節番号）
+nclz[z] <- gcl[t]                   for (t,zc) in ch for (z) in 0 .. 0
+field gadd2 : max bound 65536          # 大域の節 c が足すガードの数
+gadd2[c] <- 0                       for (c) in 0 .. nclz[0]
+gadd2[gcl[t]] <- gadd[snum[t], cnum[t]]  for (t,zc) in ch if isrec[snum[t]]
+field ggb : max bound 65536            # 節 c の最初のガードの通し番号
+ggb[c] <- 0                         for (c) in 0 .. nclz[0]
+ggb[c] <- ggb[c-1] + gadd2[c-1]     for (c) in 1 .. nclz[0]
+field isgc : or bound 262144            # 規則のガードを持つ節の頭
+isgc[t] <- true                     for (t,zc) in ch if cbrk[t] if isrec[snum[t]]
+      if gadd[snum[t], cnum[t]] >= 1
+field isgc2 : or bound 262144           # 二本足す節（比較）
+isgc2[t] <- true                    for (t,zc) in ch if cbrk[t] if isrec[snum[t]]
+      if gadd[snum[t], cnum[t]] == 2
+field ngg : max bound 1
+ngg[z] <- ggb[gcl[t]] + 1           for (t,zc) in ch for (z) in 0 .. 0 if isgc[t]
+ngg[z] <- ggb[gcl[t]] + 2           for (t,zc) in ch for (z) in 0 .. 0 if isgc2[t]
+field gdr : max bound 4096
+gdr[gbt[t]] <- rno[snum[t]]         for (t,zc) in ch if isgc[t]
+gdr[gbt[t] + 1] <- rno[snum[t]]     for (t,zc) in ch if isgc2[t]
+field gdi : max bound 4096
+gdi[gbt[t]] <- gno2[t]              for (t,zc) in ch if isgc[t]
+gdi[gbt[t] + 1] <- gno2[t] + 1      for (t,zc) in ch if isgc2[t]
+field gdk : max bound 4096
+gdk[gbt[t]] <- gkd[snum[t], gno2[t]]          for (t,zc) in ch if isgc[t]
+gdk[gbt[t] + 1] <- gkd[snum[t], gno2[t] + 1]  for (t,zc) in ch if isgc2[t]
+field gdf : max bound 4096
+gdf[gbt[t]] <- 0                              for (t,zc) in ch if isgc[t]
+gdf[gbt[t]] <- gfd[snum[t], gno2[t]]          for (t,zc) in ch if isgc[t]
+gdf[gbt[t] + 1] <- 0                          for (t,zc) in ch if isgc2[t]
+gdf[gbt[t] + 1] <- gfd[snum[t], gno2[t] + 1]  for (t,zc) in ch if isgc2[t]
+field gdc1 : max bound 4096
+gdc1[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
+gdc1[gbt[t]] <- gc1[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
+gdc1[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
+gdc1[gbt[t] + 1] <- gc1[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
+field gdgv : max bound 4096
+gdgv[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
+gdgv[gbt[t]] <- ggv[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
+gdgv[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
+gdgv[gbt[t] + 1] <- ggv[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
+field gdok : max bound 4096
+gdok[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
+gdok[gbt[t]] <- gok2[snum[t], gno2[t]]        for (t,zc) in ch if isgc[t]
+gdok[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
+gdok[gbt[t] + 1] <- gok2[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
+field gdov : max bound 4096
+gdov[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
+gdov[gbt[t]] <- gov[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
+gdov[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
+gdov[gbt[t] + 1] <- gov[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
+field ocl : max bound 8192             # 出現 o の属する大域の節
+ocl[o] <- gcl[otok[o]]              for (o) in 0 .. nocz[0] if oin[o]
+field ogn : max bound 8192             # 出現 o の節のガード番号
+ogn[o] <- gno2[otok[o]]             for (o) in 0 .. nocz[0] if oin[o]
+field gdoo : max bound 4096                       # ガードの辺を持つ出現
+gdoo[gbo[o]] <- o              for (o) in 0 .. nocz[0]
+      if okk[o] == 1 if isrec[osn[o]] if oix[o] == ogn[o]
+gdoo[gbo[o] + 1] <- o          for (o) in 0 .. nocz[0]
+      if okk[o] == 1 if isrec[osn[o]] if oix[o] > ogn[o]
+
+# ── 項。**通し番号はトークンに沿った鎖**（規則をまたいで一本）──────────
+# 規則ごとの (規則, 番号) で持つと場が 2次元になり、位置の場を引くのに
+# 二段の添字が要る —— 焼ける読みは一段の添字までである。項はトークンの
+# 順で数えれば **同じ規則の項が必ず隣り合う**ので、鎖はこれで足りる。
+field isgt : or bound 262144            # 規則の中の項のトークン
+isgt[t] <- true                     for (t,zc) in ch if istm[t] if isrec[snum[t]]
+field gtno : max bound 262144           # 項の通し番号
+gtno[t] <- 0                        for (t,zc) in ch
+gtno[t] <- gtno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgt[t-1]
+gtno[t] <- gtno[t-1]                for (t,zc) in ch if t >= 1 if not isgt[t-1]
+field ngt : max bound 1
+ngt[z] <- gtno[t] + 1               for (t,zc) in ch for (z) in 0 .. 0 if isgt[t]
+field tmr : max bound 4096
+tmr[gtno[t]] <- rno[snum[t]]        for (t,zc) in ch if isgt[t]
+field tmi : max bound 4096
+tmi[gtno[t]] <- tcnt[t]             for (t,zc) in ch if isgt[t]
+field tmk : max bound 4096
+tmk[gtno[t]] <- trkd[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
+field tmf : max bound 4096
+tmf[gtno[t]] <- 0                   for (t,zc) in ch if isgt[t]
+tmf[gtno[t]] <- trfl[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
+field tmc1 : max bound 4096
+tmc1[gtno[t]] <- 0                  for (t,zc) in ch if isgt[t]
+tmc1[gtno[t]] <- trcl[snum[t], tcnt[t]]  for (t,zc) in ch if isgt[t]
+field tmv : max bound 4096
+tmv[gtno[t]] <- 0                   for (t,zc) in ch if isgt[t]
+tmv[gtno[t]] <- trvl[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
+field tmoo : max bound 4096                       # 項の座標を持つ出現
+tmoo[gtt[o]] <- o            for (o) in 0 .. nocz[0]
+      if okk[o] == 0 if isrec[osn[o]]
+
+# ── 座標。所有者は出現そのもの。**スロット（所有者×次元）にも通し番号**を
+# 振る —— 位置の場 `cpos` を一次元にするためで、鎖は出現に沿って引ける。
+field ncdo : max bound 8192            # 出現 o の次元の数
+ncdo[o] <- 0                        for (o) in 0 .. nocz[0]
+ncdo[o] <- 1                        for (o) in 0 .. nocz[0]
+      if oin[o] if isrec[osn[o]] if c0sr[o] >= 0
+ncdo[o] <- 2                        for (o) in 0 .. nocz[0]
+      if oin[o] if isrec[osn[o]] if c0sr[o] >= 0 if has1[o]
+field csb : max bound 8192             # 出現 o の最初のスロット番号（鎖）
+csb[o] <- 0                         for (o) in 0 .. nocz[0]
+csb[o] <- csb[o-1] + ncdo[o-1]      for (o) in 1 .. nocz[0]
+field hasc : or bound 8192             # 座標を持つ出現
+hasc[o] <- true                     for (o) in 0 .. nocz[0]
+      if oin[o] if isrec[osn[o]] if c0sr[o] >= 0
+field hasc2 : or bound 8192            # 次元1 も持つ
+hasc2[o] <- true                    for (o) in 0 .. nocz[0] if hasc[o] if has1[o]
+field now : max bound 1                        # 所有者の数
+now[z] <- o + 1                     for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o]
+field ngc : max bound 1                        # スロットの総数
+ngc[z] <- csb[o] + 1                for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if hasc[o]
+ngc[z] <- csb[o] + 2                for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if hasc2[o]
+field cso : max bound 8192
+cso[csb[o]] <- o                    for (o) in 0 .. nocz[0] if hasc[o]
+cso[csb[o] + 1] <- o                for (o) in 0 .. nocz[0] if hasc2[o]
+field csd : max bound 8192
+csd[csb[o]] <- 0                    for (o) in 0 .. nocz[0] if hasc[o]
+csd[csb[o] + 1] <- 1                for (o) in 0 .. nocz[0] if hasc2[o]
+field cdr : max bound 8192
+cdr[csb[o]] <- rno[osn[o]]          for (o) in 0 .. nocz[0] if hasc[o]
+cdr[csb[o] + 1] <- rno[osn[o]]      for (o) in 0 .. nocz[0] if hasc2[o]
+field cdsr : max bound 8192
+cdsr[csb[o]] <- c0sr[o]             for (o) in 0 .. nocz[0] if hasc[o]
+cdsr[csb[o] + 1] <- c1sr[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+field cdcf : max bound 8192
+cdcf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
+cdcf[csb[o]] <- c0cf[o]             for (o) in 0 .. nocz[0] if hasc[o]
+cdcf[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
+cdcf[csb[o] + 1] <- c1cf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+field cdcc : max bound 8192
+cdcc[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
+cdcc[csb[o]] <- c0cc[o]             for (o) in 0 .. nocz[0] if hasc[o]
+cdcc[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
+cdcc[csb[o] + 1] <- c1cc[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+field cdhf : max bound 8192
+cdhf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
+cdhf[csb[o]] <- c0hf[o]             for (o) in 0 .. nocz[0] if hasc[o]
+cdhf[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
+cdhf[csb[o] + 1] <- c1hf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+field cdof : max bound 8192
+cdof[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
+cdof[csb[o]] <- c0of[o]             for (o) in 0 .. nocz[0] if hasc[o]
+cdof[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
+cdof[csb[o] + 1] <- c1of[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+
+# ── 口。**二列の表は (位置, バイト) と読む** ────────────────────────
+# これは導出ではなく **約束**である（源のどこにも「生バイトで読む」とは
+# 書いていない）。三列以上の表は 8バイト小端の列として読む。
+# 表が二つ以上なら口を 0 にする —— 生成器はそれを「焼けない」と読む
+field inpw : min bound 1 bound 1
+inpw[0] <- 8
+inpw[z] <- 1                         for (z) in 0 .. 0 for (z) in 0 .. 0 if ncol[z] == 2
+inpw[z] <- 0                         for (z) in 0 .. 0 for (z) in 0 .. 0 if ntb[0] >= 2
+# 源が断片の外だと分かったときも 0 —— 生成器はそれを「焼けない」と読む
+inpw[z] <- 0                         for (z) in 0 .. 0 for (z) in 0 .. 0 if onod[0]
+inpw[z] <- 0                         for (z) in 0 .. 0 for (z) in 0 .. 0 if not hastb[0]
+# **名前は 16 文字まで。** 鍵は 8 文字を二本ぶんしか持てないので、
+# 17 文字以上は綴りが違っても同じ鍵になる —— 黙って間違えるより言う。
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
+# **入れ子は三重まで。** 計数器は rcx / r13 / r14 の三本しかない ——
+# 四重目は黙って壊れた符号（segfault）になっていた。
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 3
+# **項は八つまで。** 九つ目は `trkd[文, 番号]` が隣の文の枠を踏み、
+# 答えが黙って変わっていた（`1+1+…+1` 九個が 9 でなく 13 になった）。
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
+
+# ── **どこが悪いかを言う。** 行番号と理由を生成器へ渡す ──────────────
+#   1 名前が 17 文字以上 / 2 入れ子が四重以上 / 3 項が九つ以上
+#   4 宣言の無い場を読んだ / 5 二のべきでない除数 / 6 表が無い・二つ以上
+#   7 足した後に掛ける形 / 8 焼けない形（項・ガード・座標・ループ・規則・種）
+# **`lnum` は文字位置の索引、`t` はトークン番号。** 取り違えると
+# 「別の行」が出る（黙って間違う）—— トークンの始まる位置を一度置く。
+field tlin : min bound 262144                     # トークン t の書かれた行
+tlin[t] <- lnum[tstart[t]]           for (t,zc) in ch
+# `rlin[rno[snum[t]]]` は **三段の読み**で書けない —— 名前を一つ置く。
+field snr : max bound 262144                      # トークン t の文の規則番号
+snr[t] <- rno[snum[t]]               for (t,zc) in ch if isrec[snum[t]]
+field rlin : min bound 2048                       # 規則 r の書かれた行
+rlin[snr[t]] <- tlin[t]              for (t,zc) in ch if isrec[snum[t]]
+# **行と理由を別々の min で選ぶと、対が揃わない。** 一方は行の最小、
+# もう一方は理由の最小で、違う場所のものが並びうる。**一つの鍵に畳む**
+# （行 * 16 + 理由）—— min は鍵の最小を取るので、行が最小のものの中で
+# 理由が最小のものが出る。対は構造上ずれない（気づき42 の三度目）。
+# **知らない文は、黙って読み飛ばしてはいけない。** `constructor` も
+# `include` も `use` も `budget` も、断片は実装していないのに素通しして
+# いた —— 焼けた実行ファイルは segfault した（14_iosig / 20_lex_full）。
+# 断片が知っているのは四つの頭（`table` / `field` / `render` / `print`）と
+# **矢印のある文**（種と規則）だけである。それ以外は焼かずに言う。
+field sknown : or bound 4096                      # 文 s は断片が知っている種類
+sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwtbl[t]
+sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwfld[t]
+sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwrnd[t]
+sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwprn[t]
+sknown[s] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
+field sunk : or bound 4096                        # 知らない種類（否定は層を切る）
+sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
+
+field badk : min bound 1                          # 最初に焼けなかった (行 * 16 + 理由)
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if sunk[snum[t]]
+badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
+badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
+badk[z] <- tlin[t] * 16 + 2   for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 3
+badk[z] <- tlin[t] * 16 + 3   for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
+badk[z] <- tlin[otok[o]] * 16 + 4   for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o] if not ohas[o]
+badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if ntb[0] >= 2
+badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if not hastb[0]
+field outf : max bound 1                       # 出す場（`render f`）
+outf[z] <- rndf[z]                   for (z) in 0 .. 0 for (z) in 0 .. 0
+field outw : min bound 1                       # 1 ならバイトで出す
+outw[0] <- 8
+outw[z] <- 1                         for (z) in 0 .. 0 for (z) in 0 .. 0 if rndf[z] >= 0
+
+# **三段の読みは頭に書けない。** —— `ggb[gcl[t]]` は「場を引いた場」であって、
+# 焼ける座標は一段の添字までである。名前を一つ置けば、ただの二段の読みになる。
+field gbt : max bound 262144           # トークン t の節の最初のガード番号
+gbt[t] <- ggb[gcl[t]]               for (t,zc) in ch
+field rsn : max bound 8192             # 出現 o の属する規則の番号
+rsn[o] <- rno[osn[o]]               for (o) in 0 .. nocz[0]
+field gbo : max bound 8192             # 出現 o の節の最初のガード番号
+gbo[o] <- ggb[ocl[o]]               for (o) in 0 .. nocz[0]
+field gtt : max bound 8192             # 出現 o の項の通し番号
+gtt[o] <- gtno[otok[o]]             for (o) in 0 .. nocz[0]

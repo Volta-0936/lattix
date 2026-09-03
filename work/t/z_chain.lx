@@ -1,0 +1,19 @@
+# 値の鎖 —— 読みに定数の * / % を重ねる（imm[i] / 256 % 256）。
+#
+# 鎖の規則は層 1 に置く（否定を一枚はさむ）。点の道は「層 0 で % を畳む
+# 形はまだ」と断るからである —— 家の道は pa（flat = LVar）を経由するので
+# 層 0 でも畳めるが、この本は **両方の道が答えを出す形**で比べたい。
+table t = (0,66051), (1,131843)
+field imm : flat bound 8
+imm[i] <- v                       for (i,v) in t
+field skip : or bound 8
+skip[i] <- true                   for (i,v) in t if i >= 9
+field lo : max bound 8
+lo[i] <- imm[i] % 256             for (i,v) in t if not skip[i]
+field mid : max bound 8
+mid[i] <- imm[i] / 256 % 256      for (i,v) in t if not skip[i]
+field dbl : max bound 8
+dbl[i] <- imm[i] * 2              for (i,v) in t if not skip[i]
+print lo
+print mid
+print dbl

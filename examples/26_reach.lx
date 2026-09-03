@@ -1,0 +1,9 @@
+# 到達可能性 —— 深度1（協調不要）の最小形。
+# メタ評価器（25_eval）が走らせられる二つ目の束（`or`）である。
+table edge = (0,1), (1,2), (0,3), (3,4), (5,6)
+
+field hit : or
+hit[0] <- true
+hit[b] <- true   for (a,b) in edge if hit[a]
+
+print hit

@@ -1,0 +1,10 @@
+# 番兵の一点と `0 .. 0` の区間は同じ軸 —— 参照実装は区間を repr で intern する。
+# 測れなかった依存する区間（端が ⊥）も一点の矩形になってここに来る。
+table rows = (0,3),(1,1),(2,2)
+field n : max
+n[i] <- v for (i,v) in rows
+field z : max
+z[0] <- 7
+z[1] <- z[0] + k for (k) in 0 .. 0
+z[2] <- n[i] + k for (i,v) in rows for (k) in 0 .. 0
+print z

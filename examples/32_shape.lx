@@ -1,0 +1,745 @@
+# **規則の形を、規則で導く。** —— G4b の後半。
+#
+# 31_gen は「読み列・書き列・重み列」を手で置いていた。ここではそれを
+# 22_parse の出力から出す。新しい道具は一つも要らない ——
+# 29_dataflow と同じ、トークンの座標の上の不動点である。
+#
+#   dist[j] <- dist[i] + w   for (i,j,w) in edge
+#             ↑        ↑ ↑
+#          書き列 1  読み列 0  重み列 2
+#
+# 変数は既に **束縛点の座標** で名づけられている（`vpos` が組の何番目か）。
+# だから「どの変数がどの列か」は探索ではなく **引き算ですらない、ただの参照**である。
+# 名前を辿る記号表も、束縛の環境も要らない —— 座標がそのまま答えを持っている。
+
+include "22_parse.lx"
+
+# ── 変数 → 列 ───────────────────────────────────────────────────────
+# 文 s の中で、綴り v は for の組の何番目か。
+field vcol : max
+vcol[snum[k], v] <- vpos[k]
+      for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+
+# ── 頭部の添字トークン ──────────────────────────────────────────────
+# 頭部は `f[…]` で、その `]` は矢印の直前にある（22_parse の `isfref` が
+# 「頭部は読みではない」と言うのに使っているのと同じ位置である）。
+field hidx : max
+hidx[snum[k]] <- match[arrow[snum[k]] - 1] + 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+
+# ── 比較ガードの参加者（`f[A] == g[B]` / `!=` の両辺）────────────────
+# 左辺の ] の次が演算子、右辺の [ の二つ前が演算子。**位置が種類を言う。**
+# ── 比較の演算子は **六つある**。以前は二つ（== と !=）しか見ていなくて、
+# `>` や `<` を書いた節は **黙って落ちていた**（ガードが一つも出ない）。
+# 位置が種類を言う —— 二文字目まで見れば決まる。
+field opc : max
+opc[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 61 if c2 == 61
+opc[k] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 33 if c2 == 61
+opc[k] <- 3 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 62 if c2 == 61
+opc[k] <- 4 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 60 if c2 == 61
+opc[k] <- 5 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 62 if c2 == 0
+opc[k] <- 6 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 60 if c2 == 0
+
+field opcz : max                       # 演算子の符号（演算子でなければ 0）
+opcz[k] <- 0     for (k,kd,cc,c2,ln,v) in tok
+opcz[k+1] <- 0   for (k,kd,cc,c2,ln,v) in tok
+opcz[k] <- opc[k] for (k,kd,cc,c2,ln,v) in tok
+field tcz : max                        # 先頭文字（範囲の外は 0）
+tcz[k] <- 0   for (k,kd,cc,c2,ln,v) in tok
+tcz[k+1] <- 0 for (k,kd,cc,c2,ln,v) in tok
+tcz[k+2] <- 0 for (k,kd,cc,c2,ln,v) in tok
+tcz[k] <- cc  for (k,kd,cc,c2,ln,v) in tok
+field clos : max                       # `[` の位置 → 対応する `]`
+clos[match[k]] <- k for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 93
+
+field eqf : or
+eqf[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if opcz[k+1] >= 1
+eqf[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+      if opcz[match[k] - 2] >= 1
+
+# ── 場の読み: 肯定・否定・比較を分ける ──────────────────────────────
+# `not f[…]` の f の綴りは match[k]-1、その前が not。比較の両辺は読みではない。
+field pretv : max                      # 読みの直前のトークンの綴り（無ければ 0）
+pretv[k] <- 0                for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+pretv[k] <- tv[match[k] - 2] for (k,kd,cc,c2,ln,v) in tok if isfref[k]
+# **添字の中の読みは読みではない、座標である。** `kwnot[prevw[t]]` には
+# `]` が二つあり、どちらも「場の読み」に見えていた。二つは同じ節に居るので
+# ガード番号がぶつかり、gfld が max で **内側の場に化けた**（外側が消えた）。
+# 今まで露見しなかったのは、内側が常に真になる場だったからにすぎない。
+# 深さ 1 の `]` だけが読みである —— 深さは既に数えてある。
+# **区間の上端の読みは、項でもガードでもない**（`for (n) in 0 .. nins[0]`）——
+# 供給の話であって値の話ではないので、規則の読みからは外す。
+field isbnd : or                       # 区間の上端の場のトークン
+isbnd[k + 3] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3]
+      if tkd[k+1] == 1 if tkd[k+3] == 0 if tcc[k+4] == 91
+field posref : or
+posref[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if pre[k] == 1
+      if pretv[k] != W[5] if not eqf[k] if not isbnd[match[k] - 1]
+field negref : or
+negref[k] <- true for (k,kd,cc,c2,ln,v) in tok if isfref[k] if pre[k] == 1
+      if tv[match[k] - 2] == W[5]
+
+# ── 本体の場の読みの添字トークン（肯定のみ）────────────────────────
+field ridx : max
+ridx[snum[k]] <- match[k] + 1
+      for (k,kd,cc,c2,ln,v) in tok if posref[k]
+
+# 否定の読みの添字トークン
+field nidx : max
+nidx[snum[k]] <- match[k] + 1
+      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+
+# ── 深さ0の `+` の右のトークン（重み）────────────────────────────────
+field widx : max
+widx[snum[k]] <- k + 1
+      for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 43 if pre[k] == 0
+      if k > arrow[snum[k]]
+
+# ── 種か、再帰か ────────────────────────────────────────────────────
+# 種は頭部の添字が整数の文。再帰は頭部の添字が変数で、本体に場の読みがある文。
+# **`for` があれば種ではない。** 添字が整数でも、回る文は回る文である ——
+# `strata[0] <- level[s] + 1 for (s) in ...` を種と読んで値を探し、
+# 値が定数でないので黙って落ちた（selfgen が KeyError で教えてくれただけ）。
+field hasfor : or                      # 文に for 節があるか（`in` が出る）
+hasfor[snum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3]
+field isseed : or
+isseed[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if tkd[hidx[snum[k]]] == 1 if not hasfor[snum[k]]
+
+field hasread : or
+hasread[snum[k]] <- true    for (k,kd,cc,c2,ln,v) in tok if posref[k]
+
+# 規則 = 頭の添字が変数の文。**読みが無くてもよい**（表が直接駆動する形）
+field isrec : or
+isrec[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if tkd[hidx[snum[k]]] == 0
+isrec[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if tkd[hidx[snum[k]]] == 1 if hasfor[snum[k]]
+
+# ── 次数: 頭・読みの添字に区切りがあるか（`f[a,b]`）────────────────
+field h2 : or                          # 頭が 2 次元
+h2[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if tcc[hidx[snum[k]] + 1] == 44
+field r2 : or                          # 読みが 2 次元
+r2[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if posref[k] if tcc[ridx[snum[k]] + 1] == 44
+field n2g : or                         # 否定の読みが 2 次元
+n2g[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if negref[k] if tcc[nidx[snum[k]] + 1] == 44
+
+# ── 種の座標と値。2次元は c1*64+c2 に畳む ───────────────────────────
+field scoord : max
+scoord[snum[k]] <- tv[hidx[snum[k]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isseed[snum[k]]
+      if not h2[snum[k]]
+scoord[snum[k]] <- tv[hidx[snum[k]]] * fwide2[fmap[hf[snum[k]]]] + tv[hidx[snum[k]] + 2]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isseed[snum[k]]
+      if h2[snum[k]]
+field sval : max
+sval[snum[k]] <- tv[arrow[snum[k]] + 1]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isseed[snum[k]]
+      if tkd[arrow[snum[k]] + 1] == 1
+# `true` は綴りなので内容アドレスが来る。**束の上の 1 に直すのはここである。**
+sval[snum[k]] <- 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isseed[snum[k]]
+      if tv[arrow[snum[k]] + 1] == W[6]
+
+# ── 規則の形 —— **これが求めていたもの** ────────────────────────────
+field kcol : max                      # 書き列（頭部の添字）
+kcol[snum[k]] <- vcol[snum[k], tv[hidx[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+field kcol2 : max                     # 書き列の二つ目（2次元のとき）
+kcol2[snum[k]] <- vcol[snum[k], tv[hidx[snum[k]] + 2]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]] if h2[snum[k]]
+
+field icol : max                      # 読み列（本体の場の読みの添字）
+icol[snum[k]] <- vcol[snum[k], tv[ridx[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+field icol2 : max                     # 読み列の二つ目（2次元のとき）
+icol2[snum[k]] <- vcol[snum[k], tv[ridx[snum[k]] + 2]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]] if r2[snum[k]]
+
+# 場の次数（宣言ではなく **使われ方** から。頭の区切りが言う）
+field far_ : max
+far_[fmap[hf[snum[k]]]] <- 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+far_[fmap[hf[snum[k]]]] <- 2
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if h2[snum[k]]
+
+field wcol : max                      # 重み列（`+` の右）
+wcol[snum[k]] <- vcol[snum[k], tv[widx[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+# 値が変数そのもの（`cw[j] <- t`）なら、その列。for に束縛が無い綴りは
+# vcol が ⊥ なので、場の名前（`cv[j] <- cv[i]`）はここに落ちない。
+wcol[snum[k]] <- vcol[snum[k], tv[arrow[snum[k]] + 1]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if tkd[arrow[snum[k]] + 1] == 0
+
+# ── 座標も行である。**次元が行になる** ──────────────────────────────
+# 添字トークンが源を言う: 変数なら表の列、区間の規則なら計数器、
+# **場の参照なら場の値**（`val[ptr[i]]`）。位置が種類を言う（また同じ形）。
+field ixsrc : max                      # 添字トークン k の源
+ixsrc[k] <- 0 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if vcol[snum[k], v] >= 0
+      if lkind[snum[k], vloop[snum[k], v]] == 0
+ixsrc[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if vcol[snum[k], v] >= 0
+      if lkind[snum[k], vloop[snum[k], v]] >= 1
+# 源4: 添字が **定数**（`tch[t,0]` の 0）。座標は列でも計数器でも場でもない
+ixsrc[k] <- 4 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if pre[k] >= 1
+# **内側の添字がどのループに束縛されたか**で決まる —— 文が区間を含むか
+# どうかではない。表のループと区間のループが同じ文に並ぶと（`for (t,c) in ch
+# for (k) in 0 .. 7`）、内側の `t` が計数器に化けて rcx（表の行の番地）を
+# 座標にしていた。ixcol は既にこの形だったのに、ixsrc だけ文で見ていた。
+ixsrc[k] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if lkind[snum[k], vloop[snum[k], tv[k+2]]] == 0
+ixsrc[k] <- 3 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if lkind[snum[k], vloop[snum[k], tv[k+2]]] >= 1
+field ixcol : max                      # 列（区間なら **ループ番号**、定数なら値）
+ixcol[k] <- v for (k,kd,cc,c2,ln,v) in tok if kd == 1 if pre[k] >= 1
+ixcol[k] <- vcol[snum[k], v] for (k,kd,cc,c2,ln,v) in tok if kd == 0
+      if lkind[snum[k], vloop[snum[k], v]] == 0
+ixcol[k] <- vloop[snum[k], v] for (k,kd,cc,c2,ln,v) in tok if kd == 0
+      if lkind[snum[k], vloop[snum[k], v]] >= 1
+# 入れ子の添字（`snum[t]` の t）も、区間なら **ループ番号**である ——
+# 列だけ見ていたので、内側の計数器が rcx（0番）に化けていた
+ixcol[k] <- vcol[snum[k], tv[k+2]] for (k,kd,cc,c2,ln,v) in tok if kd == 0
+      if tcc[k+1] == 91
+      if lkind[snum[k], vloop[snum[k], tv[k+2]]] == 0
+ixcol[k] <- vloop[snum[k], tv[k+2]] for (k,kd,cc,c2,ln,v) in tok if kd == 0
+      if tcc[k+1] == 91
+      if lkind[snum[k], vloop[snum[k], tv[k+2]]] >= 1
+field ixfld : max                      # 場（源2/3 のとき）
+ixfld[k] <- fmap[v] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+# ずれは **二種類ある** —— 読んだ値にずらす（後置 `g[x] + 2`）のと、
+# 内側の添字をずらす（前置 `g[x+2]`）の。同じ一つの印に畳んでいたので、
+# `vlpz[j+2]` が `vlpz[j]` として焼かれ、**ずれが黙って落ちていた**。
+field ixhof : max                      # 0 無し / 1 後置 / 2 前置
+ixhof[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 45 if tkd[k+2] == 1
+ixhof[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 43 if tkd[k+2] == 1
+# 添字が **場の参照** のときは、内側の `]` の後ろにずれが来る（`pre[i] + 1`）
+ixhof[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+4] == 43 if tkd[k+5] == 1
+ixhof[k] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+4] == 45 if tkd[k+5] == 1
+# 前置: `g[x+2]` —— `[` の中でずれる。読む前に座標を動かす
+ixhof[k] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+3] == 43 if tkd[k+4] == 1
+ixhof[k] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+3] == 45 if tkd[k+4] == 1
+field ixoff : max                      # ずれ（mod 256）
+ixoff[k] <- 256 - tv[k+2] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 45 if tkd[k+2] == 1
+ixoff[k] <- tv[k+2] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 43 if tkd[k+2] == 1
+ixoff[k] <- tv[k+5] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+4] == 43 if tkd[k+5] == 1
+ixoff[k] <- 256 - tv[k+5] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+4] == 45 if tkd[k+5] == 1
+ixoff[k] <- tv[k+4] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+3] == 43 if tkd[k+4] == 1
+ixoff[k] <- 256 - tv[k+4] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if tcc[k+1] == 91
+      if tcc[k+3] == 45 if tkd[k+4] == 1
+
+# 次元の区切りは「+3 の位置」ではない —— `opos[i-1, d]` のようにずれが入ると
+# 動く。**囲む括弧から引く**（22_parse の opos がその形を既に持っている）。
+field encl : max                       # そのトークンを囲む `[` の位置
+encl[k] <- opos[k, pre[k]] for (k,kd,cc,c2,ln,v) in tok
+field dim1t : max                      # `[` の位置 → 次元1 の添字トークン
+dim1t[encl[k]] <- k + 1 for (k,kd,cc,c2,ln,v) in tok if kd == 2 if cc == 44
+
+# 頭の一次元目が **入れ子の読み**（`och[ocof[i], cpos[i]]`）だと、`hidx+1` は
+# `,` ではなく `[` である —— 区切りは括弧の中を跨いだ先にある。次数を
+# 「hidx の次の字」だけで見ていたので、**座標は2次元で出るのに場の広さは
+# 1次元のまま**だった。掛け数 fw[f,1] が ⊥ になり、imul の即値が空いて、
+# 隣の命令のバイトがそこに残った（`out` は max なので 0 は何も上書きしない）。
+h2[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if dim1t[hidx[snum[k]] - 1] >= 0
+
+# 所有者（種, 文, 番号）の ] トークン。**種が誰でも同じ形で座標が出る**
+field owt : max
+owt[0, snum[k], tercnt[k]] <- k for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+owt[1, snum[k], gno[k]] <- k   for (k,kd,cc,c2,ln,v) in tok if negref[k]
+owt[1, snum[k], gno[k]] <- k   for (k,kd,cc,c2,ln,v) in tok if posref[k] if cnum[k] > 0
+owt[1, snum[k], gno[k]] <- k - 1     for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tcz[k-1] == 93
+owt[1, snum[k], gno[k] + 1] <- clos[k+2] for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tcz[k+2] == 91
+owt[2, snum[k], 0] <- arrow[snum[k]] - 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]] if arrow[snum[k]] > 0
+
+# 次元 0 と 1。添字は match+1 と match+3、区切りは `,`（44）
+field cdsrc : max
+field cdfld : max
+field cdcol : max
+field cdhof : max
+field cdoff : max
+field cd2 : or
+cdsrc[kk,s,i,0] <- ixsrc[match[owt[kk,s,i]] + 1]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+cdfld[kk,s,i,0] <- ixfld[match[owt[kk,s,i]] + 1]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+cdcol[kk,s,i,0] <- ixcol[match[owt[kk,s,i]] + 1]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+cdhof[kk,s,i,0] <- ixhof[match[owt[kk,s,i]] + 1]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+      if ixhof[match[owt[kk,s,i]] + 1] >= 1
+cdoff[kk,s,i,0] <- ixoff[match[owt[kk,s,i]] + 1]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+      if ixhof[match[owt[kk,s,i]] + 1] >= 1
+cd2[kk,s,i] <- true
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if owt[kk,s,i] >= 0
+      if dim1t[match[owt[kk,s,i]]] >= 0
+cdsrc[kk,s,i,1] <- ixsrc[dim1t[match[owt[kk,s,i]]]]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if cd2[kk,s,i]
+cdfld[kk,s,i,1] <- ixfld[dim1t[match[owt[kk,s,i]]]]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if cd2[kk,s,i]
+cdcol[kk,s,i,1] <- ixcol[dim1t[match[owt[kk,s,i]]]]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if cd2[kk,s,i]
+cdhof[kk,s,i,1] <- ixhof[dim1t[match[owt[kk,s,i]]]]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if cd2[kk,s,i]
+      if ixhof[dim1t[match[owt[kk,s,i]]]] >= 1
+cdoff[kk,s,i,1] <- ixoff[dim1t[match[owt[kk,s,i]]]]
+      for (kk) in 0 .. 2 for (s) in 0 .. 2047 for (i) in 0 .. 23 if cd2[kk,s,i]
+      if ixhof[dim1t[match[owt[kk,s,i]]]] >= 1
+
+# ── 座標の広さ。**書かれた座標が広さを言う** ────────────────────────
+# 種の座標（整数）と区間の上端は、その場が少なくともそこまで要ると言っている。
+# 表から来る座標は実行時にしか分からないので、既定の広さ（64）を下限に置く。
+# —— 広さは「機械の都合」ではなく **プログラムが述べた要求** である。
+# **宣言があるなら、それが広さである。** 既定の 64 を max で混ぜていたので、
+# `bound 4` と書いた場が 64 升になり、2次元の畳みの掛け数まで狂った
+# （runtime.py で同じ事故を直したのに、導出の側には入れていなかった）。
+field hasdec : or                      # 次元0 の広さを宣言した場
+hasdec[fmap[tv[k+1]]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0 if v == W[11]
+      if tkd[k+5] == 1 if not sbrk[k+4]
+field hasdec2 : or                     # 次元1 の広さを宣言した場
+hasdec2[fmap[tv[k+1]]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0 if v == W[11]
+      if tkd[k+6] == 1 if not sbrk[k+4] if not sbrk[k+6]
+field fwide : max
+fwide[fmap[hf[snum[k]]]] <- 64
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0
+      if not hasdec[fmap[hf[snum[k]]]]
+fwide[fmap[hf[snum[k]]]] <- tv[hidx[snum[k]]] + 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if arrow[snum[k]] > 0 if tkd[hidx[snum[k]]] == 1
+      if not hasdec[fmap[hf[snum[k]]]]
+fwide[fmap[hf[snum[k]]]] <- lhi[snum[k], vloop[snum[k], tv[hidx[snum[k]]]]] + 1
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]] if isrng[snum[k]]
+      if not hasdec[fmap[hf[snum[k]]]]
+# **広さは宣言できる**: `field f : max bound 8192`（`bound` の次の整数）——
+# 有限の資源は宣言し、超えたら言う。焼くときは記述が広さを言うしかない。
+fwide[fmap[tv[k+1]]] <- tv[k+5]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0 if v == W[11]
+      if tkd[k+5] == 1 if not sbrk[k+4]
+# 次元ごとに書ける（`bound 8192 16`）。二つ目は次元1の広さ
+field fwide2 : max                     # 次元1 の広さ（書かなければ次元0 と同じ）
+fwide2[fmap[tv[k+1]]] <- tv[k+6]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kd == 0 if v == W[11]
+      if tkd[k+6] == 1 if not sbrk[k+4] if not sbrk[k+6]
+# 書かなければ次元0 と同じ —— **畳みの掛け数はここにしかない**ので、
+# ⊥ のままにしておくと種の座標が計算できない（ホスト側で補っていた）。
+fwide2[fno[s]] <- fwide[fno[s]] for (s) in 0 .. 2047 if fdecl[s]
+      if not hasdec2[fno[s]]
+
+# ── 項も行である。**値は式であって、列ではない** ──────────────────────
+# 値の中の被加数（`dist[i] + w` の二つ）と、if 節の肯定の読み（or の駆動）が
+# どれも項になる。番号はトークンに沿った前置きの鎖 —— 八度目。
+field isterm : or
+isterm[k] <- true for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0
+      if cnum[k] == 0
+isterm[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]]
+isterm[k] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+
+field tercnt : max                       # この手前までに居た項の数
+tercnt[k] <- 0            for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+tercnt[k] <- tercnt[k-1] + 1  for (k,kd,cc,c2,ln,v) in tok if isterm[k-1] if not sbrk[k]
+tercnt[k] <- tercnt[k-1]      for (k,kd,cc,c2,ln,v) in tok if not isterm[k-1] if not sbrk[k]
+
+field terkind : max                      # 1 定数 / 2 表の列 / 3 場の読み
+terkind[snum[k], tercnt[k]] <- 3 for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+      if tcc[match[k] - 2] != 45 if tcc[match[k] - 2] != 42
+# 種9: 場の読みを **引く**（`off[jt[n]] - off[n]`）。足せて引けないのは分類の穴
+terkind[snum[k], tercnt[k]] <- 9 for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+      if tcc[match[k] - 2] == 45
+# 種10: 場の読みを **掛ける**（`fw[f,0] * fw[f,1]`）。二次元の畳みの掛け数は
+# 場と場の積なので、定数を掛けるだけでは足りなかった
+terkind[snum[k], tercnt[k]] <- 10 for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+      if tcc[match[k] - 2] == 42
+terkind[snum[k], tercnt[k]] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if ptcc[k] != 45 if ptcc[k] != 42
+      if ptcc[k] != 47 if ptcc[k] != 37
+terkind[snum[k], tercnt[k]] <- 5 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if tcc[k-1] == 45
+# 種6: 掛ける定数（`* 10`）。**桁を積むのに要る** —— 数を読むのは掛け算である
+terkind[snum[k], tercnt[k]] <- 6 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if tcc[k-1] == 42
+# 種7/8: 二のべきで **割る / 余りを取る**（`imm[n] / 256 % 256`）——
+# バイトを取り出すのに要る。割り算は算術右シフト、余りは and で足りる
+# （どちらも二のべきのときだけ。そうでない定数は焼く前に名前を言う）。
+terkind[snum[k], tercnt[k]] <- 7 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if tcc[k-1] == 47
+terkind[snum[k], tercnt[k]] <- 8 for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if tcc[k-1] == 37
+terkind[snum[k], tercnt[k]] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] != 45 if tcc[k-1] != 42
+      if lkind[snum[k], vloop[snum[k], v]] == 0
+terkind[snum[k], tercnt[k]] <- 4 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] != 45 if tcc[k-1] != 42
+      if lkind[snum[k], vloop[snum[k], v]] >= 1
+# 種11〜14: 列と計数器を **引く / 掛ける**（足せるのに引けないのは分類の穴）
+terkind[snum[k], tercnt[k]] <- 11 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] == 45 if lkind[snum[k], vloop[snum[k], v]] == 0
+terkind[snum[k], tercnt[k]] <- 12 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] == 42 if lkind[snum[k], vloop[snum[k], v]] == 0
+terkind[snum[k], tercnt[k]] <- 13 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] == 45 if lkind[snum[k], vloop[snum[k], v]] >= 1
+terkind[snum[k], tercnt[k]] <- 14 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if tcc[k-1] == 42 if lkind[snum[k], vloop[snum[k], v]] >= 1
+
+field terfld : max                       # 場（種3）
+terfld[snum[k], tercnt[k]] <- fmap[frname[k]] for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+field tercol : max                        # 列（種2 は自分、種3 は添字）
+tercol[snum[k], tercnt[k]] <- vcol[snum[k], tv[match[k] + 1]]
+      for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if pre[match[k] - 1] == 0 if cnum[k] == 0
+tercol[snum[k], tercnt[k]] <- vcol[snum[k], v] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0
+      if pre[k] == 0 if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if lkind[snum[k], vloop[snum[k], v]] == 0
+tercol[snum[k], tercnt[k]] <- vloop[snum[k], v] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if cnum[k] == 0
+      if pre[k] == 0 if k > arrow[snum[k]] if isrec[snum[k]] if vcol[snum[k], v] >= 0
+      if lkind[snum[k], vloop[snum[k], v]] >= 1
+field ter2d : or                        # 添字が 2 次元
+ter2d[snum[k], tercnt[k]] <- true for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]]
+      if tcc[match[k] + 2] == 44
+field tercolb : max
+tercolb[snum[k], tercnt[k]] <- vcol[snum[k], tv[match[k] + 3]]
+      for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]] if tcc[match[k] + 2] == 44
+field terval : max                       # 定数（種1）
+terval[snum[k], tercnt[k]] <- tv[k] for (k,kd,cc,c2,ln,v) in tok if kd == 1 if cnum[k] == 0 if pre[k] == 0
+      if k > arrow[snum[k]] if isrec[snum[k]]
+field terdi : max                        # 座標のずれ（鎖）。mod 256 で渡す
+terdi[snum[k], tercnt[k]] <- 256 - tv[match[k] + 3]
+      for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]]
+      if tcc[match[k] + 2] == 45 if tkd[match[k] + 3] == 1
+terdi[snum[k], tercnt[k]] <- tv[match[k] + 3]
+      for (k,kd,cc,c2,ln,v) in tok if posref[k] if k > arrow[snum[k]]
+      if tcc[match[k] + 2] == 43 if tkd[match[k] + 3] == 1
+
+# ── ループも行である。**`for` 節に沿った前置きの鎖**（九度目）──────────
+# 節が表か区間かは `in` の次のトークンが言う（識別子なら表、整数なら区間）。
+# 変数はどのループに束縛されたか（vloop）と、その組の何番目か（vcol）を持つ。
+field lcnt : max                       # 節 c の手前までに居た for 節の数
+lcnt[snum[k], 0] <- 0  for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+lcnt[snum[k], cnum[k]] <- lcnt[snum[k], cnum[k] - 1] + 1
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if cnum[k] > 0 if clfor[snum[k], cnum[k] - 1]
+lcnt[snum[k], cnum[k]] <- lcnt[snum[k], cnum[k] - 1]
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if cnum[k] > 0 if not clfor[snum[k], cnum[k] - 1]
+field lno : max                        # そのトークンが属する for 節の番号
+lno[k] <- lcnt[snum[k], cnum[k]] for (k,kd,cc,c2,ln,v) in tok
+
+field lkind : max                      # 0 表 / 1 区間（上端が定数）/ 2 区間（上端が場）
+lkind[snum[k], lno[k]] <- 0 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 0
+lkind[snum[k], lno[k]] <- 1 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 1
+      if tkd[k+3] == 1
+# **区間の端は場でもよい**（`for (n) in 0 .. nins[0]`）—— 記述が空間を決める
+lkind[snum[k], lno[k]] <- 2 for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 1
+      if tkd[k+3] == 0 if tcc[k+4] == 91
+field llo : max
+llo[snum[k], lno[k]] <- tv[k+1] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 1
+field lhi : max
+lhi[snum[k], lno[k]] <- tv[k+3] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 1
+      if tkd[k+3] == 1
+field lbf : max                        # 上端の場（種2）
+lbf[snum[k], lno[k]] <- fmap[tv[k+3]] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3]
+      if tkd[k+1] == 1 if tkd[k+3] == 0 if tcc[k+4] == 91
+field lbc : max                        # 上端の座標（種2）
+lbc[snum[k], lno[k]] <- tv[k+5] for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3]
+      if tkd[k+1] == 1 if tkd[k+3] == 0 if tcc[k+4] == 91
+field lar : max                        # 表の組の長さ（**最大の列位置 + 1**）
+lar[snum[k], lno[k]] <- vpos[k] + 1
+      for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+field vloop : max                      # 綴り v が束縛された for 節の番号
+vloop[snum[k], v] <- lno[k]
+      for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+field isrng : or                       # 規則ぜんぶが区間か（表を一つも使わない）
+isrng[snum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 1
+field usetab : or                      # 表を使う節があるか
+usetab[snum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if kd == 0 if v == W[3] if tkd[k+1] == 0
+
+# 重みが整数の直書き（区間の鎖 `+ 3`）なら、その値そのもの
+field wlit : max
+wlit[snum[k]] <- tv[widx[snum[k]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if widx[snum[k]] > 0 if tkd[widx[snum[k]]] == 1
+
+# ── 束。**命令を選ぶのはこれである。** 22_parse が既に番号を持っている。
+field rlat : max
+rlat[snum[k]] <- flat_[hf[snum[k]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+
+# ── 場番号。宣言の順に 0,1,2,…（文番号に沿った前置きの鎖）────────────
+field fdecl : or
+fdecl[snum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if kw[snum[k]] == W[11]
+
+field fno : max
+fno[0] <- 0
+# 文の数でとめる必要は無い —— 最後の文より先は fdecl が偽なので値は動かない。
+# （表を巡って上限を測っていたのは 2048×|tok| の無駄だった。）
+fno[s] <- fno[s-1]     for (s) in 1 .. 2047 if not fdecl[s-1]
+fno[s] <- fno[s-1] + 1 for (s) in 1 .. 2047 if fdecl[s-1]
+
+# 綴り → 場番号（記号表ではない。内容アドレスが座標である）
+field fmap : max
+fmap[nm[s]] <- fno[s]  for (s) in 0 .. 2047 if fdecl[s]
+
+# 種と規則の場
+field sfld : max
+sfld[snum[k]] <- fmap[hf[snum[k]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isseed[snum[k]]
+field wfld : max                       # 書き場
+wfld[snum[k]] <- fmap[hf[snum[k]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+field rfld : max                       # 読み場（肯定の読みの名前から）
+rfld[snum[k]] <- fmap[frname[k]]
+      for (k,kd,cc,c2,ln,v) in tok if posref[k]
+field nfld : max                       # 否定の読みの場
+nfld[snum[k]] <- fmap[frname[k]]
+      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+
+# 否定の読みの列
+field ncol : max
+ncol[snum[k]] <- vcol[snum[k], tv[nidx[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if nidx[snum[k]] > 0
+field ncol2 : max
+ncol2[snum[k]] <- vcol[snum[k], tv[nidx[snum[k]] + 2]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if n2g[snum[k]]
+
+# ── 比較ガードの形。intern の三行はこれで .lx から導ける ──────────────
+field eqL : max                        # 左辺の ] の位置
+eqL[snum[k]] <- k for (k,kd,cc,c2,ln,v) in tok if eqf[k]
+      if opc[k+1] >= 1
+field eqR : max                        # 右辺の ] の位置
+eqR[snum[k]] <- k for (k,kd,cc,c2,ln,v) in tok if eqf[k]
+      if opc[match[k] - 2] >= 1
+field eqoq : max                       # 演算子の符号（opc と同じ）
+eqoq[snum[k]] <- opc[k+1] for (k,kd,cc,c2,ln,v) in tok if eqf[k]
+      if opc[k+1] >= 1
+
+field qf1 : max                        # 左辺の場
+qf1[snum[k]] <- fmap[frname[eqL[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+field qf2 : max                        # 右辺の場
+qf2[snum[k]] <- fmap[frname[eqR[snum[k]]]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+field q2a : or                         # 左辺が 2 次元
+q2a[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+      if tcc[match[eqL[snum[k]]] + 2] == 44
+field q2b : or
+q2b[snum[k]] <- true
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+      if tcc[match[eqR[snum[k]]] + 2] == 44
+field qa1 : max                        # 左辺の列
+qa1[snum[k]] <- vcol[snum[k], tv[match[eqL[snum[k]]] + 1]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+field qa2 : max
+qa2[snum[k]] <- vcol[snum[k], tv[match[eqL[snum[k]]] + 3]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if q2a[snum[k]]
+field qb1 : max                        # 右辺の列
+qb1[snum[k]] <- vcol[snum[k], tv[match[eqR[snum[k]]] + 1]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if eqoq[snum[k]] > 0
+field qb2 : max
+qb2[snum[k]] <- vcol[snum[k], tv[match[eqR[snum[k]]] + 3]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if q2b[snum[k]]
+
+# ── 座標のずれ（鎖）。`f[i-1]` / 頭 `f[i+1]`。mod 256 で渡す ────────────
+field rdi : max                        # 読みのずれ
+rdi[snum[k]] <- 256 - tv[ridx[snum[k]] + 2]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if tcc[ridx[snum[k]] + 1] == 45 if tkd[ridx[snum[k]] + 2] == 1
+rdi[snum[k]] <- tv[ridx[snum[k]] + 2]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if tcc[ridx[snum[k]] + 1] == 43 if tkd[ridx[snum[k]] + 2] == 1
+field kdk : max                        # 書き（頭）のずれ
+kdk[snum[k]] <- 256 - tv[hidx[snum[k]] + 2]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if tcc[hidx[snum[k]] + 1] == 45 if tkd[hidx[snum[k]] + 2] == 1
+kdk[snum[k]] <- tv[hidx[snum[k]] + 2]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+      if tcc[hidx[snum[k]] + 1] == 43 if tkd[hidx[snum[k]] + 2] == 1
+
+# ── 層。22_parse の成層がそのまま入る ────────────────────────────────
+field stl : max
+stl[snum[k]] <- level[snum[k]]
+      for (k,kd,cc,c2,ln,v) in tok if sbrk[k] if isrec[snum[k]]
+
+# ── ガードは行である。**番号は if 節に沿った前置きの鎖**（気づき17）───────
+# 節が一つのガードとは限らない —— 比較 `f[A] != g[B]` は左右で二行になる。
+# だから鎖が足すのは 1 か 2 か 0（肯定の読みの節はガードではない）である。
+field eqcl : or                        # その節は比較か
+field iscmp : or                       # 深さ0 の if 節の比較演算子
+iscmp[k] <- true for (k,kd,cc,c2,ln,v) in tok if opc[k] >= 1
+      if clif[snum[k], cnum[k]] if pre[k] == 0
+eqcl[snum[k], cnum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+field poscl : or                       # その節は（ガードでなく）読みか
+poscl[snum[k], cnum[k]] <- true for (k,kd,cc,c2,ln,v) in tok if posref[k]
+
+field gcnt : max                       # 節 c の手前までに居たガードの数
+gcnt[snum[k], 0] <- 0  for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+gcnt[snum[k], cnum[k]] <- gcnt[snum[k], cnum[k] - 1]
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if cnum[k] > 0 if not clif[snum[k], cnum[k] - 1]
+gcnt[snum[k], cnum[k]] <- gcnt[snum[k], cnum[k] - 1] + 1
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if cnum[k] > 0 if clif[snum[k], cnum[k] - 1]
+      if not eqcl[snum[k], cnum[k] - 1]
+gcnt[snum[k], cnum[k]] <- gcnt[snum[k], cnum[k] - 1] + 2
+      for (k,kd,cc,c2,ln,v) in tok if cbrk[k] if cnum[k] > 0 if clif[snum[k], cnum[k] - 1]
+      if eqcl[snum[k], cnum[k] - 1]
+
+field gno : max                        # そのトークンが属するガードの番号
+gno[k] <- gcnt[snum[k], cnum[k]] for (k,kd,cc,c2,ln,v) in tok
+
+# 種1/5/6: `if 変数 == 定数` / `>= 定数` / `<= 定数`
+#   位置が種類を言う —— 演算子の二文字が種を決める（== / >= / <=）
+field gkind : max
+# ── 比較は **演算子が言う**。左と右は演算子の隣にある ────────────────
+# 辺は四種 —— 0 場の読み / 1 表の列 / 2 区間の計数器 / 3 定数。
+# 以前は「場と場」「列と定数（== >= <= だけ）」しか導けず、
+# `if k > arrow[…]` も `if c > 5` も **黙って落ちていた**（ガードが出ない）。
+gkind[snum[k], gno[k]] <- 3      for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+gkind[snum[k], gno[k] + 1] <- 4  for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+field gcol1 : max
+field gvalv : max
+# ── 比較の辺の種。**辺は場の読みとは限らない** ──────────────────────
+#   0 場の読み / 1 表の列 / 2 区間の計数器 / 3 定数
+# 既定は 0（今までの形）。列や計数器と場を比べる形はここで開く。
+field gok : max
+gok[snum[k], gno[k]] <- 0 for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+field goval : max
+goval[snum[k], gno[k]] <- 0 for (k,kd,cc,c2,ln,v) in tok if sbrk[k]
+
+gvalv[snum[k], gno[k] + 1] <- opc[k]  for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+
+# 左辺 —— 演算子の一つ前
+gok[snum[k], gno[k]] <- 0 for (k,kd,cc,c2,ln,v) in tok if iscmp[k] if tcz[k-1] == 93
+gok[snum[k], gno[k]] <- 3 for (k,kd,cc,c2,ln,v) in tok if iscmp[k] if tkd[k-1] == 1
+gok[snum[k], gno[k]] <- 1 for (k,kd,cc,c2,ln,v) in tok if iscmp[k] if tkd[k-1] == 0
+      if lkind[snum[k], vloop[snum[k], tv[k-1]]] == 0
+gok[snum[k], gno[k]] <- 2 for (k,kd,cc,c2,ln,v) in tok if iscmp[k] if tkd[k-1] == 0
+      if lkind[snum[k], vloop[snum[k], tv[k-1]]] >= 1
+goval[snum[k], gno[k]] <- tv[k-1] for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tkd[k-1] == 1
+gcol1[snum[k], gno[k]] <- vcol[snum[k], tv[k-1]] for (k,kd,cc,c2,ln,v) in tok
+      if iscmp[k] if tkd[k-1] == 0
+      if lkind[snum[k], vloop[snum[k], tv[k-1]]] == 0
+gcol1[snum[k], gno[k]] <- vloop[snum[k], tv[k-1]] for (k,kd,cc,c2,ln,v) in tok
+      if iscmp[k] if tkd[k-1] == 0
+      if lkind[snum[k], vloop[snum[k], tv[k-1]]] >= 1
+
+# 右辺 —— 演算子の一つ後ろ（場の読みなら `[` が二つ後ろ）
+gok[snum[k], gno[k] + 1] <- 0 for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tcz[k+2] == 91
+gok[snum[k], gno[k] + 1] <- 3 for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tkd[k+1] == 1
+gok[snum[k], gno[k] + 1] <- 1 for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tkd[k+1] == 0 if tcz[k+2] != 91
+      if lkind[snum[k], vloop[snum[k], tv[k+1]]] == 0
+gok[snum[k], gno[k] + 1] <- 2 for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tkd[k+1] == 0 if tcz[k+2] != 91
+      if lkind[snum[k], vloop[snum[k], tv[k+1]]] >= 1
+goval[snum[k], gno[k] + 1] <- tv[k+1] for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tkd[k+1] == 1
+gcol1[snum[k], gno[k] + 1] <- vcol[snum[k], tv[k+1]] for (k,kd,cc,c2,ln,v) in tok
+      if iscmp[k] if tkd[k+1] == 0 if tcz[k+2] != 91
+      if lkind[snum[k], vloop[snum[k], tv[k+1]]] == 0
+gcol1[snum[k], gno[k] + 1] <- vloop[snum[k], tv[k+1]] for (k,kd,cc,c2,ln,v) in tok
+      if iscmp[k] if tkd[k+1] == 0 if tcz[k+2] != 91
+      if lkind[snum[k], vloop[snum[k], tv[k+1]]] >= 1
+
+# 種2/9 は場の参照そのもの —— **読み方は同じで、種と番号だけが違う**
+gkind[snum[k], gno[k]] <- 2      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+gkind[snum[k], gno[k]] <- 9      for (k,kd,cc,c2,ln,v) in tok if posref[k] if cnum[k] > 0
+
+# 場・列・次数（否定は自分の行、比較は左が自分の行・右が次の行）
+field gfld : max
+gfld[snum[k], gno[k]] <- fmap[frname[k]]      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+gfld[snum[k], gno[k]] <- fmap[frname[k]]      for (k,kd,cc,c2,ln,v) in tok if posref[k] if cnum[k] > 0
+gfld[snum[k], gno[k]] <- fmap[frname[k-1]]    for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tcz[k-1] == 93
+gfld[snum[k], gno[k] + 1] <- fmap[tv[k+1]]    for (k,kd,cc,c2,ln,v) in tok if iscmp[k]
+      if tcz[k+2] == 91
+gcol1[snum[k], gno[k]] <- vcol[snum[k], tv[match[k] + 1]]      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+field gtwo : or
+gtwo[snum[k], gno[k]] <- true     for (k,kd,cc,c2,ln,v) in tok if negref[k] if tcc[match[k] + 2] == 44
+gtwo[snum[k], gno[k]] <- true     for (k,kd,cc,c2,ln,v) in tok if eqf[k] if opc[k+1] >= 1
+      if tcc[match[k] + 2] == 44
+gtwo[snum[k], gno[k] + 1] <- true for (k,kd,cc,c2,ln,v) in tok if eqf[k] if opc[match[k] - 2] >= 1
+      if tcc[match[k] + 2] == 44
+field gcol2 : max
+gcol2[snum[k], gno[k]] <- vcol[snum[k], tv[match[k] + 3]]      for (k,kd,cc,c2,ln,v) in tok if negref[k]
+      if tcc[match[k] + 2] == 44
+gcol2[snum[k], gno[k]] <- vcol[snum[k], tv[match[k] + 3]]      for (k,kd,cc,c2,ln,v) in tok if eqf[k]
+      if opc[k+1] >= 1 if tcc[match[k] + 2] == 44
+gcol2[snum[k], gno[k] + 1] <- vcol[snum[k], tv[match[k] + 3]]  for (k,kd,cc,c2,ln,v) in tok if eqf[k]
+      if opc[match[k] - 2] >= 1 if tcc[match[k] + 2] == 44
+
+# 次数は for の組の長さ。**最大の列位置 + 1** —— 数えていない。
+field rar : max
+rar[snum[k]] <- vpos[k] + 1
+      for (k,kd,cc,c2,ln,v) in tok if kd == 0 if infor[k] if pre[k] == 1
+
+print isseed
+print isrec
+print scoord
+print sval
+print kcol
+print icol
+print wcol
+print rlat
+print rar
+print h2
+print r2
+print kcol2
+print icol2
+print far_
+print hasread
+print nfld
+print ncol
+print ncol2
+print n2g
+print stl
+print rdi
+print kdk
+print eqoq
+print qf1
+print qf2
+print q2a
+print q2b
+print qa1
+print qa2
+print qb1
+print qb2
+print sfld
+print wfld
+print rfld
+print terkind
+print tercol
+print terval
+print gkind
+print gcol1
+print gcol2
+print gvalv
+print gok
+print goval

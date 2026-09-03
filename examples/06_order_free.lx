@@ -1,0 +1,12 @@
+# 05_pipeline と全く同じ意味。変数名も文の順序も入れ替えてある。
+# --address が一致することで、表層構文が意味を持たないことを示す。
+field shortage : set
+field supply : max
+table cities = (nagoya), (tokyo), (osaka)
+shortage[] <- {z}            for (z) in cities if supply[z] < demand[z]
+field demand : max
+table stock = (osaka, 100), (nagoya, 60), (tokyo, 200)
+supply[p] <- amount          for (p, amount) in stock
+table sales = (osaka, 30), (tokyo, 45), (nagoya, 70), (tokyo, 120), (osaka, 90)
+demand[q] <- units           for (q, units) in sales
+print shortage

@@ -1,0 +1,45 @@
+# **十進で出す。** —— 割り算の原始が無くても、桁は出る。
+#
+# 断片が焼けるのは二のべきの割り算だけである（`c / 3` は終了コード 5）。
+# だが `v / 10` は **逆数を掛けて 2^32 で寄せれば**出る ——
+# `v * 429496730 / 4294967296`。2^32 は二のべきなので、これは焼ける。
+#
+# 桁は「引き算で取り出す」ものだが、**育っていく場を引き算の右に置いては
+# いけない**（気づき38）。だから上の桁を先に場にして、その十倍を別の場に
+# 置き、それから引く —— `v - t10[v]`。項の中で `*` と `-` を混ぜない。
+#
+#   ./lattix < examples/34_decimal.lx > tri && chmod +x tri
+#   ./tri < /dev/null 2>/dev/null
+#
+# 出るのは 000 001 003 006 010 015 021 028 036 045 055 066 078 091 105 120。
+
+table ch = (0,32)
+
+# 三角数 —— 鎖の不動点（前の升を読む）
+field tri : max bound 16
+tri[0] <- 0
+tri[i] <- tri[i-1] + i               for (i) in 1 .. 15
+
+# 上の桁（逆数を掛けて寄せる）
+field hun : max bound 16                    # v / 100
+hun[i] <- tri[i] * 42949673 / 4294967296    for (i) in 0 .. 15
+field ten : max bound 16                    # v / 10
+ten[i] <- tri[i] * 429496730 / 4294967296   for (i) in 0 .. 15
+
+# 十倍を **別の場に閉じてから** 引く
+field h10 : max bound 16
+h10[i] <- hun[i] * 10                for (i) in 0 .. 15
+field t10 : max bound 16
+t10[i] <- ten[i] * 10                for (i) in 0 .. 15
+
+# 一行四バイト（三桁と改行）。位置は **場**（座標に足せるのは定数だけ）
+field pos : max bound 16
+pos[i] <- i * 4                      for (i) in 0 .. 15
+
+field out : max bound 64
+out[pos[i]]     <- hun[i] + 48       for (i) in 0 .. 15
+out[pos[i] + 1] <- ten[i] - h10[i] + 48   for (i) in 0 .. 15
+out[pos[i] + 2] <- tri[i] - t10[i] + 48   for (i) in 0 .. 15
+out[pos[i] + 3] <- 10                for (i) in 0 .. 15
+
+render out

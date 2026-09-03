@@ -1,0 +1,30 @@
+# CYK 構文解析器 —— 値の構成が要る典型例。
+#
+# 認識部分は昔から束の不動点である（チャートは単調に育つだけ）。
+# 解析 *木* を作るには値の構成が要る。それが内容アドレスで書ける。
+#
+# （parse.py が語表を差し替えて、曖昧な文も走らせる）
+#
+# そして tree を flat 束にすると、同じ範囲に二つの異なる木が寄せられたとき
+# ⊤ に落ちる —— **曖昧性が束の衝突として自動検出される。**
+
+table word = (0,"the"), (1,"cat"), (2,"saw"), (3,"the"), (4,"mat")
+table idx  = (0),(1),(2),(3),(4),(5)
+
+table term = ("D","the"), ("N","cat"), ("N","mat"), ("N","telescope"),
+             ("V","saw"), ("P","with")
+table bin  = ("S","NP","VP"), ("NP","D","N"), ("NP","NP","PP"),
+             ("VP","V","NP"), ("VP","VP","PP"), ("PP","P","NP")
+
+constructor leaf(sym, pos)          bound 32
+constructor node(sym, left, right)  bound 32
+
+field tree : flat
+tree[i, i+1, X] <- leaf(X, i)              for (i,w) in word for (X,t) in term
+                                           if w == t
+tree[i, k, A]   <- node(A, tree[i,j,B], tree[j,k,C])
+                                           for (A,B,C) in bin
+                                           for (i) in idx for (j) in idx for (k) in idx
+                                           if i < j if j < k
+                                           if tree[i,j,B] if tree[j,k,C]
+print tree

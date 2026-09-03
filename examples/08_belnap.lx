@@ -1,0 +1,23 @@
+# v0.2 はこのプログラムを「不可能」として棄却した。
+#   alive[n] <- true  for (n) in node if not alive[n]
+# 二値論理では否定が反単調なので、否定を通る再帰に不動点が無い。
+#
+# だが Belnap (1977) の四値束では、否定は知識順序について *単調* である:
+#      ⊥ ⊑ T ⊑ ⊤ ,  ⊥ ⊑ F ⊑ ⊤     ~⊥=⊥  ~T=F  ~F=T  ~⊤=⊤
+# 中央の二つは互いに非比較なので、入れ替えても順序が壊れない。
+# よって同じプログラムが全域的になり、答えは「未知」になる。
+# 棄却ではなく、⊥ という明示的な答えが返る。
+
+table node = (0), (1), (2)
+
+field liar : fourv
+liar[n] <- true          for (n) in node if not liar[n]
+
+# 矛盾も表現できる。二つの規則が同じ座標に T と F を寄せると ⊤ になる。
+field claim : fourv
+claim[0] <- true
+claim[0] <- false
+claim[1] <- true
+
+print liar
+print claim

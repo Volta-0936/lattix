@@ -1,0 +1,11 @@
+# 添字の中の読みは項ではない（気づき28 の家の道の側）。
+# `q[a[i]] + 1` の内側の a[i] を _frefs で拾うと mis に入り、
+# 重みの間接として値に足し込まれる —— s が q[a[i]] + 1 + a[i] になる。
+table t = (0,1), (1,2), (2,0)
+field a : flat bound 8
+a[i] <- v            for (i,v) in t
+field q : max bound 8
+q[i] <- 10 + i       for (i,v) in t
+field s : max bound 8
+s[i] <- q[a[i]] + 1  for (i,v) in t
+print s

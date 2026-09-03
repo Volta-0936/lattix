@@ -1,0 +1,19 @@
+# 寄与元キー付きの束（sum）が、**層をまたいで引き継がれない**こと。
+#
+# 空間が FAMILY_MIN 以上あるので多面体の道（家）に乗り、否定があるので層が
+# 二つになる。この二つが揃うと、家の引き継ぎが *点ごと* に走って同じ升へ
+# 空間の点の数だけ足し込んでいた —— total が 521 倍になっていた。
+# 手で書いた 61 本にも撒いた 150 本にも、この組み合わせは無かった。
+table data = (1,520)
+field n : max
+n[] <- v            for (a,v) in data
+
+field half : or
+half[i] <- true     for (i) in 0 .. n[] if i >= 260
+
+field rest : or
+rest[i] <- true     for (i) in 0 .. n[] if not half[i]
+
+field total : sum
+total[] <- i        for (i) in 0 .. n[]
+print total

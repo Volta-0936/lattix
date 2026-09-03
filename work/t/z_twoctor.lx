@@ -1,0 +1,10 @@
+# 畳めない引数が二つ —— cons の頭も尻も場の読み
+table t = (0,97), (1,98), (2,99)
+field a : flat bound 8
+a[i] <- c            for (i,c) in t
+field b : flat bound 8
+b[i] <- c + 1        for (i,c) in t
+constructor pair(x, y) bound 64
+field p : flat bound 8
+p[i] <- pair(a[i], b[i])   for (i,c) in t
+print p

@@ -1,0 +1,166 @@
+# 字句解析器（自立版）—— 20_lex_full の続き。
+#
+# 20 は「切れる」ところまでだった。ここでは **トークンに番号と属性を与える**:
+#   tk   種別（0 識別子 / 1 整数 / 2 記号）
+#   tsym 綴りの内容アドレス     tint 整数の値
+#   tc   先頭文字   tc2 二文字目（`<- <= >= == !=` のため）
+#   tline 行番号
+# つまり出力はもう「文字」ではなく **表** である。だから次の段（22_parse）は
+# これを地上データとして受け取れる。処理系を分けたのではなく、**場を表に落とした**。
+#
+# 座標が語る二つのこと:
+#   * 識別子の中の数字は「英字で始まった鎖の続き」（idpart）
+#   * トークン番号は語頭の個数の鎖。だから `tsym[tnum[i]]` と書ける ——
+#     **計算された座標に書き込む**のは非単調だが、成層が面倒を見る。
+table ch = (0,32)
+
+field code : max
+code[i] <- c   for (i,c) in ch
+
+# ── コメント: `#` から行末 ─────────────────────────────────────────
+# **コメントが勝つ。** どちらが先かは循環しているので、どちらかを選ぶしかない。
+# コメントの中の引用符は Lattix のソースにありふれていて、
+# 文字列の中の `#` は稀である。だから稀な方を落とす（GUIDE に穴として書く）。
+field incomment : or
+incomment[i] <- true for (i,c) in ch if c == 35
+incomment[i] <- true for (i,c) in ch if c != 10 if incomment[i-1]
+
+field skip : or
+skip[i] <- true for (i,c) in ch if incomment[i]
+
+# ── 文字列: 引用符の偶奇（行ごとに戻す） ────────────────────────────
+field quotes : max
+quotes[-1] <- 0
+quotes[i] <- 0             for (i,c) in ch if c == 10
+quotes[i] <- quotes[i-1] + 1 for (i,c) in ch if c == 34 if not skip[i]
+quotes[i] <- quotes[i-1]   for (i,c) in ch if c == 34 if skip[i] if c != 10
+quotes[i] <- quotes[i-1]   for (i,c) in ch if c != 34 if c != 10
+
+field quote : or
+quote[i] <- true for (i,c) in ch if c == 34 if not skip[i]
+
+field instring : or                    # 引用符も含めて「文字列の中」
+instring[i] <- true for (i,c) in ch if quotes[i] % 2 == 1 if not skip[i]
+instring[i] <- true for (i,c) in ch if quote[i]
+
+field qopen : max                      # その文字列を開いた引用符の位置
+qopen[i] <- i          for (i,c) in ch if quote[i] if quotes[i] % 2 == 1
+qopen[i] <- qopen[i-1] for (i,c) in ch if instring[i]
+
+# ── 文字の種類 ──────────────────────────────────────────────────
+field alpha : or
+alpha[i] <- true for (i,c) in ch if c >= 97 if c <= 122
+alpha[i] <- true for (i,c) in ch if c >= 65 if c <= 90
+alpha[i] <- true for (i,c) in ch if c == 95
+
+field digit : or
+digit[i] <- true for (i,c) in ch if c >= 48 if c <= 57
+
+# 識別子は英字で始まり、数字を含んでよい（単調な鎖）
+field idpart : or
+idpart[i] <- true for (i,c) in ch if alpha[i] if not skip[i] if not instring[i]
+idpart[i] <- true for (i,c) in ch if digit[i] if idpart[i-1]
+
+field punct : or
+punct[i] <- true for (i,c) in ch if c >= 33 if c <= 47 if not skip[i]
+                                 if not instring[i]
+punct[i] <- true for (i,c) in ch if c >= 58 if c <= 64 if not skip[i]
+                                 if not instring[i]
+punct[i] <- true for (i,c) in ch if c >= 91 if c <= 96 if not skip[i] if c != 95
+                                 if not instring[i]
+punct[i] <- true for (i,c) in ch if c >= 123 if c <= 126 if not skip[i]
+                                 if not instring[i]
+
+# 2文字記号 `<- <= >= == !=` は位置 i から始まる
+field two : or
+two[i] <- true for (i,c) in ch if c == 60 if code[i+1] == 45
+two[i] <- true for (i,c) in ch if c == 60 if code[i+1] == 61
+two[i] <- true for (i,c) in ch if c == 62 if code[i+1] == 61
+two[i] <- true for (i,c) in ch if c == 61 if code[i+1] == 61
+two[i] <- true for (i,c) in ch if c == 33 if code[i+1] == 61
+two[i] <- true for (i,c) in ch if c == 46 if code[i+1] == 46
+
+field cls : flat
+cls[i] <- 1 for (i,c) in ch if idpart[i]
+cls[i] <- 2 for (i,c) in ch if digit[i] if not idpart[i] if not skip[i]
+                                if not instring[i]
+# 文字列は一つのトークン。開いた引用符の位置が名前になる。
+cls[i] <- 100 + qopen[i] for (i,c) in ch if instring[i]
+cls[i] <- 3 for (i,c) in ch if skip[i]
+cls[i] <- 3 for (i,c) in ch if c == 32
+cls[i] <- 3 for (i,c) in ch if c == 9
+cls[i] <- 3 for (i,c) in ch if c == 13
+cls[i] <- 3 for (i,c) in ch if c == 10
+cls[i] <- 100 + i     for (i,c) in ch if punct[i] if not two[i-1]
+cls[i] <- 100 + i - 1 for (i,c) in ch if punct[i] if two[i-1]
+
+field brk : or
+brk[0] <- true
+brk[i] <- true for (i,c) in ch if cls[i] != cls[i-1]
+
+field last : or
+last[i] <- true for (i,c) in ch if brk[i+1]
+
+# ── 綴り（内容アドレス） ────────────────────────────────────────
+constructor cons(head, tail) bound 256
+
+field text : flat
+text[i] <- cons(c, 0)         for (i,c) in ch if last[i] if cls[i] != 3
+                              if not quote[i]
+text[i] <- cons(c, text[i+1]) for (i,c) in ch if not last[i] if cls[i] != 3
+                              if not quote[i] if not quote[i+1]
+text[i] <- cons(c, 0)         for (i,c) in ch if not last[i] if cls[i] != 3
+                              if not quote[i] if quote[i+1]
+text[i] <- text[i+1]          for (i,c) in ch if quote[i] if not last[i]
+                              if not quote[i+1]
+text[i] <- 0                  for (i,c) in ch if quote[i] if quote[i+1]
+
+# ── トークン番号 ────────────────────────────────────────────────
+field wstart : or
+wstart[i] <- true for (i,c) in ch if brk[i] if cls[i] != 3
+
+field tnum : max
+tnum[-1] <- 0
+tnum[i] <- tnum[i-1]     for (i,c) in ch
+tnum[i] <- tnum[i-1] + 1 for (i,c) in ch if wstart[i]
+
+field ntok : max
+ntok[] <- tnum[i] for (i,c) in ch
+
+field lnum : max
+lnum[-1] <- 1
+lnum[i] <- lnum[i-1]     for (i,c) in ch
+lnum[i] <- lnum[i-1] + 1 for (i,c) in ch if c == 10
+
+# ── トークンの属性（座標はトークン番号） ────────────────────────
+field tpos : max
+tpos[tnum[i]] <- i for (i,c) in ch if wstart[i]
+
+field tline : max
+tline[tnum[i]] <- lnum[i] for (i,c) in ch if wstart[i]
+
+field tsym : flat
+tsym[tnum[i]] <- text[i] for (i,c) in ch if wstart[i]
+
+field tc : max
+tc[tnum[i]] <- c for (i,c) in ch if wstart[i]
+
+field tc2 : max
+tc2[tnum[i]] <- code[i+1] for (i,c) in ch if wstart[i] if two[i]
+
+field tk : flat
+tk[tnum[i]] <- 0 for (i,c) in ch if wstart[i] if cls[i] == 1
+tk[tnum[i]] <- 1 for (i,c) in ch if wstart[i] if cls[i] == 2
+tk[tnum[i]] <- 2 for (i,c) in ch if wstart[i] if cls[i] >= 100
+                 if not instring[i]
+tk[tnum[i]] <- 3 for (i,c) in ch if wstart[i] if instring[i]   # 文字列
+
+# 整数の値（桁の鎖）
+field acc : max
+acc[i] <- c - 48 for (i,c) in ch if digit[i] if not idpart[i] if brk[i]
+acc[i] <- acc[i-1] * 10 + c - 48 for (i,c) in ch if digit[i] if not idpart[i] if not brk[i]
+
+field tint : max
+tint[tnum[i]] <- acc[i] for (i,c) in ch if last[i] if digit[i] if not idpart[i]
+
+print tk

@@ -1,0 +1,132 @@
+# データフロー解析の一式 —— コンパイラが実際にやっていること。
+#
+# 小さな命令列を読んで、次を **全部同じ不動点** として出す:
+#
+#   制御フロー   succ        どの命令からどの命令へ行けるか
+#   到達可能性   reach       入口から届くか                     （or 束・前向き）
+#   定数伝播     cvin/cvout  値が定数か、経路で食い違うか        （flat 束・前向き）
+#   到達定義     rd          どの定義がここに届くか              （or 束・前向き・kill つき）
+#   使用前未定義 undef       定義の届かない使用                  （検証）
+#   生存変数     live        この先で使われるか                  （or 束・**後ろ向き**）
+#   死んだ代入   dead        書いたのに誰も読まない              （検証）
+#
+# 教科書はこれらを別々のアルゴリズムとして書く —— 向き、束、meet、反復順序、
+# kill の扱い。ここには **一つも書いていない**。書いたのは規則だけで、
+# 向きも順序も層も処理系が導く。
+#
+# 定数伝播の格子が `flat` そのものであることに注意。
+# 「二つの経路が違う値を持ってきたら ⊤（定数でない）」は教科書の meet だが、
+# Lattix ではそれが **束の衝突** で、言語に元から入っている。
+#
+# 命令 (pc, op, 書き先, 読み1, 読み2, 飛び先/即値)
+#   1=const 書き先,即値   2=move 書き先,読み1   3=add 書き先,読み1,読み2
+#   4=br 飛び先           5=brz 読み1,飛び先     6=halt
+#
+# **列の型を混ぜない。** 原子（変数名）と整数（番地）は、機械の上では
+# どちらも整数になるので、同じ列に入れると戻すときに区別できない。
+# 処理系はそれを検出して落ちる（黙って違う答えを出すより良い）。
+table prog = (0,1,x,none,none,1),
+             (1,1,y,none,none,0),
+             (2,1,q,none,none,9),
+             (3,3,y,y,x,0),
+             (4,1,z,none,none,5),
+             (5,5,none,w,none,8),
+             (6,4,none,none,none,3),
+             (7,6,none,none,none,0),
+             (8,3,r,x,z,0),
+             (9,3,r,r,y,0),
+             (10,5,none,r,none,11),
+             (11,6,none,none,none,0)
+
+table vars = (x),(y),(z),(w),(q),(r)
+
+field maxpc : max
+maxpc[] <- pc            for (pc,op,d,s1,s2,tg) in prog
+
+# ── 制御フロー ──────────────────────────────────────────────────
+field succ : or
+succ[pc, pc+1] <- true   for (pc,op,d,s1,s2,tg) in prog if op != 4 if op != 6
+                         if pc < maxpc[]
+succ[pc, tg]   <- true   for (pc,op,d,s1,s2,tg) in prog if op == 4
+succ[pc, tg]   <- true   for (pc,op,d,s1,s2,tg) in prog if op == 5
+
+# ── 到達可能性（前向き・or）──────────────────────────────────────
+field reach : or
+reach[0] <- true
+reach[j] <- true         for (i) in 0 .. maxpc[] for (j) in 0 .. maxpc[]
+                         if reach[i] if succ[i,j]
+
+# ── 定義と使用 ──────────────────────────────────────────────────
+field defs : or
+defs[pc, d] <- true      for (pc,op,d,s1,s2,tg) in prog if op == 1
+defs[pc, d] <- true      for (pc,op,d,s1,s2,tg) in prog if op == 2
+defs[pc, d] <- true      for (pc,op,d,s1,s2,tg) in prog if op == 3
+
+field uses : or
+uses[pc, s1] <- true     for (pc,op,d,s1,s2,tg) in prog if op == 2
+uses[pc, s1] <- true     for (pc,op,d,s1,s2,tg) in prog if op == 3
+uses[pc, s2] <- true     for (pc,op,d,s1,s2,tg) in prog if op == 3
+uses[pc, s1] <- true     for (pc,op,d,s1,s2,tg) in prog if op == 5
+
+# ── 定数伝播（前向き・flat）──────────────────────────────────────
+# 経路が食い違えば ⊤。**これは教科書の meet そのものだが、束が元から持っている。**
+field cvin : flat
+field cvout : flat
+
+cvin[j, v] <- cvout[i, v]
+      for (i) in 0 .. maxpc[] for (j) in 0 .. maxpc[] for (v) in vars
+      if succ[i,j] if reach[i]
+
+cvout[pc, v] <- cvin[pc, v]
+      for (pc,op,d,s1,s2,tg) in prog for (v) in vars if not defs[pc, v]
+cvout[pc, d] <- tg                       for (pc,op,d,s1,s2,tg) in prog if op == 1
+cvout[pc, d] <- cvin[pc, s1]             for (pc,op,d,s1,s2,tg) in prog if op == 2
+cvout[pc, d] <- cvin[pc, s1] + cvin[pc, s2] for (pc,op,d,s1,s2,tg) in prog if op == 3
+
+# ── 到達定義（前向き・kill つき）────────────────────────────────
+field rd : or
+rd[j, v, pc] <- true
+      for (pc,op,d,s1,s2,tg) in prog for (v) in vars for (j) in 0 .. maxpc[]
+      if defs[pc, v] if succ[pc, j]
+rd[j, v, d] <- true
+      for (i) in 0 .. maxpc[] for (j) in 0 .. maxpc[] for (v) in vars
+      for (d) in 0 .. maxpc[]
+      if rd[i, v, d] if succ[i, j] if not defs[i, v]
+
+field hasdef : or
+hasdef[pc, v] <- true
+      for (pc) in 0 .. maxpc[] for (v) in vars for (d) in 0 .. maxpc[]
+      if rd[pc, v, d]
+
+# ── 検証: 定義の届かない使用 ────────────────────────────────────
+field undef : or
+undef[pc, v] <- true
+      for (pc,op,d,s1,s2,tg) in prog for (v) in vars
+      if uses[pc, v] if reach[pc] if not hasdef[pc, v]
+
+# ── 生存変数（**後ろ向き**・or）──────────────────────────────────
+# 向きを書いた行は一つも無い。規則がどちらを向いているかは依存が決める。
+field live : or
+live[pc, v] <- true      for (pc,op,d,s1,s2,tg) in prog for (v) in vars
+                         if uses[pc, v]
+live[i, v] <- true       for (i) in 0 .. maxpc[] for (j) in 0 .. maxpc[]
+                         for (v) in vars
+                         if succ[i,j] if live[j,v] if not defs[i,v]
+
+field liveafter : or
+liveafter[i, v] <- true  for (i) in 0 .. maxpc[] for (j) in 0 .. maxpc[]
+                         for (v) in vars
+                         if succ[i,j] if live[j,v]
+
+# ── 検証: 書いたのに誰も読まない ────────────────────────────────
+field dead : or
+dead[pc] <- true         for (pc,op,d,s1,s2,tg) in prog for (v) in vars
+                         if defs[pc, v] if reach[pc] if not liveafter[pc, v]
+
+field unreach : or
+unreach[pc] <- true      for (pc,op,d,s1,s2,tg) in prog if not reach[pc]
+
+print cvout
+print undef
+print dead
+print unreach

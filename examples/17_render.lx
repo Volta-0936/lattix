@@ -1,0 +1,46 @@
+# 字句解析 + 出力 —— Lattix だけで「読んで、書く」。
+#
+# 16_lex.lx はトークンを *値* にした。ここではそれを *文字列* にして出す。
+#
+# 文字列型は要らなかった。**列は座標に住んでいて、時間には住んでいない。**
+# 場 out[行, 桁] = 文字コード を座標順に並べれば、それがテキストである。
+# 並びを決めるのは実行順序ではなく座標なので、これは効果ではなく描画である。
+#
+# 意味: トークンを1行に1つ書き出す。行の名前はトークンの開始位置そのものでよい
+# （開始位置の昇順 = 出現順だから、行番号を数える必要が無い）。
+
+# "ab cd ab" + 番兵
+table ch = (0,97),(1,98),(2,32),(3,99),(4,100),(5,32),(6,97),(7,98),(8,32)
+
+field cls : flat
+cls[i] <- 1        for (i,c) in ch if c >= 97 if c <= 122
+cls[i] <- 1        for (i,c) in ch if c >= 65 if c <= 90
+cls[i] <- 1        for (i,c) in ch if c == 95
+cls[i] <- 2        for (i,c) in ch if c >= 48 if c <= 57
+cls[i] <- 3        for (i,c) in ch if c == 32
+cls[i] <- 3        for (i,c) in ch if c == 9
+cls[i] <- 3        for (i,c) in ch if c == 10
+cls[i] <- 100 + i  for (i,c) in ch if c >= 33 if c <= 47
+cls[i] <- 100 + i  for (i,c) in ch if c >= 58 if c <= 64
+cls[i] <- 100 + i  for (i,c) in ch if c >= 91 if c <= 96
+cls[i] <- 100 + i  for (i,c) in ch if c >= 123 if c <= 126
+
+field brk : or
+brk[0] <- true
+brk[i] <- true     for (i,c) in ch if cls[i] != cls[i-1]
+
+field owner : max
+owner[i] <- i          for (i,c) in ch if brk[i]
+owner[i] <- owner[i-1] for (i,c) in ch if not brk[i]
+
+# ── 出力 ──────────────────────────────────────────────────────────────
+# 行 = トークンの開始位置、桁 = そのトークン内での位置。
+# 空白は行を持たない（寄与しないだけで、除外規則は要らない）。
+field out : min
+out[owner[i], i - owner[i]] <- c    for (i,c) in ch
+                                    if c != 32 if c != 9 if c != 10
+# 行末の改行。桁 9999 は「行の終わり」という座標である。
+out[owner[i], 9999] <- 10           for (i,c) in ch
+                                    if c != 32 if c != 9 if c != 10
+
+render out

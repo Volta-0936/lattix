@@ -1,0 +1,6 @@
+include "lib/graph.lx"
+budget io <= 1
+
+table ks = (1), (2), (3)
+use enrich(ks) as e
+print e_full

@@ -1,0 +1,6 @@
+# 原子の引数 —— 表の列に綴りが立ち、構成子がそれを折る
+table t = (0,"alpha"), (1,"beta"), (2,"gamma")
+constructor tag(name, num) bound 64
+field g : flat bound 8
+g[i] <- tag(a, i)     for (i,a) in t
+print g

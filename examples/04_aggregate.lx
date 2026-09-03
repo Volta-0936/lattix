@@ -1,0 +1,20 @@
+# v0.1 最大の穴だった非冪等集約。
+# sum は「寄与元キー付き束」なので、和が冪等・可換・結合的に戻る。
+# 同じ寄与を何度合流させても二重計上しない。
+table sales = (tokyo, q1, 120), (osaka, q1, 90), (tokyo, q2, 45),
+              (nagoya, q1, 70), (osaka, q2, 30), (tokyo, q3, 15)
+table cities = (tokyo), (osaka), (nagoya)
+
+field revenue : sum
+revenue[c] <- v          for (c,q,v) in sales
+
+field orders : count
+orders[c] <- v           for (c,q,v) in sales
+
+# sum/count の読みは本質的に非単調 → 処理系が自動的に次の層へ落とす
+field big : set
+big[] <- {c}             for (c) in cities if revenue[c] > 100
+
+print revenue
+print orders
+print big

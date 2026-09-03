@@ -1,0 +1,46 @@
+# ── Lattix 標準ライブラリ: グラフ ────────────────────────────────────────
+# 各部品は「深度署名」を持つ。ライブラリを使うことが、呼び出し側の
+# 逐次性をいくら増やすかが、インタフェースの一部として宣言されている。
+# 宣言と実際が食い違えば処理系が拒否する。
+
+# 単一始点最短経路。重みが非負なら深度1（協調不要）。
+component sssp(edges, src) -> dist : min  depth 1
+  dist[src] <- 0
+  dist[j]   <- dist[i] + w        for (i,j,w) in edges
+end
+
+# 到達可能性。単調なので深度1。
+component reach(edges, nodes, src) -> hit : or  depth 1
+  hit[src] <- true
+  hit[j]   <- true                for (i,j,w) in edges if hit[i]
+end
+
+# 全点対の到達可能性（推移閉包）。深度1。
+component closure(edges, nodes) -> tc : or  depth 1
+  tc[i,j] <- true                 for (i,j,w) in edges
+  tc[i,k] <- true                 for (i,j,w) in edges for (k) in nodes if tc[j,k]
+end
+
+# 到達不能な点。到達可能性を否定するので深度2 —— そう宣言してある。
+component unreachable(edges, nodes, src) -> out : set  depth 2
+  local seen : or
+  seen[src] <- true
+  seen[j]   <- true               for (i,j,w) in edges if seen[i]
+  out[]     <- {v}                for (v) in nodes if not seen[v]
+end
+
+# 各点の離心率もどき（始点からの距離の最大）。深度2。
+component eccentricity(edges, nodes, src) -> far : max  depth 2
+  local d : min
+  d[src] <- 0
+  d[j]   <- d[i] + w              for (i,j,w) in edges
+  far[]  <- 1                     for (v) in nodes if d[v] is 1000000
+end
+
+# ── 外界を使う部品は往復回数も署名に載せる ──────────────────────────────
+# depth は順序の対価、io は遅延の対価。並列に使えば io は max、直列なら sum。
+component enrich(keys) -> full : flat  depth 2  io 1
+  emit "lookup" <- k              for (k) in keys
+  source raw : flat from "lookup"
+  full[k] <- raw[k] + 1           for (k) in keys
+end
