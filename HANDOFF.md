@@ -239,6 +239,24 @@ fuse_plan を「源0 が表なら二本目以降は行の内側」に緩めて 2
 を前段に置かない。engine2.close_upto は溢れた表を /tmp/close_big.log に書く。
 再走中（閉じの C は 14MB、ccache で一度だけ焼く）。
 
+自己適用の続き（5e86430）: 一巡目（二周 × 36 層、閉じは C で約 3.5 時間）が
+通り、`zfsz0 <- zexth - zextl + 1 if zexth >= zextl` で「多面体のガードで束が
+混ざる」。**混ざっているのは束ではなく層**（閉じた max と生きた min）:
+- ガード: 閉じた側は pa に写せるので、生きた読みを左に置いて向きを返す
+  （`lo <= hi - c`）—— 種11・束1（min）・`<=`/`<`（run.lx に (11,1,4/6,0) を足した）。
+  wm は定数 −c と間接（左の読みの枠 32+i）。front は zbxl、flat は fcond の反転。
+  種11 の wm は間接も運ぶ（engine2 が `_map('wm', PS)`）。
+- 値: `hi - lo + 1` は下る min を引く形。下るほど値は上がるので単調だが、
+  pa（flat）には写せない（下る値は ⊥→v→v' と動く）→ **面から直に読む vf 6**
+  （am が逆の面、同じ束の直の読み一本は bm。(1|2, 6, 1|2)）。front は
+  zoppl/zopp/zhopp、flat は _family の opp。
+- 点の道の tolat は生きた他束を **閉じた面から写していた**（黙って違う答え —— この
+  形は自己適用まで誰も踏まなかった）→ 声に出して断る。
+- flat.region: 空の区間（1 .. −1）で行を戻さない（dat の重複 → closer が
+  「contradictory value used as coordinate」）。
+試験 z_clmin（三段で一致）。BOOKS 66/66。self_front は再走中。
+静的な事前検査: /tmp/mixg2.py（生きた読みと閉じた読みが混ざる比較を数える）。
+
 残る大物: 31_gen（x86 の焼き）は旧断片（rrule/grd/trm/crd）の生成器 —— 家の表
 （fg/fc/fp/mp）を焼く形に書き直す必要がある（第4段）。32_shape は旧前段で
 front.lx が置き換えた。
