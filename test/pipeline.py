@@ -112,6 +112,18 @@ def one(info, path):
     for f in (p.prints or list(p.fields)):
         if dict(ref.get(f, {})) != out.get(f, {}):
             return 'diff', f
+    if os.environ.get('LATTIX_SHOW') == '1' and p.prints:
+        # 三段目: 機械の面 → show.lx → 字面。参照実装の標準出力とバイト一致。
+        import show as SH, subprocess
+        tb = SH.tables_of(fl, p, out, fat_ref=ref)
+        txt = SH.render(tb)
+        r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
+                           capture_output=True)
+        if r.returncode == 0 and txt != r.stdout:
+            g, w = txt.decode('utf-8', 'replace').splitlines(), r.stdout.decode('utf-8', 'replace').splitlines()
+            d = next((k for k in range(max(len(g), len(w))) if k >= len(g) or k >= len(w) or g[k] != w[k]), 0)
+            return 'diff', f"show 行 {d}: {(g[d] if d < len(g) else '')[:30]!r} ≠ {(w[d] if d < len(w) else '')[:30]!r}"
+        return 'ok', f"{ms:.0f} ms  字面 {len(txt)} bytes ✓"
     return 'ok', f"{ms:.0f} ms"
 
 

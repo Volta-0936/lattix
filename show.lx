@@ -1,0 +1,430 @@
+# ══ show.lx —— 見せる物（PLAN 第3段）。**答えを人の字面にする** ═══════════
+#
+#   run.lx が出すのは面の値（升番号 → 値）である。それを
+#       name[k1, k2] = v
+#   の行に並べる。参照実装（lattix.py の print）と **バイト一致**が出口条件。
+#
+# 入れる物（すべて表。前段の家の表と、走らせた面から作る）:
+#   fld (f, 束, 次数, 基, lo0, sz0, st0, lo1, sz1, st1, lo2, sz2, st2)
+#       —— 場 f の置き場（前段の zfb / zflo / zfsz / zfs）。束: 1 min / 2 max /
+#       3 or / 5 flat / 6 fourv / 7 set / 8 sum / 9 count
+#   fnm (f, k, 文字)          場 f の名前の k 文字目
+#   atm (a, k, 文字)          原子 a（番号）の綴りの k 文字目
+#   pv  (f, c, v)             面の値（升 c は絶対番地。or は 1、原子は番号）
+#   prn (i, f)                print の並び
+#   ab  (原子の基)            数の上端 + 1 —— これ以上の値は原子
+#   ps  (f, c, q, e)          集合の値: 升 c の q 番目の元 e（並びは問わない）
+#   ctr (c, k, 文字)          構成子 c の名前の k 文字目
+#   cac (c, i, f)             構成子 c の引数 i の場（アクセサ場の番号）
+#   fat (f, d)                場 f の次元 d（3 は値）が原子を持つ —— 数と原子は
+#                             番号で区別できない（値は座標の上端を越える）ので、
+#                             **型は前段が言う**（列の綴り・場の写し）
+#
+# 位置は **前置きの鎖**で出す（同じ形が四度目）: 項目の長さを数え、項目番号に
+# 沿って足し込む。桁は割り算で —— 10^k で割って 10 で余る（座標は算術を持つ）。
+
+table fld = (0, 2, 1, 1, 0, 4, 1, 0, 1, 1, 0, 1, 1)
+table fnm = (0, 0, 100)
+table atm = (0, 0, 32)
+table pv = (0, 1, 0), (0, 2, 3), (0, 3, 1), (0, 4, 8)
+table prn = (0, 0)
+table ab = (1000)
+table fat = (0, 3)
+table ps = (1023, 0, 0, 0)
+table ctr = (0, 0, 32)
+table cac = (1023, 0, 1023)
+
+# ── 場の属性 ────────────────────────────────────────────────────────
+field flat_ : max bound 1024            # 束
+flat_[f] <- lat for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field farr : max bound 1024             # 次数
+farr[f] <- ar for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field fbase : max bound 1024            # 基
+fbase[f] <- b for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field flo : max bound 1024 3            # 次元 d の下端
+flo[f, 0] <- l0 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+flo[f, 1] <- l1 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+flo[f, 2] <- l2 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field fsz : max bound 1024 3            # 次元 d の広さ
+fsz[f, 0] <- s0 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+fsz[f, 1] <- s1 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+fsz[f, 2] <- s2 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field fst : max bound 1024 3            # 次元 d の歩幅
+fst[f, 0] <- t0 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+fst[f, 1] <- t1 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+fst[f, 2] <- t2 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field fvol : max bound 1024             # 升の数（次元の広さの積）
+fvol[f] <- s0 * t0 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field flast : max bound 1024            # 最後の升（絶対番地）
+flast[f] <- fbase[f] + fvol[f] - 1 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field fnl : max bound 1024              # 名前の長さ
+fnl[f] <- k + 1 for (f, k, c) in fnm
+field fnc : max bound 1024 32           # 名前の k 文字目
+fnc[f, k] <- c for (f, k, c) in fnm
+field atl : max bound 65536             # 原子の綴りの長さ
+atl[a] <- k + 1 for (a, k, c) in atm
+field atc : max bound 65536 32          # 原子 a の綴りの k 文字目
+atc[a, k] <- c for (a, k, c) in atm
+field atb : max bound 1
+atb[z] <- v for (v) in ab for (z) in 0 .. 0
+
+# ── 面の値 ──────────────────────────────────────────────────────────
+field val : max # 升 c の値
+val[c] <- v for (f, c, v) in pv
+field has : or # 升 c に値がある
+has[c] <- true for (f, c, v) in pv
+field pf : max bound 256                # print i の場
+pf[i] <- f for (i, f) in prn
+field npz : max bound 1                 # print の数 - 1
+npz[z] <- i for (i, f) in prn for (z) in 0 .. 0
+
+# ── 項目（print i の升 c）の通し番号 —— 前置きの鎖 ──────────────────
+field fvz : max bound 1024              # 升の数 - 1（区間の上端に書ける形）
+fvz[f] <- fvol[f] - 1 for (f, lat, ar, b, l0, s0, t0, l1, s1, t1, l2, s2, t2) in fld
+field cnt : max bound 256 262144        # print i の、場の中の番号 c より前の項目の数
+cnt[i, 0] <- 0 for (i, f) in prn
+cnt[i, c] <- cnt[i, c-1] for (i, f) in prn for (c) in 1 .. fvz[pf[i]]
+      if not has[fbase[pf[i]] + c - 1]
+cnt[i, c] <- cnt[i, c-1] + 1 for (i, f) in prn for (c) in 1 .. fvz[pf[i]]
+      if has[fbase[pf[i]] + c - 1]
+field ncl : max bound 256               # print i の項目の数
+ncl[i] <- cnt[i, fvz[pf[i]]] for (i, f) in prn if not has[flast[pf[i]]]
+ncl[i] <- cnt[i, fvz[pf[i]]] + 1 for (i, f) in prn if has[flast[pf[i]]]
+field ibase : max bound 256             # print i の最初の項目番号（鎖）
+ibase[0] <- 0
+ibase[i] <- ibase[i-1] + ncl[i-1] for (i) in 1 .. npz[0]
+ibase[i] <- ibase[i-1] + 1 for (i) in 1 .. npz[0] if ncl[i-1] == 0
+field item : max bound 65536            # 項目番号 → 升（絶対番地）
+item[ibase[i] + cnt[i, c]] <- fbase[pf[i]] + c for (i, f) in prn for (c) in 0 .. fvz[pf[i]]
+      if has[fbase[pf[i]] + c]
+field iprn : max bound 65536            # 項目番号 → print
+iprn[ibase[i] + cnt[i, c]] <- i for (i, f) in prn for (c) in 0 .. fvz[pf[i]]
+      if has[fbase[pf[i]] + c]
+# 空の場は一行（"f: ⊥ everywhere …"）—— 項目一つ、升は無し
+iprn[ibase[i]] <- i for (i, f) in prn if ncl[i] == 0
+field iemp : or bound 65536             # 空の場の行
+iemp[ibase[i]] <- true for (i, f) in prn if ncl[i] == 0
+field nitz : max bound 1                # 項目の数 - 1
+nitz[z] <- ibase[i] + ncl[i] - 1 for (i, f) in prn for (z) in 0 .. 0
+nitz[z] <- ibase[i] for (i, f) in prn for (z) in 0 .. 0 if ncl[i] == 0
+
+# ── 桁: 10 のべき ────────────────────────────────────────────────────
+field p10 : max bound 41
+p10[0] <- 1
+p10[k] <- p10[k-1] * 10 for (k) in 1 .. 39
+
+# ── 項目の座標（次元ごと）と値 ─────────────────────────────────────
+field ifld : max bound 65536            # 項目の場
+ifld[t] <- pf[iprn[t]] for (t) in 0 .. nitz[0]
+field ioff : max bound 65536            # 升の場の中の番号
+ioff[t] <- item[t] - fbase[ifld[t]] for (t) in 0 .. nitz[0] if not iemp[t]
+field key : max bound 65536 3           # 次元 d の座標
+key[t, d] <- ioff[t] / fst[ifld[t], d] % fsz[ifld[t], d] + flo[ifld[t], d]
+      for (t) in 0 .. nitz[0] for (d) in 0 .. 2 if not iemp[t] if d <= farr[ifld[t]] - 1
+field ival : max bound 65536            # 値
+ival[t] <- val[item[t]] for (t) in 0 .. nitz[0] if not iemp[t]
+
+# ── 構成した値: `name(a, b)` に開く（参照実装の show_val）─────────────
+# 番地 v が構成子 c の節であるとは、c の最初の引数場に v の升があること。
+# 節の名は **その升**（絶対番地）—— 構成子ごとに引数場は違うので升は重ならない。
+# 字面は DAG に沿った不動点で出る: 長さは引数の長さの和、文字は引数の写し。
+field ctnl : max bound 64               # 構成子 c の名前の長さ
+ctnl[c] <- k + 1 for (c, k, ch) in ctr
+field ctnc : max bound 64 32            # 名前の k 文字目
+ctnc[c, k] <- ch for (c, k, ch) in ctr
+field ctar : max bound 64               # 引数の数
+ctar[c] <- i + 1 for (c, i, f) in cac
+field ctaf : max bound 64 8             # 引数 i の場
+ctaf[c, i] <- f for (c, i, f) in cac
+field ctf0 : max bound 64               # 最初の引数場
+ctf0[c] <- f for (c, i, f) in cac if i == 0
+field nctz : max bound 1                # 構成子の数 - 1
+nctz[z] <- c for (c, i, f) in cac for (z) in 0 .. 0
+field nof : max bound 1024              # 場（最初の引数場）→ 構成子
+nof[ctf0[c]] <- c for (c) in 0 .. nctz[0] if ctf0[c] >= 0
+# 引数場の置き場は番地の幅ぶん広い（疎）—— 升を数え上げず、面の行（pv）から拾う
+field isnd : or                         # 升 g は節（最初の引数場の、値のある升）
+isnd[c] <- true for (f, c, v) in pv if nof[f] >= 0
+field ndc : max                         # 節 g の構成子
+ndc[c] <- nof[f] for (f, c, v) in pv if nof[f] >= 0
+field ndv : max                         # 節 g の番地（値）
+ndv[c] <- flo[f, 0] + c - fbase[f] for (f, c, v) in pv if nof[f] >= 0
+field nda : max # 節 g の引数 i の値
+nda[g, i] <- val[fbase[ctaf[ndc[g], i]] + ndv[g] - flo[ctaf[ndc[g], i], 0]]
+      for (fg, g, vg) in pv for (i) in 0 .. 7 if isnd[g] if i <= ctar[ndc[g]] - 1
+# 番地 → 節（値が節かどうかは、どの構成子の最初の引数場にその升があるか）
+field vnd : max                         # 番地 v の節 g（疎 —— 番地は広い）
+vnd[ndv[g]] <- g for (fg, g, vg) in pv if isnd[g]
+field vis : or                          # 番地 v は節
+vis[ndv[g]] <- true for (fg, g, vg) in pv if isnd[g]
+field ndag : max # 引数 i の節（節なら）
+ndag[g, i] <- vnd[nda[g, i]] for (fg, g, vg) in pv for (i) in 0 .. 7 if isnd[g]
+      if i <= ctar[ndc[g]] - 1 if vis[nda[g, i]]
+field ndat : or # 引数 i は原子
+ndat[g, i] <- true for (fg, g, vg) in pv for (i) in 0 .. 7 if isnd[g]
+      if i <= ctar[ndc[g]] - 1 if not vis[nda[g, i]]
+      if fatm[ctaf[ndc[g], i], 3] if nda[g, i] >= atb[0]
+field ndnm : or # 引数 i は数
+ndnm[g, i] <- true for (fg, g, vg) in pv for (i) in 0 .. 7 if isnd[g]
+      if i <= ctar[ndc[g]] - 1 if not vis[nda[g, i]] if not ndat[g, i]
+# 数の引数の字面
+field nav : max # 絶対値
+nav[g, i] <- nda[g, i] for (fg, g, vg) in pv for (i) in 0 .. 7 if ndnm[g, i]
+      if nda[g, i] >= 0
+nav[g, i] <- 0 - nda[g, i] for (fg, g, vg) in pv for (i) in 0 .. 7 if ndnm[g, i]
+      if nda[g, i] <= 0 - 1
+field nnd : max # 桁数
+nnd[g, i] <- 1 for (fg, g, vg) in pv for (i) in 0 .. 7 if nav[g, i] >= 0
+nnd[g, i] <- k + 1 for (fg, g, vg) in pv for (i) in 0 .. 7 for (k) in 1 .. 39
+      if nav[g, i] >= p10[k]
+field nal : max # 引数 i の字面の長さ
+nal[g, i] <- nnd[g, i] for (fg, g, vg) in pv for (i) in 0 .. 7 if ndnm[g, i]
+      if nda[g, i] >= 0
+nal[g, i] <- nnd[g, i] + 1 for (fg, g, vg) in pv for (i) in 0 .. 7 if ndnm[g, i]
+      if nda[g, i] <= 0 - 1
+nal[g, i] <- atl[nda[g, i] - atb[0]] for (fg, g, vg) in pv for (i) in 0 .. 7
+      if ndat[g, i]
+nal[g, i] <- nlen[ndag[g, i]] for (fg, g, vg) in pv for (i) in 0 .. 7
+      if isnd[g] if ndag[g, i] >= 0
+field nao : max # 引数 i の字面の始まり（節の中の位置。鎖）
+nao[g, 0] <- ctnl[ndc[g]] + 1 for (fg, g, vg) in pv if isnd[g]
+nao[g, i] <- nao[g, i - 1] + nal[g, i - 1] + 2 for (fg, g, vg) in pv for (i) in 1 .. 7
+      if isnd[g] if i <= ctar[ndc[g]] - 1
+field nlen : max # 節 g の字面の長さ
+nlen[g] <- nao[g, ctar[ndc[g]] - 1] + nal[g, ctar[ndc[g]] - 1] + 1
+      for (fg, g, vg) in pv if isnd[g]
+field nch : max # 節 g の字面の j 文字目
+nch[g, k] <- ctnc[ndc[g], k] for (fg, g, vg) in pv for (k) in 0 .. 31 if isnd[g]
+      if k <= ctnl[ndc[g]] - 1
+nch[g, ctnl[ndc[g]]] <- 40 for (fg, g, vg) in pv if isnd[g]
+nch[g, nlen[g] - 1] <- 41 for (fg, g, vg) in pv if isnd[g]
+nch[g, nao[g, i] - 2] <- 44 for (fg, g, vg) in pv for (i) in 1 .. 7 if isnd[g]
+      if i <= ctar[ndc[g]] - 1
+nch[g, nao[g, i] - 1] <- 32 for (fg, g, vg) in pv for (i) in 1 .. 7 if isnd[g]
+      if i <= ctar[ndc[g]] - 1
+nch[g, nao[g, i]] <- 45 for (fg, g, vg) in pv for (i) in 0 .. 7 if ndnm[g, i]
+      if nda[g, i] <= 0 - 1
+nch[g, nao[g, i] + j] <- nav[g, i] / p10[nnd[g, i] - 1 - j] % 10 + 48
+      for (fg, g, vg) in pv for (i) in 0 .. 7 for (j) in 0 .. 39
+      if ndnm[g, i] if nda[g, i] >= 0 if j <= nnd[g, i] - 1
+nch[g, nao[g, i] + 1 + j] <- nav[g, i] / p10[nnd[g, i] - 1 - j] % 10 + 48
+      for (fg, g, vg) in pv for (i) in 0 .. 7 for (j) in 0 .. 39
+      if ndnm[g, i] if nda[g, i] <= 0 - 1 if j <= nnd[g, i] - 1
+nch[g, nao[g, i] + j] <- atc[nda[g, i] - atb[0], j] for (fg, g, vg) in pv
+      for (i) in 0 .. 7 for (j) in 0 .. 31 if ndat[g, i]
+      if j <= atl[nda[g, i] - atb[0]] - 1
+nch[g, nao[g, i] + j] <- nch[ndag[g, i], j] for (fg, g, vg) in pv for (i) in 0 .. 7
+      for (j) in 0 .. 255 if isnd[g] if ndag[g, i] >= 0 if j <= nlen[ndag[g, i]] - 1
+# 項目の値が節なら、その字面
+field ivn : max bound 65536             # 項目の値の節
+ivn[t] <- vnd[ival[t]] for (t) in 0 .. nitz[0] if not iemp[t] if not isset[t]
+      if vis[ival[t]]
+field isnv : or bound 65536             # 項目の値は節
+isnv[t] <- true for (t) in 0 .. nitz[0] if ivn[t] >= 0
+
+# ── 集合の値: 元を **字面の順**（参照実装は str で並べる）に並べる ────────
+field isset : or bound 65536            # 値が集合（set の束）
+isset[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if flat_[ifld[t]] == 7
+field enum : max bound 65536 64         # 項目 t の q 番目の元（並びは表のまま）
+enum[t, q] <- e for (t) in 0 .. nitz[0] for (f, c, q, e) in ps if isset[t]
+      if item[t] == c
+field nel : max bound 65536             # 元の数
+nel[t] <- q + 1 for (t) in 0 .. nitz[0] for (f, c, q, e) in ps if isset[t]
+      if item[t] == c
+field eat : or bound 65536 64           # 元は原子
+eat[t, q] <- true for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if enum[t, q] >= atb[0]
+      if fatm[ifld[t], 3]
+field eav : max bound 65536 64          # 元の絶対値（数のとき）
+eav[t, q] <- enum[t, q] for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if not eat[t, q]
+      if enum[t, q] >= 0
+eav[t, q] <- 0 - enum[t, q] for (t) in 0 .. nitz[0] for (q) in 0 .. 63
+      if enum[t, q] <= 0 - 1
+field end_ : max bound 65536 64         # 元の桁数
+end_[t, q] <- 1 for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if eav[t, q] >= 0
+end_[t, q] <- k + 1 for (t) in 0 .. nitz[0] for (q) in 0 .. 63 for (k) in 1 .. 39
+      if eav[t, q] >= p10[k]
+field ech : max bound 65536 64 48       # 元の字面の j 文字目（数: 符号+桁 / 原子: 綴り）
+ech[t, q, 0] <- 45 for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if enum[t, q] <= 0 - 1
+ech[t, q, j] <- eav[t, q] / p10[end_[t, q] - 1 - j] % 10 + 48
+      for (t) in 0 .. nitz[0] for (q) in 0 .. 63 for (j) in 0 .. 39
+      if eav[t, q] >= 0 if enum[t, q] >= 0 if j <= end_[t, q] - 1
+ech[t, q, j + 1] <- eav[t, q] / p10[end_[t, q] - 1 - j] % 10 + 48
+      for (t) in 0 .. nitz[0] for (q) in 0 .. 63 for (j) in 0 .. 39
+      if eav[t, q] >= 0 if enum[t, q] <= 0 - 1 if j <= end_[t, q] - 1
+ech[t, q, j] <- atc[enum[t, q] - atb[0], j] for (t) in 0 .. nitz[0] for (q) in 0 .. 63
+      for (j) in 0 .. 31 if eat[t, q] if j <= atl[enum[t, q] - atb[0]] - 1
+field elen : max bound 65536 64         # 元の字面の長さ
+elen[t, q] <- end_[t, q] for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if enum[t, q] >= 0
+      if not eat[t, q]
+elen[t, q] <- end_[t, q] + 1 for (t) in 0 .. nitz[0] for (q) in 0 .. 63
+      if enum[t, q] <= 0 - 1
+elen[t, q] <- atl[enum[t, q] - atb[0]] for (t) in 0 .. nitz[0] for (q) in 0 .. 63
+      if eat[t, q]
+# 字面の順: 最初に違う文字で比べる。同じまま尽きた方（前置き）が小さい。
+field esame : or bound 65536 64 64 48   # j 文字目まで同じ
+esame[t, a, b, 0] <- true for (t) in 0 .. nitz[0] for (a) in 0 .. 63 for (b) in 0 .. 63
+      if ech[t, a, 0] == ech[t, b, 0]
+esame[t, a, b, j] <- true for (t) in 0 .. nitz[0] for (a) in 0 .. 63 for (b) in 0 .. 63
+      for (j) in 1 .. 47 if esame[t, a, b, j - 1] if ech[t, a, j] == ech[t, b, j]
+field eless : or bound 65536 64 64      # 元 a の字面は元 b より小さい
+eless[t, a, b] <- true for (t) in 0 .. nitz[0] for (a) in 0 .. 63 for (b) in 0 .. 63
+      if ech[t, a, 0] <= ech[t, b, 0] - 1
+eless[t, a, b] <- true for (t) in 0 .. nitz[0] for (a) in 0 .. 63 for (b) in 0 .. 63
+      for (j) in 1 .. 47 if esame[t, a, b, j - 1] if ech[t, a, j] <= ech[t, b, j] - 1
+eless[t, a, b] <- true for (t) in 0 .. nitz[0] for (a) in 0 .. 63 for (b) in 0 .. 63
+      if esame[t, a, b, elen[t, a] - 1] if elen[t, a] <= elen[t, b] - 1
+field erank : count bound 65536 64      # 元 q の順位（より小さい元の数）
+erank[t, q] <- 1 for (t) in 0 .. nitz[0] for (q) in 0 .. 63 for (a) in 0 .. 63
+      if eless[t, a, q]
+field erk : max bound 65536 64          # 順位（数えた値。無ければ 0）
+erk[t, q] <- 0 for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if isset[t]
+      if q <= nel[t] - 1
+erk[t, q] <- erank[t, q] for (t) in 0 .. nitz[0] for (q) in 0 .. 63 if isset[t]
+      if q <= nel[t] - 1
+# 順位 r の元を「数」の席 4+r に置く —— 字面は共通の道で出る
+num[t, 4 + erk[t, q]] <- enum[t, q] for (t) in 0 .. nitz[0] for (q) in 0 .. 63
+      if isset[t] if q <= nel[t] - 1
+field slc : max bound 65536 64          # 元 r までの長さ（鎖。区切りを含む）
+slc[t, 0] <- wl[t, 4] for (t) in 0 .. nitz[0] if isset[t]
+slc[t, r] <- slc[t, r - 1] + 2 + wl[t, 4 + r] for (t) in 0 .. nitz[0] for (r) in 1 .. 63
+      if isset[t] if r <= nel[t] - 1
+wl[t, 3] <- 2 + slc[t, nel[t] - 1] for (t) in 0 .. nitz[0] if isset[t] if nel[t] >= 1
+
+# ── 数の字面: 符号・絶対値・桁数 ────────────────────────────────────
+# 「数」は 座標（次元 d = 0..2）と値（d = 3）の四つ。原子ならその綴り。
+field num : max bound 65536 64          # 数（d 3 は値）
+num[t, d] <- key[t, d] for (t) in 0 .. nitz[0] for (d) in 0 .. 2
+      if not iemp[t] if d <= farr[ifld[t]] - 1
+num[t, 3] <- ival[t] for (t) in 0 .. nitz[0] if not iemp[t] if not isset[t]
+      if not isnv[t] if not istop[t] if not is4v[t]
+field fatm : or bound 1024 4            # 場 f の次元 d は原子
+fatm[f, d] <- true for (f, d) in fat
+field isat : or bound 65536 64          # 原子である（原子の次元で、基以上）
+isat[t, d] <- true for (t) in 0 .. nitz[0] for (d) in 0 .. 3 if num[t, d] >= atb[0]
+      if fatm[ifld[t], d]
+isat[t, d] <- true for (t) in 0 .. nitz[0] for (d) in 4 .. 63 if num[t, d] >= atb[0]
+      if fatm[ifld[t], 3]
+field istop : or bound 65536            # 値が ⊤（矛盾した升 —— 機械は 2^62 で言う）
+istop[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if not isset[t]
+      if ival[t] == 4611686018427387904
+field isbool : or bound 65536           # 値が true（or / fourv の束）
+isbool[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if flat_[ifld[t]] == 3
+      if not istop[t]
+field is4v : or bound 65536             # 値が fourv（T4 / F4 —— 参照実装の字面）
+is4v[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if flat_[ifld[t]] == 6
+      if not istop[t]
+field neg : or bound 65536 64           # 負
+neg[t, d] <- true for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if num[t, d] <= 0 - 1
+field av : max bound 65536 64           # 絶対値
+av[t, d] <- num[t, d] for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if not neg[t, d]
+      if not isat[t, d]
+av[t, d] <- 0 - num[t, d] for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if neg[t, d]
+field nd : max bound 65536 64           # 桁数
+nd[t, d] <- 1 for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if av[t, d] >= 0
+nd[t, d] <- k + 1 for (t) in 0 .. nitz[0] for (d) in 0 .. 63 for (k) in 1 .. 39
+      if av[t, d] >= p10[k]
+field dgt : max bound 65536 64 41        # 左から j 桁目の文字
+dgt[t, d, j] <- av[t, d] / p10[nd[t, d] - 1 - j] % 10 + 48
+      for (t) in 0 .. nitz[0] for (d) in 0 .. 63 for (j) in 0 .. 39
+      if av[t, d] >= 0 if j <= nd[t, d] - 1
+# 字面の長さ（数: 符号 + 桁 / 原子: 綴り / true: 4）
+field wl : max bound 65536 64           # 部品 d の字面の長さ
+wl[t, d] <- nd[t, d] for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if not neg[t, d]
+      if not isat[t, d] if av[t, d] >= 0
+wl[t, d] <- nd[t, d] + 1 for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if neg[t, d]
+wl[t, d] <- atl[num[t, d] - atb[0]] for (t) in 0 .. nitz[0] for (d) in 0 .. 63
+      if isat[t, d]
+wl[t, 3] <- 4 for (t) in 0 .. nitz[0] if isbool[t]
+wl[t, 3] <- 12 for (t) in 0 .. nitz[0] if istop[t]
+wl[t, 3] <- 2 for (t) in 0 .. nitz[0] if is4v[t]
+wl[t, 3] <- nlen[ivn[t]] for (t) in 0 .. nitz[0] if isnv[t]
+
+# ── 行の長さ: name + '[' + keys（", " 区切り）+ '] = ' + value + '\n' ──
+field kl : max bound 65536              # 座標の字面の長さ（区切りを含む）
+kl[t] <- 0 for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] == 0
+kl[t] <- wl[t, 0] for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] == 1
+kl[t] <- wl[t, 0] + 2 + wl[t, 1] for (t) in 0 .. nitz[0] if not iemp[t]
+      if farr[ifld[t]] == 2
+kl[t] <- wl[t, 0] + 2 + wl[t, 1] + 2 + wl[t, 2] for (t) in 0 .. nitz[0]
+      if not iemp[t] if farr[ifld[t]] == 3
+field ll : max bound 65536              # 行の長さ
+ll[t] <- fnl[ifld[t]] + 1 + kl[t] + 4 + wl[t, 3] + 1 for (t) in 0 .. nitz[0]
+      if not iemp[t]
+ll[t] <- fnl[ifld[t]] + 58 for (t) in 0 .. nitz[0] if iemp[t]
+field lp : max bound 65536              # 行の位置（鎖）
+lp[0] <- 0
+lp[t] <- lp[t-1] + ll[t-1] for (t) in 1 .. nitz[0]
+
+# ── 部品の位置 ────────────────────────────────────────────────────────
+field pk : max bound 65536 64           # 部品 d の位置
+pk[t, 0] <- lp[t] + fnl[ifld[t]] + 1 for (t) in 0 .. nitz[0] if not iemp[t]
+pk[t, 1] <- pk[t, 0] + wl[t, 0] + 2 for (t) in 0 .. nitz[0] if not iemp[t]
+      if farr[ifld[t]] >= 2
+pk[t, 2] <- pk[t, 1] + wl[t, 1] + 2 for (t) in 0 .. nitz[0] if not iemp[t]
+      if farr[ifld[t]] >= 3
+pk[t, 3] <- lp[t] + fnl[ifld[t]] + 1 + kl[t] + 4 for (t) in 0 .. nitz[0]
+      if not iemp[t]
+pk[t, 4] <- pk[t, 3] + 1 for (t) in 0 .. nitz[0] if isset[t]
+pk[t, 4 + r] <- pk[t, 3 + r] + wl[t, 3 + r] + 2 for (t) in 0 .. nitz[0] for (r) in 1 .. 63
+      if isset[t] if r <= nel[t] - 1
+
+# ── 出す ────────────────────────────────────────────────────────────
+field out : max
+# 名前
+out[lp[t] + k] <- fnc[ifld[t], k] for (t) in 0 .. nitz[0] for (k) in 0 .. 31
+      if k <= fnl[ifld[t]] - 1
+# '['  '] = '  '\n'
+out[lp[t] + fnl[ifld[t]]] <- 91 for (t) in 0 .. nitz[0] if not iemp[t]
+out[pk[t, 3] - 4] <- 93 for (t) in 0 .. nitz[0] if not iemp[t]
+out[pk[t, 3] - 3] <- 32 for (t) in 0 .. nitz[0] if not iemp[t]
+out[pk[t, 3] - 2] <- 61 for (t) in 0 .. nitz[0] if not iemp[t]
+out[pk[t, 3] - 1] <- 32 for (t) in 0 .. nitz[0] if not iemp[t]
+out[lp[t] + ll[t] - 1] <- 10 for (t) in 0 .. nitz[0]
+# 座標の区切り ", "
+out[pk[t, 1] - 2] <- 44 for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] >= 2
+out[pk[t, 1] - 1] <- 32 for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] >= 2
+out[pk[t, 2] - 2] <- 44 for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] >= 3
+out[pk[t, 2] - 1] <- 32 for (t) in 0 .. nitz[0] if not iemp[t] if farr[ifld[t]] >= 3
+# 数（符号 + 桁）
+field sgo : max bound 65536 64          # 桁の始まり（符号のぶん）
+sgo[t, d] <- pk[t, d] for (t) in 0 .. nitz[0] for (d) in 0 .. 2 if not neg[t, d]
+      if not isat[t, d] if av[t, d] >= 0
+sgo[t, 3] <- pk[t, 3] for (t) in 0 .. nitz[0] if not neg[t, 3]
+      if not isat[t, 3] if av[t, 3] >= 0 if not isbool[t] if not isset[t] if not isnv[t]
+sgo[t, d] <- pk[t, d] for (t) in 0 .. nitz[0] for (d) in 4 .. 63 if not neg[t, d]
+      if not isat[t, d] if av[t, d] >= 0
+sgo[t, d] <- pk[t, d] + 1 for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if neg[t, d]
+out[pk[t, d]] <- 45 for (t) in 0 .. nitz[0] for (d) in 0 .. 63 if neg[t, d]
+      if pk[t, d] >= 0
+out[sgo[t, d] + j] <- dgt[t, d, j] for (t) in 0 .. nitz[0] for (d) in 0 .. 63
+      for (j) in 0 .. 39 if sgo[t, d] >= 0 if j <= nd[t, d] - 1
+# 原子の綴り
+out[pk[t, d] + k] <- atc[num[t, d] - atb[0], k] for (t) in 0 .. nitz[0]
+      for (d) in 0 .. 63 for (k) in 0 .. 31 if isat[t, d] if pk[t, d] >= 0
+      if k <= atl[num[t, d] - atb[0]] - 1
+# 集合の { } と ", "
+out[pk[t, 3]] <- 123 for (t) in 0 .. nitz[0] if isset[t]
+out[pk[t, 3] + wl[t, 3] - 1] <- 125 for (t) in 0 .. nitz[0] if isset[t]
+out[pk[t, 4 + r] - 2] <- 44 for (t) in 0 .. nitz[0] for (r) in 1 .. 63 if isset[t]
+      if r <= nel[t] - 1
+out[pk[t, 4 + r] - 1] <- 32 for (t) in 0 .. nitz[0] for (r) in 1 .. 63 if isset[t]
+      if r <= nel[t] - 1
+# 構成した値
+out[pk[t, 3] + j] <- nch[ivn[t], j] for (t) in 0 .. nitz[0] for (j) in 0 .. 255
+      if isnv[t] if j <= nlen[ivn[t]] - 1
+# ⊤ CONFLICT
+table topc = (0,226),(1,138),(2,164),(3,32),(4,67),(5,79),(6,78),(7,70),(8,76),(9,73),(10,67),(11,84)
+out[pk[t, 3] + k] <- c for (t) in 0 .. nitz[0] for (k, c) in topc if istop[t]
+# T4 / F4
+out[pk[t, 3]] <- 84 for (t) in 0 .. nitz[0] if is4v[t] if ival[t] == 1
+out[pk[t, 3]] <- 70 for (t) in 0 .. nitz[0] if is4v[t] if ival[t] == 0
+out[pk[t, 3] + 1] <- 52 for (t) in 0 .. nitz[0] if is4v[t]
+# true
+out[pk[t, 3]] <- 116 for (t) in 0 .. nitz[0] if isbool[t]
+out[pk[t, 3] + 1] <- 114 for (t) in 0 .. nitz[0] if isbool[t]
+out[pk[t, 3] + 2] <- 117 for (t) in 0 .. nitz[0] if isbool[t]
+out[pk[t, 3] + 3] <- 101 for (t) in 0 .. nitz[0] if isbool[t]
+# 空の場: ": ⊥ everywhere (no coordinate reached a definite value)"
+table emp = (0,58),(1,32),(2,226),(3,138),(4,165),(5,32),(6,101),(7,118),(8,101),(9,114),(10,121),(11,119),(12,104),(13,101),(14,114),(15,101),(16,32),(17,40),(18,110),(19,111),(20,32),(21,99),(22,111),(23,111),(24,114),(25,100),(26,105),(27,110),(28,97),(29,116),(30,101),(31,32),(32,114),(33,101),(34,97),(35,99),(36,104),(37,101),(38,100),(39,32),(40,97),(41,32),(42,100),(43,101),(44,102),(45,105),(46,110),(47,105),(48,116),(49,101),(50,32),(51,118),(52,97),(53,108),(54,117),(55,101),(56,41)
+out[lp[t] + fnl[ifld[t]] + k] <- c for (t) in 0 .. nitz[0] for (k, c) in emp if iemp[t]
+render out
