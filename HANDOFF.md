@@ -202,16 +202,43 @@ fuse_plan を「源0 が表なら二本目以降は行の内側」に緩めて 2
 - budget は無視（2.7 で誤りとして扱う）。
 これらの字面変換（include/use/emit）は今は test/front.py の Python にある。
 配る形では Lattix の前々段（bytes → bytes）に移す —— 33_self の道具で書ける。
-残る本: 04_aggregate（機械側）、07/11（断られるべき）、24_space（i*j）、
-31_gen / 32_shape / 33_self（自己適用 —— sedc の `tval[] * fwid2[]` は
-読み×読みで通るようになったが、他の形が残っている。要調査）。
+**33_self.lx が家で完全一致（408 規則）し、通し運転も通った（3.4 秒）** ——
+前段の土台が、前段自身に読まれて機械で走った。道中で開いたもの:
+- 家のガード番号（zgn/zgkd）: 33_self の gno2 は点の道の cd の行番号（比較は
+  左右で二行）なので 8 席に 4 つしか入らなかった → if 節ごとに +1 で数え直す。
+- 空の区間（`for (s) in 1 .. nstz[0]` で nstz=0）を持つ文は実例が無い —— flat は
+  空間を作らず消し（幅 0 の軸は機械の割り算を壊す）、front は zlemp で家から
+  外し、種2 の空の軸は代表にしない。
+- 24_space（`comp[i * j]`、`if i * j <= n[]`）: 軸の一次式を枠に落とし（種11、
+  法 1）積を種10 で。座標は zdvv（枠108-110、写像63/119）、ガードの左辺は zgvv
+  （枠40+i/48+i/56+i、写像32+i/40+i）。flat の pcell/fcond は鎖の項を間接へ。
+- run.lx は `LATTIX_FROMJSON=1 python3 work/mkrun.py` で shapes.json から
+  書き直せる（測量なし、~20 分）。種11 は昇る束 × (>=, >) を数え上げ。**焼ける
+  大きさも資源**: 8GB で cc1 が落ちる（55MB の C）—— 形を増やすときは焼いて確かめる。
+- runtime.build: C は焼けてから本名に置く（gcc が落ちた後に古い実行ファイルを
+  使い続けていた）。実行ファイルが C より古ければ焼き直す。
 
-**読み × 読みを通した**（`f[x] * g[y]`。種10: pa の枠の積）。flat.py は加法の
-骨組みの上の「鎖の項」（_ischain / _chains）を pcell と同じ間接で wm へ運び、
-測定器は `pa[pb+t] <- pa[p1+t] * pa[p2+t]`（run.lx / engine2 に kd 10）。
-front.lx は左右を枠3・枠4 の写しに、積を枠107、wm の間接（zhprd / zprd1 /
-zprd2）。試験 work/t/z_prod.lx（BOOKS 60 本、二段の通し運転も ✓）。
-33_self の sedc（`c1 * 次元1の広さ + c2`）はこれで家になる。
+**第3段 show.lx が入った**: 面の値 → `name[k1, k2] = v` の字面。三段の通し運転
+（源 → front.lx → run.lx → show.lx）が `python3 lattix.py f.lx` の標準出力と
+**バイト一致**（`LATTIX_SHOW=1 python3 test/pipeline.py`）。test/show.py は
+参照の答え + flat の置き場で 37 本一致（print の無い本・render の本は外）。
+原子か数かは番号では分からない（値は座標の上端を越える）ので `fat (f, d)` で
+型を渡す —— **今は答えから作っている。前段が列の綴りと写しから出すのが宿題**。
+構成した値は引数場の DAG に沿った不動点で開く（深さ 8 の打ち切りは未実装）。
 
-**測定器の速さ**: 同じ C は二度焼かない（runtime.build に内容アドレスの
-ccache —— sha1(opt+csrc)。閉じの 10MB の C を表ごとに焼き直していた）。
+04_aggregate（count の形0、生きた sum/count の比較 = 種11）、07/11（断る本は
+前段も同じ行で断る: zerr/zerrl、部品の深さは取り込みが参照の parse に判じさせる）
+も通った —— **例の 34 本のうち 31_gen / 32_shape 以外は全部**、家で一致するか
+正しく断る（BOOKS 66 本）。
+
+自己適用（work/self_front.lx = 33_self+fold+front.lx）: flat 側が **解釈実行の
+閉じ**に落ちて終わらなかった —— 原因は前段の疎の場 `ztdk`（名前の鍵を座標に
+した 2 次元の疎の場）。一巡目の仮の広さ（2^63）が二次元で 2^126 になり、
+測定器（i64）の門（2^62）で解釈に落ちる。ztdk を「表ごとに引く」（ch × 表の数）
+に書き換えて外した。**前段は自分が家になる形で書く** —— 疎の場（bound の無い場）
+を前段に置かない。engine2.close_upto は溢れた表を /tmp/close_big.log に書く。
+再走中（閉じの C は 14MB、ccache で一度だけ焼く）。
+
+残る大物: 31_gen（x86 の焼き）は旧断片（rrule/grd/trm/crd）の生成器 —— 家の表
+（fg/fc/fp/mp）を焼く形に書き直す必要がある（第4段）。32_shape は旧前段で
+front.lx が置き換えた。

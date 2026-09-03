@@ -308,14 +308,16 @@ ztdn[nextw[t]] <- ztbs[snum[t]] for (t,zc) in ch if kwtbl[t] if sbrk[t]
       if ztbs[snum[t]] >= 0
 field zdnm : or bound 262144            # 表の宣言の名前トークン
 zdnm[nextw[t]] <- true for (t,zc) in ch if kwtbl[t] if sbrk[t]
-# 名前は **鍵で引く**（ch × ch の総当たりは 5 万字で 25 億 —— 気づき42:
-# 比べたい物そのものに名前を。宣言の鍵を座標にした場を一つ置く）
-field ztdk : max                        # 名前の鍵 → 表番号（宣言）
-ztdk[ztnk[t], ztnk2[t]] <- ztdn[t] for (t,zc) in ch if zdnm[t] if ztdn[t] >= 0
-      if ztnk[t] >= 1
+# 名前は **表ごとに引く**（ch × ch の総当たりは 5 万字で 25 億 —— 表の数は
+# 小さいので ch × 表。鍵を座標にした疎の場は、自分を家にするとき一巡目の
+# 仮の広さ（2^63）が測定器から溢れる —— 前段は自分が家になる形で書く）
+field ztbdt : max bound 64              # 表 tb の名前のトークン
+ztbdt[ztbs[snum[t]]] <- nextw[t] for (t,zc) in ch if kwtbl[t] if sbrk[t]
+      if ztbs[snum[t]] >= 0
 field ztbmt : max bound 262144          # 源の名前トークン → 表番号（鍵で引く）
-ztbmt[t] <- ztdk[ztnk[t], ztnk2[t]] for (t,zc) in ch if zisnm[t]
-      if not zdnm[t] if ztnk[t] >= 1
+ztbmt[t] <- tb for (t,zc) in ch for (tb) in 0 .. zntb[0] if zisnm[t]
+      if not zdnm[t] if ztbdt[tb] >= 0 if ztnk[t] == ztnk[ztbdt[tb]]
+      if ztnk2[t] == ztnk2[ztbdt[tb]]
 field zltb : max bound 2048             # 表のループ g → 表番号
 zltb[glno[t] - 1] <- ztbmt[int1[t]] for (t,zc) in ch if kwin[t]
       if not isnum[int1[t]] if ztbmt[int1[t]] >= 0 if glno[t] >= 1

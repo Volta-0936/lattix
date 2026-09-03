@@ -111,7 +111,8 @@ class Flatten:
         # **超段ごとに交代する** —— これは BSP の構造そのものである。
         self.closer = None                  # 層 k まで閉じる（engine2 が入れる）
         self.closed = {}                    # (場, 座標) → 閉じた値
-        self.closedany = {}                 # 同（どの面にあっても —— 区間の上端の最大のため）
+        self.closedany = {}
+        self.ename = {}                 # 同（どの面にあっても —— 区間の上端の最大のため）
         self.upto = -1                      # どこまで（辺の数）閉じてあるか
         self.ntmp = 0                       # 中間の升の数
         self.nid = 0                        # 辺の通し番号（中間の辺も同じ列に並ぶ）
@@ -914,6 +915,7 @@ class Flatten:
         # 升の数は変わらないが、表が規則の数に戻る（PLAN 6.8-2）。
         fcr = [self.fcond(q, sl, axes, st, sp, n) for q in r.guards]
         eid = self.newid()
+        self.ename[eid] = (r.target, getattr(r, 'lineno', -1))   # 辺 → 規則（調べるため）
         self.fg.append((eid, sp, st, lat, vf, len(srcs), dm, am, bm, wm))
         for row in fcr:
             self.fc.append((eid,) + row)

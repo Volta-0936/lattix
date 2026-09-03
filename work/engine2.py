@@ -373,6 +373,20 @@ def close_upto(fl):
         # の仮の上は、道具の語れる幅の中でだけ仮でいられる）。
         big = max((abs(v) for n in names for row in t[n] for v in row),
                   default=0)
+        if big >= (1 << 62):
+            # どの表が溢れたかを声に出す（解釈実行に落ちると大きな本は終わらない）
+            try:
+                bn = [(n, [row for row in t[n] if any(abs(v) >= (1 << 62) for v in row)][:2])
+                      for n in names if any(abs(v) >= (1 << 62) for row in t[n] for v in row)]
+                open('/tmp/close_big.log', 'a').write(f"k={k} {str(bn)[:400]}\n")
+                bigm = {row[0] for row in t['mp'] if any(abs(v) >= (1 << 62) for v in row)}
+                who = [(fl.ename.get(row[0]), row) for row in t['fg']
+                       if len(row) > 9 and any(x in bigm for x in row[6:10])]
+                who += [('fp', fl.ename.get(row[0]), row) for row in t['fp']
+                        if len(row) > 6 and row[6] in bigm]
+                open('/tmp/close_big.log', 'a').write(f"   who={str(who)[:600]}\n")
+            except Exception:
+                pass
         st2 = obs = None
         if big < (1 << 62) and os.environ.get('LATTIX_CLOSE_INTERP') != '1':
             # **閉じるのも測定器で走る。** 生成した engine は本ごとに違うが
