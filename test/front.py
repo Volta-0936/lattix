@@ -156,18 +156,18 @@ def expand_uses(text):
     import lattix as L
     comps, uses, out = {}, [], []
     cur = None
-    for raw in text.splitlines():
+    for lno, raw in enumerate(text.splitlines(), 1):
         t = L._strip_comment(raw).strip()
         head = t.split()[:1]
         if cur is not None:
             if head == ['end']:
                 comps[cur.name] = cur; cur = None
             else:
-                cur.body.append(raw)
+                cur.body.append((lno, raw))
             out.append('')
             continue
         if head == ['component']:
-            cur = L._parse_component_head(t, 0); out.append(''); continue
+            cur = L._parse_component_head(t, lno); out.append(''); continue
         if head == ['use']:
             uses.append(L._parse_use(t, 0)); out.append(''); continue
         out.append(raw)
@@ -183,13 +183,21 @@ def expand_uses(text):
 
     for name, args, pfx, _ln in uses:
         c = comps[name]
+        # 部品の深さの署名は取り込みの仕事（参照実装の _instantiate と同じ判断）。
+        # 取り込みが Python にある間は、参照実装の parse にそのまま判じさせる
+        # （この段が Lattix に移るとき、深さの検査も一緒に移る）。
+        if c.decl_depth is not None or c.decl_io is not None:
+            try:
+                L.parse(text)
+            except L.LattixError as ex:
+                if 'component' in str(ex): raise
         ren = {}
         for pname, (kind, val) in zip(c.params, args):
             ren[pname] = val if kind == 'name' else (str(val) if kind == 'int'
                                                      else f'"{val}"')
         # 場（local / field / source の順、次に出口）—— 参照実装と同じ順
         fields, srcs, body = [], {}, []
-        for raw in c.body:
+        for _lno, raw in c.body:
             t = L._strip_comment(raw).strip()
             if not t: continue
             head = t.split()[:1]
@@ -495,6 +503,7 @@ BOOKS = [
     'examples/10_library.lx', 'examples/12_world.lx', 'examples/13_budget.lx',
     'examples/14_iosig.lx', 'examples/30_build.lx', 'work/t/z_prod.lx',
     'work/t/z_cont3.lx', 'examples/24_space.lx', 'examples/33_self.lx',
+    'examples/07_illposed.lx', 'examples/11_badsig.lx', 'examples/04_aggregate.lx',
 ]
 
 if __name__ == '__main__':
@@ -506,7 +515,25 @@ if __name__ == '__main__':
     for f in files:
         n = os.path.basename(f)
         try:
-            dat2, spc2, ssz2, fl, ffg, ffc, ffp, fmaps, fate = run_flat(f)
+            try:
+                dat2, spc2, ssz2, fl, ffg, ffc, ffp, fmaps, fate = run_flat(f)
+            except Exception as rex:
+                import lattix as _L
+                if not isinstance(rex, _L.LattixError): raise
+                # 参照実装が断る本 —— 前段も同じ行で断らなければならない
+                m = re.search(r'line (\d+)', str(rex)); rline = int(m.group(1)) if m else None
+                try:
+                    _d, _s, _z, g = run_front(f)
+                    zerr = g('zerra'); fline = min(g('zerrl').values(), default=None)
+                    rej = bool(zerr)
+                except _L.LattixError as fex:
+                    m2 = re.search(r'line (\d+)', str(fex))
+                    fline = int(m2.group(1)) if m2 else None; rej = True
+                if rej and (rline is None or fline == rline):
+                    ok += 1; print(f"  {n:<22} ✓  断る（行 {fline}）: {str(rex)[:40]}", flush=True)
+                else:
+                    bad += 1; print(f"  {n:<22} ✗  参照は断る（行 {rline}）が前段は {'行 '+str(fline) if rej else '通す'}", flush=True)
+                continue
             if fl.nofam:
                 skip += 1
                 print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)

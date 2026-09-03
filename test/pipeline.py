@@ -108,7 +108,7 @@ def one(info, path):
             if sx != B.NS - 1: continue
             try: f, keys = fl.name_of(c)
             except (KeyError, IndexError): continue
-            out.setdefault(f, {})[keys] = fl.obs(v)
+            out.setdefault(f, {})[keys] = fl.obs(v, f)
     for f in (p.prints or list(p.fields)):
         if dict(ref.get(f, {})) != out.get(f, {}):
             return 'diff', f

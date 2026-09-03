@@ -141,6 +141,17 @@ zlvg[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126
 field zlevg : max bound 4096
 zlevg[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if zlvg[s, k]
 
+# ── 誤りの報告（PLAN 2.7）—— 断るべき本は断る。行と理由を場に置く ────────
+# 種1: 成層できない（否定を跨いで自分に戻る —— 層が 127 を超える）。
+# 参照実装は「recursion through a non-monotone dep」で断る。行は輪の最初の文。
+field zerr : max bound 4096             # 文 s の誤りの種（0 無し / 1 成層できない）
+zerr[s] <- 1 for (s) in 0 .. nstz[0] if zlvl[s, 127]
+field zerrl : min bound 8               # 誤りの行（最初の文の行）
+zerrl[zerr[s]] <- tline[hotok[s]] for (s) in 0 .. nstz[0] if zerr[s] >= 1
+      if hotok[s] >= 0
+field zerra : or bound 1                # 誤りがある（家の表は読むな）
+zerra[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if zerr[s] >= 1
+
 # ── 家の規則 = 矢印のある文（種も規則も同じ扱い —— 点が一つの空間） ──
 field zisr : or bound 4096              # 文 s は家の規則になる
 # 空の区間（`for (s) in 1 .. nstz[0]` で nstz が 0）を持つ文は実例が無い ——

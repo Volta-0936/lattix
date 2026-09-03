@@ -474,7 +474,7 @@ if __name__ == '__main__':
             if sx != ns - 1: continue
             try: f, keys = fl.name_of(c)
             except (KeyError, IndexError): continue
-            got.setdefault(f, {})[keys] = fl.obs(q.fields[nmf].observe(v))
+            got.setdefault(f, {})[keys] = fl.obs(q.fields[nmf].observe(v), f)
     ok = True
     for f in (p.prints or list(p.fields)):
         a = dict(ref.get(f, {})); b = got.get(f, {})

@@ -107,6 +107,7 @@ def family_shapes():
         fsh.add((lt, 0, 0)); fsh.add((lt, 1, 1)); fsh.add((lt, 1, 2))
     for lt in PLANE:
         fsh.add((lt, 4, 1))
+    fsh.add((9, 0, 0))                  # count は値を数えない（`orders[c] <- v` の形0）
     for lt in (3, 4, 9):
         fsh.add((lt, 2, 0))
     for lt in (4, 6):
@@ -127,7 +128,8 @@ def family_shapes():
     # flat/fourv の比較は pa を通る種1 なので種11 には来ない。下る束（min/and）は
     # 測量に任せる（コーパスに無い形を増やすと、焼く C が記憶に収まらない —— 8GB で
     # cc1 が落ちた。形は言語の側から数えるが、**焼ける大きさも資源**である）。
-    for lt, ops in ((2, (3, 5)), (3, (3, 5))):
+    # sum / count も育つ一方なので `>=` `>` は単調（04_aggregate の revenue[c] > 100）
+    for lt, ops in ((2, (3, 5)), (3, (3, 5)), (8, (3, 5)), (9, (3, 5))):
         for op in ops:
             fcsh.add((11, lt, op, 0))
     for lt in PLANE:

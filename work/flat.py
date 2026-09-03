@@ -681,7 +681,7 @@ class Flatten:
             if any(self.flat[f] != lt for f in fl):
                 raise NotImplementedError("多面体のガードで束が混ざる")
             k = 1 if all(self.fstr.get(f, -1) >= st for f in fl) else 0
-            if k and lt in (8, 9, 10): k = 0
+            if k and lt == 10: k = 0     # sum/count は育つ一方 —— 生きた比較は単調（run.lx が成層する）
             if not k and st == 0:
                 raise NotImplementedError("層 0 で閉じた値を問うている")
             if not k:
@@ -1153,8 +1153,12 @@ class Flatten:
             i = len(self.atl); self.atn[v] = i; self.atl.append(v)
         return self.ATOMB + i
 
-    def obs(self, v):
-        """面の値 → 見せる値。原子の番号を綴りに戻す。"""
+    def obs(self, v, f=None):
+        """面の値 → 見せる値。原子の番号を綴りに戻す。
+        数える束（sum / count）の値は数であって原子ではない —— 原子の番号と
+        重なっても（04_aggregate の orders = 3 と q1）綴りに戻さない。"""
+        if f is not None and self.flat.get(f) in (8, 9):
+            return v
         if isinstance(v, frozenset):
             return frozenset(self.obs(x) for x in v)
         if isinstance(v, int) and not isinstance(v, bool) and v >= self.ATOMB:

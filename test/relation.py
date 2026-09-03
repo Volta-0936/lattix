@@ -32,7 +32,7 @@ def one(path):
             if sx != ns - 1: continue
             try: f, keys = fl.name_of(c)
             except (KeyError, IndexError): continue
-            got.setdefault(f, {})[keys] = fl.obs(q.fields[nm].observe(v))
+            got.setdefault(f, {})[keys] = fl.obs(q.fields[nm].observe(v), f)
     for f in (p.prints or list(p.fields)):
         if dict(ref.get(f, {})) != got.get(f, {}):
             return 'diff', f

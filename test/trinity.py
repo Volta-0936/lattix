@@ -113,7 +113,7 @@ def faces(path, info, ddir):
                 if sx != NS - 1: continue
                 try: f, keys = fl.name_of(c)
                 except (KeyError, IndexError): continue
-                ans.setdefault(f, {})[keys] = fl.obs(v)
+                ans.setdefault(f, {})[keys] = fl.obs(v, f)
         out.append((f"{'点' if fm == BIG else '家'}", ans, len(fl.fg), len(fl.eg)))
     return out
 
