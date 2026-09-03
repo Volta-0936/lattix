@@ -1,0 +1,16 @@
+# 閉じた max と 生きた min の比較 —— `hi[i] >= lo[i]`（+ 定数）。
+# 束が混ざっているのではなく層が混ざっている: 閉じた側は pa に写し、
+# 生きた min を左に置いて向きを返す（`lo <= hi - c`、種11・束1・<=）。
+field hi : max bound 8
+hi[i] <- i * 2 for (i) in 0 .. 7
+field zz : or bound 8
+zz[i] <- true for (i) in 0 .. 7 if hi[i] >= 13
+field lo : min bound 8
+lo[i] <- 10 - i for (i) in 0 .. 7 if not zz[i]
+lo[i] <- 3 for (i) in 0 .. 7 if w[i] >= 100
+field w : max bound 8
+w[i] <- hi[i] - lo[i] + 1 for (i) in 0 .. 7 if hi[i] >= lo[i] if not zz[i]
+field w2 : max bound 8
+w2[i] <- hi[i] - lo[i] for (i) in 0 .. 7 if hi[i] >= lo[i] + 1 if not zz[i]
+print w
+print w2

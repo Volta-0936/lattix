@@ -1005,7 +1005,26 @@ zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
 zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
       if trkd[snum[t], tcnt[t]] == 3 if zco6[t]
 zmisl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
-      if trkd[snum[t], tcnt[t]] == 9
+      if trkd[snum[t], tcnt[t]] == 9 if not zoppl[t]
+# ── 向きの逆な束を、生きたまま引く（vf 6）────────────────────────────
+# `hi[f] - lo[f] + 1`（max が生きた min を引く）。下るほど値は上がるので
+# 単調だが、pa（flat）には写せない（下る値は ⊥ → v → v' と動く）——
+# 面から直に読む。am がその読み、同じ束の読み一本は bm（n = 2）。
+field zoppl : or bound 524288           # 引かれた読みの項で、束が逆向き・生きている
+zoppl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
+      if trkd[snum[t], tcnt[t]] == 9 if not zco6[t] if not zprd1[t]
+      if ztml[t] == 1 if zrlat[t] == 2
+      if zfws[ofl[oseq[t]] - 1] >= zfgst[zrn[snum[t]]]
+zoppl[t] <- true for (t,zc) in ch if istrm[t] if not zchn[snum[t]]
+      if trkd[snum[t], tcnt[t]] == 9 if not zco6[t] if not zprd1[t]
+      if ztml[t] == 2 if zrlat[t] == 1
+      if zfws[ofl[oseq[t]] - 1] >= zfgst[zrn[snum[t]]]
+field zopp : min bound 4096             # 規則 r の逆向きの生きた読み（出現）
+zopp[zrn[snum[t]]] <- oseq[t] for (t,zc) in ch if zoppl[t]
+      if zrn[snum[t]] >= 0
+field zhopp : or bound 4096             # 規則 r は逆向きの生きた読みを持つ
+zhopp[zrn[snum[t]]] <- true for (t,zc) in ch if zoppl[t]
+      if zrn[snum[t]] >= 0
 # ── 読み × 読み（`f[x] * g[y]`、flat.py の鎖の項 / 種10 の枠の積）────────
 # 左右の読みは枠3・枠4 の写し（zmis / zmis2 —— 束ちがいの読みと同じ道）、
 # 積は枠107（種10: pa[p1]·pa[p2]）、wm の間接はその積を一本で読む。
@@ -1063,6 +1082,7 @@ zhasm[zrn[snum[t]]] <- true for (t,zc) in ch if zmisl[t]
 field zhasa : or bound 4096             # 同束の読みがある
 zhasa[zrn[snum[t]]] <- true for (t,zc) in ch if zsamel[t]
       if zrn[snum[t]] >= 0
+zhasa[r] <- true for (r) in 0 .. znrm[0] if zhopp[r]   # 逆向きの読みも直の読み（am）
 
 # ── 値の鎖（読みに定数の * / % を外へ重ねた形） ─────────────────────
 # `imm[i] / 256 % 256` は pa の変換の鎖になる —— 掛けは間接の係数に畳め、
@@ -1250,6 +1270,11 @@ zrdq[zchpoc[s]] <- zchr[s] * 128 + 58 for (s) in 0 .. nstz[0] if zchpp[s]
 # zrdm[o] = その読みの写像を置いた枠（m 番号）。書くのは使う側の規則。
 field zrdq : max bound 8192             # 出現 o の読みの写像を置く枠（m 番号）
 zrdq[zam[r]] <- r * 128 + 1 for (r) in 0 .. znrm[0] if zhasa[r]
+      if zam[r] >= 0
+# vf 6: am は逆向きの生きた読み、同じ束の読みは bm へ（max なので 2 が勝つ）
+zrdq[zopp[r]] <- r * 128 + 1 for (r) in 0 .. znrm[0] if zhopp[r]
+      if zopp[r] >= 0
+zrdq[zam[r]] <- r * 128 + 2 for (r) in 0 .. znrm[0] if zhopp[r]
       if zam[r] >= 0
 zrdq[zam2[r]] <- r * 128 + 2 for (r) in 0 .. znrm[0] if zhasa[r]
       if zns[r] == 2 if zam2[r] >= 0
@@ -2174,6 +2199,56 @@ zfplt[zgrul[s, i], 32 + i] <- 0 - 5 for (s) in 0 .. nstz[0]
       if zfws[zglfd[s, i]] >= zfgst[zgrul[s, i]]
 zfpam[zgrul[s, i], 32 + i] <- zgrul[s, i] * 128 + 10 + 3 * i for (s) in 0 .. nstz[0]
       for (i) in 0 .. 7 if zbf[s, i] if zgrul[s, i] >= 0
+# ── 左が閉じた読み、右が生きた読み一本（＋定数）: `hi[f] >= lo[f] + c` ──
+# 束が混ざっているのではなく層が混ざっている。閉じた側は pa に写せるので、
+# 生きた読みを左に置いて向きを返す（`lo <= hi - c`）—— 種11、cm は右の
+# 読みの写像そのもの、wm は 定数 −c + 間接（左の読みの枠 32+i）。
+field zbxl : or bound 4096 8
+zbxl[s, i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zglf[s, i] if zgrf[s, i] if zbfl[s, i] if not zgrf2[s, i]
+      if not zgrhv[s, i] if zgrfd[s, i] >= 0
+      if not zokf[zgrfd[s, i], zfgst[zgrul[s, i]]]
+zfck[s, i] <- 11 for (s) in 0 .. nstz[0] for (i) in 0 .. 7 if zbxl[s, i]
+zfclt[s, i] <- zlatf[zgrfd[s, i]] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i]
+zfcop[s, i] <- zgop[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgop[s, i] <= 2
+zfcop[s, i] <- 4 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgop[s, i] == 3
+zfcop[s, i] <- 3 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgop[s, i] == 4
+zfcop[s, i] <- 6 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgop[s, i] == 5
+zfcop[s, i] <- 5 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgop[s, i] == 6
+zrdq[zgro[s, i]] <- zgrul[s, i] * 128 + 8 + 3 * i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zbxl[s, i] if zgro[s, i] >= 0 if zgrul[s, i] >= 0
+zfpu[zgrul[s, i], 32 + i] <- true for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zbxl[s, i] if zgrul[s, i] >= 0
+zrdq[zglo[s, i]] <- zgrul[s, i] * 128 + 10 + 3 * i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zbxl[s, i] if zglo[s, i] >= 0 if zgrul[s, i] >= 0
+zfplt[zgrul[s, i], 32 + i] <- zlatf[zglfd[s, i]] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zbxl[s, i] if zgrul[s, i] >= 0 if zglfd[s, i] >= 0
+      if zfws[zglfd[s, i]] <= zfgst[zgrul[s, i]] - 1
+zfplt[zgrul[s, i], 32 + i] <- 0 - 5 for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zbxl[s, i] if zgrul[s, i] >= 0 if zglfd[s, i] >= 0
+      if zlatf[zglfd[s, i]] == 5
+      if zfws[zglfd[s, i]] >= zfgst[zgrul[s, i]]
+zfpam[zgrul[s, i], 32 + i] <- zgrul[s, i] * 128 + 10 + 3 * i for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zbxl[s, i] if zgrul[s, i] >= 0
+zmn[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zbxl[s, i]
+zmc[zgm2[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zbxl[s, i] if not zgrhc[s, i]
+zmc[zgm2[s, i]] <- 0 - zgrst[s, i] for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zbxl[s, i] if zgrhc[s, i]
+zmia[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zbxl[s, i]
+zmib[zgm2[s, i]] <- zfpb[zgrul[s, i], 32 + i] for (s) in 0 .. nstz[0]
+      for (i) in 0 .. 7 if zgm2[s, i] >= 1 if zbxl[s, i]
+      if zgrul[s, i] >= 0 if zfpb[zgrul[s, i], 32 + i] >= 1
+zmiu[zgm2[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
+      if zgm2[s, i] >= 1 if zbxl[s, i]
 # 右辺の区域（演算子の後ろ・同じ節・深さ0）の項を拾う
 field zclot : max bound 262144          # 大域の節 → 比較の演算子のトークン
 zclot[gcl[t]] <- t for (t,zc) in ch if iscmp2[t]
@@ -2512,7 +2587,7 @@ zmn[zgm[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if not zgch[s, i] if not zgfl[s, i] if not zgcha[s, i]
 zmc[zgm[s, i]] <- 0 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm[s, i] >= 1 if zgl[s, i] >= 0 if not isnum[zgl[s, i]]
-      if not zgfl[s, i]
+      if not zgfl[s, i] if not zbxl[s, i]
 zmn[zgm[s, i]] <- 1 for (s) in 0 .. nstz[0] for (i) in 0 .. 7
       if zgm[s, i] >= 1 if zgl[s, i] >= 0 if not isnum[zgl[s, i]]
       if not zglf[s, i] if not zgfl[s, i]
@@ -2643,9 +2718,12 @@ zfgvf[zrn[s]] <- 4 for (s) in 0 .. nstz[0] if zisr[s] if not ztrue[s]
       if zrn[s] >= 0 if zone1[zrn[s]]
 zfgvf[zrn[s]] <- 0 for (s) in 0 .. nstz[0] if zisr[s] if not ztrue[s]
       if zrn[s] >= 0 if not zhasa[zrn[s]]
+zfgvf[r] <- 6 for (r) in 0 .. znrm[0] if zhopp[r]    # 逆向きの生きた読みを引く
 field zfgns : max bound 4096
 zfgns[r] <- zns[r] for (r) in 0 .. znrm[0] if zns[r] >= 1
 zfgns[r] <- 0 for (r) in 0 .. znrm[0] if not zhasa[r]
+zfgns[r] <- zns[r] + 1 for (r) in 0 .. znrm[0] if zhopp[r] if zns[r] >= 1
+zfgns[r] <- 1 for (r) in 0 .. znrm[0] if zhopp[r]
 
 print zfgst
 print zfglat

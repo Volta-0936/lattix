@@ -233,10 +233,11 @@ class Flatten:
             if hi - lo + 1 > (1 << 20):
                 raise NotImplementedError("多面体にできない区間")
             base = self.nrow
-            for i in range(hi - lo + 1):
+            n = max(0, hi - lo + 1)          # 空の区間（1 .. -1）は幅 0。行を戻さない
+            for i in range(n):
                 self.dat.append((base + i, 0, lo + i))
-            self.nrow += hi - lo + 1
-            self.reg[key] = (base, hi - lo + 1, 1)
+            self.nrow += n
+            self.reg[key] = (base, n, 1)
             self.rng[(base, 0)] = (lo, hi)
         return self.reg[key]
 
@@ -677,24 +678,46 @@ class Flatten:
                 while len(ivs) < 2: ivs.append((0, 0, 0))
                 return (sp, st, 1, 0, cm, OP[op], 0,
                         zero, zero, self.mapof(c, ss, axes, ivs[0], ivs[1]))
-            # 生きた非 flat の比較（単調な問い）だけが面に残る（種11）
+            # 生きた非 flat の比較（単調な問い）だけが面に残る（種11）。
+            # **閉じた読みは pa に写せる**のだから、生きた読みだけが面に残る
+            # （`zexth[f] >= zextl[f]` —— 閉じた max と生きた min。混ざっている
+            # のは束ではなく層であり、閉じた側は写像の間接で運べばよい）。
+            def live(f):
+                return self.flat[f] != 5 and self.fstr.get(f, -1) >= st
+            if not live(a[1]):
+                # 左が閉じていて右に生きた直読みがあるなら、生きた方を左に
+                # 移す: `a op c + x` ⇔ `x FLIP(op) a - c`、`a op c - x` ⇔
+                # `x op c - a`（負号は向きを返す）。
+                xs = [x for x in rb if not _ischain(x) and live(x[1])
+                      and _coef(b, x) == 1]
+                if not xs:
+                    if st == 0:
+                        raise NotImplementedError("層 0 で閉じた値を問うている")
+                    raise NotImplementedError("閉じた読みと生きた読みが混ざる比較")
+                x = xs[0]
+                rest = _drop(b, x)
+                if len(rb) > 1 or self.affine(rest, sl)[1]:
+                    raise NotImplementedError("閉じた読みと生きた読みが混ざる比較")
+                q2 = ('cmp', self.FLIP[op], x, ('bin', '-', a, rest))
+                return self.fcond(q2, sl, axes, st, sp, npt)
             lt = self.flat[a[1]]
-            if any(self.flat[f] != lt for f in fl):
+            rr = [x for x in rb if not _ischain(x) and live(x[1])]   # 面の直読み
+            rq = [x for x in rb if not _ischain(x) and not live(x[1])]  # 閉じた読み → pa
+            rc = [x for x in rb if _ischain(x)]          # 鎖の項は wm の間接へ
+            if any(self.flat[x[1]] != lt for x in rr):
                 raise NotImplementedError("多面体のガードで束が混ざる")
-            k = 1 if all(self.fstr.get(f, -1) >= st for f in fl) else 0
-            if k and lt == 10: k = 0     # sum/count は育つ一方 —— 生きた比較は単調（run.lx が成層する）
-            if not k and st == 0:
-                raise NotImplementedError("層 0 で閉じた値を問うている")
-            if not k:
+            if lt == 10:
                 raise NotImplementedError("閉じた読みと生きた読みが混ざる比較")
             cm = self.pmapcell(a[1], a[2], sl, axes, st, sp, npt)
-            rr = [x for x in rb if not _ischain(x)]      # 面の直読み
-            rc = [x for x in rb if _ischain(x)]          # 鎖の項は wm の間接へ
             rm = [self.pmapcell(x[1], x[2], sl, axes, st, sp, npt)
                   for x in rr] + [zero, zero]
             c, ss = self.affine(_strip(b, rb), sl)
             ivs = [(iv[0] * _coef(b, x), iv[1], iv[2]) for x in rc
                    for iv in [self.pchain(x, sl, axes, st, sp, npt)]]
+            ivs += [(iv[0] * _coef(b, x), iv[1], iv[2]) for x in rq
+                    for iv in [self.pcell(x, sl, axes, st, sp, npt)[2]]]
+            if len(ivs) > 2:
+                raise NotImplementedError("多面体のガードの右辺の間接が三つ以上")
             while len(ivs) < 2: ivs.append((0, 0, 0))
             return (sp, st, 11, lt, cm, OP[op], len(rr),
                     rm[0], rm[1], self.mapof(c, ss, axes, ivs[0], ivs[1]))
@@ -835,6 +858,20 @@ class Flatten:
             if mis and lat not in ARITH and (srcs or len(fl) + len(chs) > 1):
                 raise _NoFam('数でない束に読みがある')
             vf = 1 if srcs else 0
+            # **向きの逆な束を、生きたまま引く**（`hi - lo + 1` —— max が生きた
+            # min を引く）。下るほど値は上がるので単調だが、pa（flat）には
+            # 写せない（下る値は ⊥ → v → v' と動く）。面から直に読む（vf 6）。
+            opp = [x for x in mis if not _ischain(x)
+                   and self.flat[x[1]] == {1: 2, 2: 1}.get(lat, 0)
+                   and self.fstr.get(x[1], -1) >= st and _coef(e, x) == -1]
+            if opp:
+                if len(opp) > 1:
+                    raise _NoFam('向きの逆な生きた読みが二つ')
+                if len(srcs) > 1:
+                    raise _NoFam('逆向きの読みと同じ束の読み二つ')
+                # am は逆の面の読み、同じ束の直の読み一本は bm（n = 2）
+                mis = [x for x in mis if x is not opp[0]]
+                srcs, vf = [opp[0]] + srcs, 6
         if len(srcs) > 2: raise _NoFam('読みが三つ以上')
         if len(mis) > 2: raise _NoFam('束の合わない読みが三つ以上')
         # **空の軸を持つ規則は実例が無い**（`for (s) in 1 .. nstz[0]` で
@@ -860,7 +897,8 @@ class Flatten:
             # 他の規則は家のまま —— そちらの測りは区間算術で、前段
             # （front.lx）が静的に写せる形に保つ。
             raise _NoFam('※一巡目は点で測る（値で決まる座標）')
-        if r.sources and n < FAMILY_MIN: raise _NoFam('※空間が小さい（選択）')
+        if r.sources and n < FAMILY_MIN and vf != 6:
+            raise _NoFam('※空間が小さい（選択）')   # vf 6 は点の道に無い（選択ではない）
         sl = self.slots(r)
         if any(x[1] not in self.lay for x in srcs): raise _NoFam('読む場が密でない')
         dm = self.pmapcell(r.target, r.keys, sl, axes, st, sp, n)
@@ -893,7 +931,7 @@ class Flatten:
                                 (e[1] == '*' and not _addok(e))):
             iv = self.pchain(e, sl, axes, st, sp, n)
             wm = self.mapof(0, [], axes, iv)
-        elif vf in (0, 1):
+        elif vf in (0, 1, 6):
             rest = _strip(e, srcs + mis)
             c, ss = self.affine(rest, sl)
             # **原子の値も番号である。** dat に置いた番号（ATOMB + i）が
@@ -1217,6 +1255,14 @@ class Flatten:
                 out.append((l, q)); continue
             if st <= 0:
                 raise NotImplementedError("層 0 で他の束を読んでいる")
+            try:
+                f0 = self.name_of(self.cellof(q))[0]
+            except Exception:
+                f0 = None
+            if f0 is not None and self.flat.get(f0) != 5 \
+                    and self.fstr.get(f0, -1) >= st:
+                # 閉じた面には居ない値を閉じた面から写すことになる（黙って違う答え）
+                raise NotImplementedError(f"`{f0}` は同じ層で育つので他の束へ写せない")
             t = self.tmp(lat)
             self.eg.append((self.newid(), st, lat, t, 4, 1, q, -l, 0, 0))
             out.append((lat, t))
@@ -1796,6 +1842,14 @@ def _coef(e, g, sign=1):
                     c = _coef(a, g, sign)
                     if c: return c * b[1]
     return 0
+
+
+def _drop(e, g):
+    """加法の枝から読み `g` だけを 0 に置き換える（他の読みは残す）。"""
+    if e is g: return ('int', 0)
+    if isinstance(e, tuple) and e and e[0] == 'bin':
+        return (e[0], e[1], _drop(e[2], g), _drop(e[3], g))
+    return e
 
 
 def _strip(e, srcs):

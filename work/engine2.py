@@ -252,10 +252,12 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 V = f"v{pl}[s," if kk != 1 else f"v{pl}[s - 1,"
                 C = _map('cm', PS)
                 if kk == 11:
-                    rhs = {0: _map('wm'),
-                           1: f"{V} {_map('r1', PS)}] + {_map('wm')}",
+                    # wm は間接（閉じた読みを pa に写した物）も運ぶ ——
+                    # `lo <= hi - 1`（閉じた max と生きた min の比較を反転した形）
+                    rhs = {0: _map('wm', PS),
+                           1: f"{V} {_map('r1', PS)}] + {_map('wm', PS)}",
                            2: (f"{V} {_map('r1', PS)}] + {V} {_map('r2', PS)}] + "
-                               f"{_map('wm')}")}[n]
+                               f"{_map('wm', PS)}")}[n]
                     A(f"fn[s, e, t] <- true   {G} if op == {op} if n == {n} "
                       f"if {V} {C}] {IOP[op]} {rhs}")
                 elif kk == 2: A(f"fn[s, e, t] <- true   {G} if not v{pl}[s - 1, {C}]")
@@ -291,6 +293,17 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             elif vf == 1 and n == 2:
                 A(f"{D} <- v{pl}[s, {_map('am', PS)}] + v{pl}[s, {_map('bm', PS)}] "
                   f"+ {_map('wm', PS)}   {g} if n == 2")
+            elif vf == 6:
+                # **向きの逆な束を引く**（`hi - lo + 1` —— max が生きた min を
+                # 引く）。min が下るほど値は上がるので単調。pa（flat）は生きた
+                # 下る値を写せないから、面から直に読む（am）。同じ束の直の
+                # 読み一本は bm（n = 2）。
+                op = {1: 2, 2: 1}[lt]
+                neg = f"v{PLANE[op][0]}[s, {_map('am', PS)}]"
+                if n == 1:
+                    A(f"{D} <- {_map('wm', PS)} - {neg}   {g} if n == 1")
+                else:
+                    A(f"{D} <- v{pl}[s, {_map('bm', PS)}] + {_map('wm', PS)} - {neg}   {g} if n == 2")
 
     A("# ── 寄与。これが全部である。──────────────────────────────")
     for (lt, vf, n, la) in vals:
@@ -408,8 +421,19 @@ def close_upto(fl):
                 # 測定器の出力は **もう観測済みの数**である —— observe を
                 # 二重にかけない（sum の閉じ値が落ちて x_sumstrata が割れた）
                 obs = {f: (lambda v: v) for f in info['prog'].fields}
-            except N.Unsupported:
+            except N.Unsupported as ex:
                 st2 = obs = None
+                try:
+                    open('/tmp/close_unsup.log', 'a').write(f"k={k} {str(ex)[:600]}\n")
+                    seen_ = {}; dup = []
+                    for row in t['dat']:
+                        kk = (row[0], row[1])
+                        if kk in seen_ and seen_[kk] != row[2]: dup.append((row, seen_[kk]))
+                        seen_[kk] = row[2]
+                    open('/tmp/close_unsup.log', 'a').write(f"   dat dup {len(dup)}: {str(dup[:6])[:500]}\n")
+                    open('/tmp/close_unsup.log', 'a').write(f"   reg {str(sorted(fl.reg.items(), key=lambda kv: kv[1][0])[-6:])[:900]}\n")
+                except Exception as ex2:
+                    open('/tmp/close_unsup.log', 'a').write(f"   (log failed {ex2})\n")
         if st2 is None:
             # 逃げ道: 解釈実行（遅い。測定器が語れない・疑わしいときだけ）
             q = L.parse(eng); L.check(q); L.stratify(q)
