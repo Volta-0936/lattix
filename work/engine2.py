@@ -355,6 +355,35 @@ def tbl(n, rows):
     return "table %s = %s\n" % (n, ", ".join("(" + ",".join(map(_lit, r)) + ")" for r in rows))
 
 
+def _hint_path(fl):
+    d = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     '_gen', 'close', 'hints')
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, getattr(fl, 'srcsha', 'nosrc') + '.json')
+
+
+def _hint_load(fl):
+    """本ごとの覚え書き: これまでに見た広さの最大と形の和。器を一度で焼くため。"""
+    import json
+    try:
+        with open(_hint_path(fl), encoding='utf-8') as fp:
+            h = json.load(fp)
+        if 'sizes' in h and 'shapes' in h: return h
+    except Exception:
+        pass
+    return {'sizes': {}, 'shapes': {}}
+
+
+def _hint_save(fl, hint):
+    import json
+    try:
+        p = _hint_path(fl); tmp = p + f'.{os.getpid()}'
+        with open(tmp, 'w', encoding='utf-8') as fp: json.dump(hint, fp)
+        os.replace(tmp, p)
+    except Exception:
+        pass
+
+
 def close_upto(fl):
     """層 k まで **走らせる物で**閉じて、値を前段に返す。
 
@@ -368,18 +397,53 @@ def close_upto(fl):
         k = fl.strata() - 1
         names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc',
                                        'fp', 'ate') if fl.fg else ())
-        src = "".join(tbl(n, t[n]) for n in names)
-        eng = src + engine_text(fl.ncell() + 1, fl.nid + 1, len(fl.ix) + 1,
-                                k + 1, sh, fl.ixlat, fl.fsh if fl.fg else (),
-                                fl.nrow + 1,
-                                max((r[1] for r in fl.dat), default=0) + 1,
-                                len(fl.ssz) + 1, len(fl.mp) + 1,
-                                max((r[1] for r in fl.spc), default=0) + 1,
-                                fl.fcsh if fl.fc else (),
-                                max((r[1] for r in fl.ssz), default=1),
-                                fl.fpsh if fl.fp else (), fl.pab + 1,
-                                fl.ATOMB + len(fl.atl) + 1)
-        open('/tmp/close_gen.lx', 'w', encoding='utf-8').write(eng)
+        # **器は表に依らない。** 前は表の行を字面に混ぜて焼いていたので、層が
+        # 一つ進むたびに C が変わり（広さと形が育つ）、36 層 × 二周を毎回焼いた
+        # （一周 3.5 時間）。広さは 2 の冪に丸め、形は本ごとの覚え書き（union）
+        # で先回りし、表は焼いた後に差し替える（前段の cgo と同じ手）。
+        # 二周目と二度目以降の走行は、まったく焼かずに済む。
+        def r2(n, lo=64):
+            n = max(int(n), 1)
+            return max(lo, 1 << (n - 1).bit_length())
+        nsall = max([getattr(r, 'stratum', 0) or 0 for r in fl.p.rules] + [k]) + 1
+        hint = _hint_load(fl)
+        sizes = dict(nc=fl.ncell() + 1, ne=fl.nid + 1, nq=len(fl.ix) + 1,
+                     ns=nsall, nrow=fl.nrow + 1,
+                     ncol=max((r[1] for r in fl.dat), default=0) + 1,
+                     nsp=len(fl.ssz) + 1, nmp=len(fl.mp) + 1,
+                     nax=max((r[1] for r in fl.spc), default=0) + 1,
+                     npt=max((r[1] for r in fl.ssz), default=1),
+                     npa=fl.pab + 1, nat=fl.ATOMB + len(fl.atl) + 1)
+        for nm in sizes:
+            sizes[nm] = max(sizes[nm], hint['sizes'].get(nm, 0))
+        hint['sizes'] = dict(sizes)
+        def uni(nm, cur):
+            u = sorted({tuple(x) if isinstance(x, (list, tuple)) else x for x in cur}
+                       | {tuple(x) if isinstance(x, list) else x
+                          for x in hint['shapes'].get(nm, [])})
+            hint['shapes'][nm] = [list(x) if isinstance(x, tuple) else x for x in u]
+            return u
+        vals, cond, lats = sh
+        vals = uni('vals', vals); cond = uni('cond', cond); lats = uni('lats', lats)
+        fsh = uni('fsh', fl.fsh if fl.fg else ())
+        fcsh = uni('fcsh', fl.fcsh if fl.fc else ())
+        fpsh = uni('fpsh', fl.fpsh if fl.fp else ())
+        ixlat = uni('ixlat', fl.ixlat)
+        _hint_save(fl, hint)
+        code = engine_text(r2(sizes['nc']), r2(sizes['ne']), r2(sizes['nq']),
+                           sizes['ns'], (vals, cond, lats), ixlat, fsh,
+                           r2(sizes['nrow']), r2(sizes['ncol'], 4),
+                           r2(sizes['nsp']), r2(sizes['nmp']),
+                           r2(sizes['nax'], 4), fcsh, r2(sizes['npt']),
+                           fpsh, r2(sizes['npa']),
+                           sizes['nat'] if sizes['nat'] >= (1 << 40) else r2(sizes['nat']))
+        # 焼く字面には各表の一行（零の行 —— 次数だけを言う）を置く
+        def dummy(rows):
+            return [tuple(0 for _ in rows[0])] if rows else []
+        eng_code = "".join(tbl(n, dummy(t[n])) for n in names) + code
+        def full_eng():          # 解釈実行に落ちるときだけ、表ごと組み立てる
+            return "".join(tbl(n, t[n]) for n in names) + code
+        open('/tmp/close_gen.lx', 'w', encoding='utf-8').write(eng_code)
         # 一巡目の升番号は仮の帯（ATOMB0*2 = 2^63）を使うことがある。
         # 測定器は i64 —— 溢れる番号は flat の ⊤ と衝突する。**収まる
         # ものだけ測定器で閉じ、収まらないものは解釈で閉じる**（区間算術
@@ -410,12 +474,14 @@ def close_upto(fl):
             import runtime as RT
             import native as N
             try:
-                h = hashlib.sha1(eng.encode()).hexdigest()[:16]
+                h = hashlib.sha1(eng_code.encode()).hexdigest()[:16]
                 cc = os.path.join(os.path.dirname(os.path.dirname(
                     os.path.abspath(__file__))), '_gen', 'close')
-                info = RT.build(eng, keep=os.path.join(cc, h), opt='-O1')
+                info = RT.build(eng_code, keep=os.path.join(cc, h), opt='-O0')   # 掃き取りは一つの巨大な関数 —— 最適化は記憶を食う（cc1 が死ぬ）
+                for n in names:                  # 表は焼いた後に差し替える
+                    info['prog'].tables[n] = [tuple(r) for r in t[n]]
                 d = RT.write_data(info['prog'],
-                                  os.path.join(info['dir'], 'data.lxd'),
+                                  os.path.join(info['dir'], f'data.{os.getpid()}.lxd'),
                                   atom=info['atom'])
                 st2, _m = RT.run(info['exe'], d)
                 # 測定器の出力は **もう観測済みの数**である —— observe を
@@ -436,7 +502,7 @@ def close_upto(fl):
                     open('/tmp/close_unsup.log', 'a').write(f"   (log failed {ex2})\n")
         if st2 is None:
             # 逃げ道: 解釈実行（遅い。測定器が語れない・疑わしいときだけ）
-            q = L.parse(eng); L.check(q); L.stratify(q)
+            q = L.parse(full_eng()); L.check(q); L.stratify(q)
             L.io_rounds(q); L.certify(q)
             st2, _, _ = L.run(q, out=io.StringIO())
             obs = {f: q.fields[f].observe for f in q.fields}

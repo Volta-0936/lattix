@@ -1933,6 +1933,8 @@ def flatten(path, closer=None):
         p = L.parse(src, base=os.path.dirname(os.path.abspath(path)))
         L.check(p); L.stratify(p)
         fl = Flatten(p, extent, atomb)
+        import hashlib
+        fl.srcsha = hashlib.sha1(src.encode('utf-8')).hexdigest()[:16]  # 閉じの器の覚え書きの鍵
         if closer is not None: fl.closer = closer(fl)
         return fl.run(), p
 
