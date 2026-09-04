@@ -1934,7 +1934,8 @@ def flatten(path, closer=None):
         L.check(p); L.stratify(p)
         fl = Flatten(p, extent, atomb)
         import hashlib
-        fl.srcsha = hashlib.sha1(src.encode('utf-8')).hexdigest()[:16]  # 閉じの器の覚え書きの鍵
+        # 閉じの器の覚え書きの鍵 —— 本の**置き場**で引く（字面を直しても覚え書きは生きる。形の和は上位互換）
+        fl.srcsha = hashlib.sha1(os.path.abspath(path).encode('utf-8')).hexdigest()[:16]
         if closer is not None: fl.closer = closer(fl)
         return fl.run(), p
 

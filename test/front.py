@@ -43,6 +43,10 @@ def assemble():
 
 
 SRC = assemble()
+# 突き合わせが読む場（run_front の g('…') / v('…')）—— これだけを print する
+NEED = sorted(set(re.findall(r"\b[gv]\('(z?[a-z0-9]+)'\)", open(__file__, encoding='utf-8').read()))
+              | {x for x in os.environ.get('FRONT_EXTRA', '').split(',') if x})   # 調べる場を足す口
+SRC_P = SRC + "\n" + "\n".join(f"print {f}" for f in NEED) + "\n"
 
 
 def _dynd(fl):
@@ -277,7 +281,13 @@ def run_front(path, orc=None, ext=None):
                      src, count=1)
         o = ns['go'](src)
     else:
-        o = ns['cgo']('front', SRC, {'ch': rows, 'orc': orc, 'ext': ext})
+        # **見る場だけを出す。** 全部の場を出すと、大きな本（自己適用: 2362 規則）
+        # では出力を読み込む Python が 6GB で死ぬ。要る場は下の NEED（本文の
+        # g('…') / v('…') と同じ集合）。焼く鍵は allprints で分かれる。
+        info, d = ns['_crun']('front', SRC_P, {'ch': rows, 'orc': orc, 'ext': ext},
+                              allprints=False)
+        store, _m = ns['RT'].run(info['exe'], d)
+        o = lambda f: store.get(f, {})
     g = lambda f: dict(o(f))
     dat = sorted((k[0], k[1], v) for k, v in g('zdat').items())
     spb, spw, sps = g('zspb'), g('zspw'), g('zsps')
@@ -536,7 +546,16 @@ if __name__ == '__main__':
                 continue
             if fl.nofam:
                 skip += 1
-                print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}", flush=True)
+                import collections
+                cnt = collections.Counter(x[0] for x in fl.nofam)
+                print(f"  {n:<22} —  参照が家にしない: {fl.nofam[0][0][:40]}"
+                      f"  ({len(fl.nofam)} 規則: " +
+                      ", ".join(f"{w[:24]}×{c}" for w, c in cnt.most_common(4)) + ")",
+                      flush=True)
+                for why, tg, rid, st in fl.nofam[:6]:
+                    ln = next((getattr(r, 'lineno', -1) for r in fl.p.rules
+                               if getattr(r, 'id', None) == rid), -1)
+                    print(f"      {tg} (行 {ln}, 層 {st}): {why[:60]}", flush=True)
                 continue
             dat1, spc1, ssz1, g = run_front(f, oracle(fl), extrows(fl))
             got = normalize(dat1, spc1, ssz1)

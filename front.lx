@@ -342,14 +342,18 @@ field znt : max bound 1                 # 表の軸の数
 znt[z] <- 0 for (z) in 0 .. 0 if not ztbu[z]
 znt[z] <- ztbc[tb] for (tb) in 0 .. zntb[0] for (z) in 0 .. 0 if ztbu[z]
 field znq : max bound 1                 # 軸の数ぜんぶ
-znq[z] <- znu[z] + znt[z] + znrr[z] for (z) in 0 .. 0
+# **前段は自分が家になる形で書く**: 直の読みは二本まで（am/bm）。三本目からは
+# 中間の場に畳む（家の値の形は am + bm + wm）。
+field znut : max bound 1                # 使用の軸 + 表の軸
+znut[z] <- znu[z] + znt[z] for (z) in 0 .. 0
+znq[z] <- znut[z] + znrr[z] for (z) in 0 .. 0
 field znqm : max bound 1
 znqm[z] <- znq[z] - 1 for (z) in 0 .. 0
 field zqoft : max bound 64              # 表 tb の軸の番号
 zqoft[tb] <- znu[z] + ztbc[tb] - 1 for (tb) in 0 .. zntb[0]
       for (z) in 0 .. 0 if ztbud[tb] if ztbc[tb] >= 1
 field zrgno : max bound 2048            # 区間ループ g の軸の番号（代表）
-zrgno[g] <- znu[z] + znt[z] + zrgc[g] - 1 for (g) in 0 .. znglm[0]
+zrgno[g] <- znut[z] + zrgc[g] - 1 for (g) in 0 .. znglm[0]
       for (z) in 0 .. 0 if zrrep[g]
 field zrgof : max bound 2048            # 区間ループ g の軸の番号（全員）
 zrgof[g] <- zrgno[h] for (g) in 0 .. znglm[0] for (h) in 0 .. znglm[0]
@@ -437,7 +441,9 @@ zax[zrn[s], 0] <- 1 for (s) in 0 .. nstz[0] if zisr[s] if not hasfor[s]
 
 # ── 空間を intern する（鍵 = 軸の列を一語に畳む） ───────────────────
 field zsig : max bound 4096             # 規則 r の空間の鍵
-zsig[r] <- zax[r,0] + zax[r,1] * 128 + zax[r,2] * 4096 + zax[r,3] * 262144
+field zsig1 : max bound 4096            # 鍵の下半分（軸 0・1）
+zsig1[r] <- zax[r,0] + zax[r,1] * 128 for (r) in 0 .. znrm[0] if zax[r,0] >= 0
+zsig[r] <- zsig1[r] + zax[r,2] * 4096 + zax[r,3] * 262144
       for (r) in 0 .. znrm[0] if zax[r,0] >= 0
 field zsdup : or bound 4096
 zsdup[r] <- true for (r) in 0 .. znrm[0] for (h) in 0 .. znrm[0]
@@ -475,7 +481,7 @@ zspb[sp, j] <- zqb[zsax[sp, j]] for (sp) in 0 .. znspm[0] for (j) in 0 .. 3
 field zspw : max bound 64 4             # spc の幅
 zspw[sp, j] <- zqw[zsax[sp, j]] for (sp) in 0 .. znspm[0] for (j) in 0 .. 3
       if zax[zspr[sp], j] >= 1
-field zsps : max bound 64 4             # spc の歩幅（後ろの軸の幅の積）
+field zsps : flat bound 64 4            # spc の歩幅（後ろの軸の幅の積）。**鎖は flat** —— 層は座標である（軸に沿った展開を要らなくする: flat は ⊥→v で剰余も積も単調）
 zsps[sp, j] <- 1 for (sp) in 0 .. znspm[0] for (j) in 0 .. 3
       if j == zsn[sp] - 1
 zsps[sp, j] <- zsps[sp, j+1] * zspw[sp, j+1] for (sp) in 0 .. znspm[0]
@@ -892,7 +898,7 @@ zfpsr[zsr[o], 110] <- zfpb[zsr[o], 108] for (o) in 0 .. nocz[0] if zdvv[o]
       if zrdq[o] >= 0 if zfpb[zsr[o], 108] >= 1
 zfps2[zsr[o], 110] <- zfpb[zsr[o], 109] for (o) in 0 .. nocz[0] if zdvv[o]
       if zrdq[o] >= 0 if zfpb[zsr[o], 109] >= 1
-zq0[o] <- (0 - zflo0[zrdf[o]]) * zfs0[zrdf[o]] for (o) in 0 .. nocz[0]
+zdl0[o] <- 0 - zflo0[zrdf[o]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdk[o, 0] == 12
 zmia[zrdq[o]] <- zfs0[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
       if zdk[o, 0] == 12
@@ -1286,22 +1292,28 @@ field zrdf : max bound 8192             # その読みの場
 zrdf[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 zmu[zrdq[o]] <- true for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 # 次元ごとの定数の寄与（q0 + q1）。歩幅は 次元0 が zfs0、次元1 が 1。
+# **家の値は 読み×読み まで**（(読み − 読み) × 読み は一次式でない）——
+# 「定数 − 下端」を一度場に置いてから歩幅を掛ける（前段は自分が家になる形で書く）。
+field zdl0 : max bound 8192            # 次元0 の座標の定数 − 下端
+zdl0[o] <- zdc[o, 0] - zflo0[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 0] == 4
+zdl0[o] <- zdof[o, 0] - zflo0[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 0] <= 1
+zdl0[o] <- zdof[o, 0] - zflo0[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 0] == 7
 field zq0 : max bound 8192
 zq0[o] <- 0 for (o) in 0 .. nocz[0] if zrdq[o] >= 0 if zoar0[o]
-zq0[o] <- (zdc[o, 0] - zflo0[zrdf[o]]) * zfs0[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdk[o, 0] == 4
-zq0[o] <- (zdof[o, 0] - zflo0[zrdf[o]]) * zfs0[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdk[o, 0] <= 1
-zq0[o] <- (zdof[o, 0] - zflo0[zrdf[o]]) * zfs0[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdk[o, 0] == 7
+zq0[o] <- zdl0[o] * zfs0[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+field zdl1 : max bound 8192            # 次元1 の座標の定数 − 下端
+zdl1[o] <- zdc[o, 1] - zflo1[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 1] == 4
+zdl1[o] <- zdof[o, 1] - zflo1[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdk[o, 1] <= 1
+zdl1[o] <- zdof[o, 1] - zflo1[zrdf[o]] for (o) in 0 .. nocz[0]
+      if zrdq[o] >= 0 if zdrd1[o]
 field zq1 : max bound 8192
 zq1[o] <- 0 for (o) in 0 .. nocz[0] if zrdq[o] >= 0 if not has1[o]
-zq1[o] <- (zdc[o, 1] - zflo1[zrdf[o]]) * zfs1[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdk[o, 1] == 4
-zq1[o] <- (zdof[o, 1] - zflo1[zrdf[o]]) * zfs1[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdk[o, 1] <= 1
-zq1[o] <- (zdof[o, 1] - zflo1[zrdf[o]]) * zfs1[zrdf[o]] for (o) in 0 .. nocz[0]
-      if zrdq[o] >= 0 if zdrd1[o]
+zq1[o] <- zdl1[o] * zfs1[zrdf[o]] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 field zq2 : max bound 8192
 zq2[o] <- 0 for (o) in 0 .. nocz[0] if zrdq[o] >= 0 if not zhas2[o]
 zq2[o] <- zdc[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
@@ -1310,8 +1322,11 @@ zq2[o] <- zdof[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdk[o, 2] <= 1
 zq2[o] <- zdof[o, 2] - zflo2[zrdf[o]] for (o) in 0 .. nocz[0]
       if zrdq[o] >= 0 if zdk[o, 2] == 7
-zmc[zrdq[o]] <- zfb[zrdf[o]] + zq0[o] + zq1[o] + zq2[o]
-      for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+field zq01 : max bound 8192            # 次元 0・1 の定数の寄与
+zq01[o] <- zq0[o] + zq1[o] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+field zqs : max bound 8192             # 三次元ぶんの定数の寄与
+zqs[o] <- zq01[o] + zq2[o] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
+zmc[zrdq[o]] <- zfb[zrdf[o]] + zqs[o] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
 # 枠: 次元0 の変数 → 枠0（歩幅 zfs0）、次元1 の変数 → 枠1（歩幅 1）
 zmj0[zrdq[o]] <- zdj[o, 0] for (o) in 0 .. nocz[0] if zrdq[o] >= 0
       if zdk[o, 0] <= 1
@@ -3138,19 +3153,19 @@ zfws[zsyf[r]] <- zfgst[r] for (r) in 0 .. znr2m[0] if zsyf[r] >= 1
       if zfgst[r] >= 0
 
 # ── 折り込みの定数（Horner、法 M1 / M2） ────────────────────────────
-field zpwa : max bound 16               # K1^e % M1
+field zpwa : flat bound 16              # K1^e % M1（鎖は flat）
 zpwa[0] <- 1
 zpwa[e] <- zpwa[e-1] * 1000003 % 268435399 for (e) in 1 .. 9
-field zpwb : max bound 16               # K2^e % M2
+field zpwb : flat bound 16              # K2^e % M2（鎖は flat）
 zpwb[0] <- 1
 zpwb[e] <- zpwb[e-1] * 1000033 % 268435367 for (e) in 1 .. 9
-field zcf1 : max bound 64 24            # 名前の折り込みの鎖（M1）
+field zcf1 : flat bound 64 24           # 名前の折り込みの鎖（M1。鎖は flat）
 zcf1[c, 0] <- (zchp[zcdt[c], 0] + 1) % 268435399 for (c) in 0 .. zncdm[0]
       if zcdt[c] >= 0
 zcf1[c, p] <- (zcf1[c, p-1] * 1000003 + zchp[zcdt[c], p] + 1) % 268435399
       for (c) in 0 .. zncdm[0] for (p) in 1 .. 23 if zcdt[c] >= 0
       if p <= tlen[zcdt[c]] - 1
-field zcf2 : max bound 64 24            # 名前の折り込みの鎖（M2）
+field zcf2 : flat bound 64 24           # 名前の折り込みの鎖（M2。鎖は flat）
 zcf2[c, 0] <- (zchp[zcdt[c], 0] + 1) % 268435367 for (c) in 0 .. zncdm[0]
       if zcdt[c] >= 0
 zcf2[c, p] <- (zcf2[c, p-1] * 1000033 + zchp[zcdt[c], p] + 1) % 268435367

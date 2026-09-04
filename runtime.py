@@ -1255,7 +1255,24 @@ static void load(const char *p){ load_into(p, 0); }
         for c in order:
             try: plans[c] = fuse_plan(prog, groups[c])
             except Exception: plans[c] = None
-        if not any(plans.values()): continue
+        if not any(plans.values()):
+            # **融合できなくても、SCC ごとに不動点にする。** 層まるごとを掃くと、
+            # 一本の長い鎖（成層 zlvl の最長路など）が要る回数だけ、同じ層の
+            # 無関係な規則（g×h の重複消し・ch の走査）まで掃き直す ——
+            # 前段の自己適用で層 18 が 424 回、層 21 が 735 回回っていた。
+            # 位相順（scc_rank）に SCC を一つずつ閉じれば、各 SCC は自分の
+            # 鎖の長さぶんしか回らない。意味は変わらない（最小不動点は同じ）。
+            if len(groups) <= 1: continue
+            FUSED[si] = []
+            for c in order:
+                a(f"static int sweepS{si}_{c}(void){{ int changed=0;")
+                for r in groups[c]: emit_rule(a, prog, r, arity)
+                a("  return changed; }")
+            a(f"static int sweepF{si}(void){{ int _any=0;")
+            for c in order:
+                a(f"  while(sweepS{si}_{c}()) _any=1;")
+            a("  return _any; }")
+            continue
         FUSED[si] = []
         for c in order:
             p = plans[c]
