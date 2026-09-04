@@ -4277,15 +4277,15 @@ zaltk[a, k] <- 0 for (a) in 0 .. znpvm[0] for (k) in 0 .. 23
       if zatok[a] >= 0 if k >= tlen[zatok[a]]
 field zpref : or bound 64 4096          # a と b は k 文字目まで同じ（b·24+k）
 zpref[a, b * 24] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
-zpref[a, b * k + 24] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
-      for (k) in 1 .. 23 if zpref[a, b * k + 24 - 1]
+zpref[a, b * 24 + k] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
+      for (k) in 1 .. 23 if zpref[a, b * 24 + k - 1]
       if zaltk[a, k - 1] == zaltk[b, k - 1]
 field zsame : or bound 64 64            # 同じ綴り
 zsame[a, b] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
       if zpref[a, b * 24 + 23] if zaltk[a, 23] == zaltk[b, 23]
 field zaless : or bound 64 64           # a の綴り < b の綴り
 zaless[a, b] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
-      for (k) in 0 .. 23 if zpref[a, b * k + 24]
+      for (k) in 0 .. 23 if zpref[a, b * 24 + k]
       if zaltk[a, k] <= zaltk[b, k] - 1
 field zadup : or bound 64               # 前に同じ綴りがある
 zadup[a] <- true for (a) in 0 .. znpvm[0] for (b) in 0 .. znpvm[0]
