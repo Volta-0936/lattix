@@ -1220,13 +1220,26 @@ static void load(const char *p){ load_into(p, 0); }
     # 非単調な読み（否定・集約）は、相手の層が **閉じてから** でなければ撃てない。
     # 全部を一つのループで回すと、育ちきる前の値で否定が真になり、集合が汚れる。
     # （実際にそれで `tc[0,3]` を取りこぼした。層は飾りではない。）
+    # SCC ごと / 融合の道を通る層は、素朴な一掃の本体を **二度書かない**
+    # （同じ規則が二度 C に出て、閉じの器が 41MB → 83MB になり cc1 が死んだ）。
+    # 増分（SEMI）は素朴な一掃を使うので、そのときだけ全部書く。
+    SPLIT = set()
+    for si, rules in enumerate(prog.strata):
+        if not rules: continue
+        groups_ = defaultdict(list)
+        for r in rules: groups_[r.scc].append(r)
+        anyplan = False
+        for c in groups_:
+            try: anyplan = anyplan or (fuse_plan(prog, groups_[c]) is not None)
+            except Exception: pass
+        if anyplan or len(groups_) > 1: SPLIT.add(si)
     for si, rules in enumerate(prog.strata):
         # **一つの関数に全規則を書くと cc1 が記憶で死ぬ**（3,800 規則の
         # run.lx で 24 万行の C になり、-O0 でも OOM）。規則の塊ごとに
         # 関数へ割る —— 意味は変わらない（changed の OR を積むだけ）。
         parts, buf = [], []
         ba = buf.append
-        for r in rules:
+        for r in (rules if (SEMI or si not in SPLIT) else []):
             emit_rule(ba, prog, r, arity)
             if len(buf) > 4000:
                 parts.append(buf); buf = []; ba = buf.append
@@ -1265,8 +1278,21 @@ static void load(const char *p){ load_into(p, 0); }
             if len(groups) <= 1: continue
             FUSED[si] = []
             for c in order:
+                # 大きな SCC は関数を割る（一つの巨大な関数は cc1 が記憶で死ぬ）
+                parts, buf = [], []
+                ba = buf.append
+                for r in groups[c]:
+                    emit_rule(ba, prog, r, arity)
+                    if len(buf) > 4000:
+                        parts.append(buf); buf = []; ba = buf.append
+                if buf: parts.append(buf)
+                for pi, chunk in enumerate(parts):
+                    a(f"static int sweepS{si}_{c}_{pi}(void){{ int changed=0;")
+                    for ln in chunk: a(ln)
+                    a("  return changed; }")
                 a(f"static int sweepS{si}_{c}(void){{ int changed=0;")
-                for r in groups[c]: emit_rule(a, prog, r, arity)
+                for pi in range(len(parts)):
+                    a(f"  changed |= sweepS{si}_{c}_{pi}();")
                 a("  return changed; }")
             a(f"static int sweepF{si}(void){{ int _any=0;")
             for c in order:
@@ -1645,7 +1671,9 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
         # 閉じの測定器は表ごとに置き場を変えるが、C は表に依らず同一だった
         # （10MB の C を 2 分ずつ、同じものを何十回も焼いていた）。内容で引く。
         import hashlib, shutil
-        h = hashlib.sha1((opt + "\n" + csrc).encode('utf-8')).hexdigest()[:16]
+        import shutil as _sh0
+        _cc = "clang" if _sh0.which("clang") else "gcc"
+        h = hashlib.sha1((_cc + opt + "\n" + csrc).encode('utf-8')).hexdigest()[:16]
         cdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             '_gen', 'ccache', h)
         cex = os.path.join(cdir, 'prog')
@@ -1654,11 +1682,16 @@ def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
         else:
             # 大きな生成 C（数十万行）で cc1 が記憶で死ぬ —— GC を強制する。
             # 意味は変わらず、時間が少し増えるだけ（正しさの焼きには十分）。
-            r = subprocess.run(["gcc", opt, "-w",
-                                "--param", "ggc-min-expand=10",
-                                "--param", "ggc-min-heapsize=32768",
-                                "-o", ex, ctmp],
-                               capture_output=True, text=True)
+            # **道具は clang。** 同じ 41MB の C を gcc は 5.7GB・10 分以上で
+            # （8GB の箱では死ぬ）、clang は 2.1GB・1 分で焼く。出力は同じ
+            # （比べた）。gcc しか無ければ gcc に落ちる（記憶を抑える param つき）。
+            import shutil as _sh
+            if _sh.which("clang"):
+                cmd = ["clang", opt, "-w", "-o", ex, ctmp]
+            else:
+                cmd = ["gcc", opt, "-w", "--param", "ggc-min-expand=10",
+                       "--param", "ggc-min-heapsize=32768", "-o", ex, ctmp]
+            r = subprocess.run(cmd, capture_output=True, text=True)
             if r.returncode:
                 os.remove(ctmp)
                 raise N.Unsupported("gcc failed:\n" + r.stderr[:2000])
