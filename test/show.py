@@ -49,7 +49,7 @@ def tables_of(fl, p, ref, fat_ref=None):
                 continue
             if v is True: v = 1
             elif v is False: continue
-            if isinstance(v, L._Top): v = 1 << 62            # ⊤ は機械の印
+            if isinstance(v, L._Top): v = (1 << 63) - 1     # ⊤ は機械の印（flat の ⊤ = INT64_MAX。2^62 は 23_big の pow2[62] と衝突した）
             if isinstance(v, L._FourV): v = 1 if v.v else 0
             if isinstance(v, str): v = fl.ATOMB + atn[v]
             if not isinstance(v, int): continue

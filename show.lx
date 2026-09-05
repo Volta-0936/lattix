@@ -304,9 +304,9 @@ isat[t, d] <- true for (t) in 0 .. nitz[0] for (d) in 0 .. 3 if num[t, d] >= atb
       if fatm[ifld[t], d]
 isat[t, d] <- true for (t) in 0 .. nitz[0] for (d) in 4 .. 63 if num[t, d] >= atb[0]
       if fatm[ifld[t], 3]
-field istop : or bound 65536            # 値が ⊤（矛盾した升 —— 機械は 2^62 で言う）
+field istop : or bound 65536            # 値が ⊤（矛盾した升 —— 機械は INT64_MAX で言う。2^62 は本物の値と衝突した）
 istop[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if not isset[t]
-      if ival[t] == 4611686018427387904
+      if ival[t] == 9223372036854775807
 field isbool : or bound 65536           # 値が true（or / fourv の束）
 isbool[t] <- true for (t) in 0 .. nitz[0] if not iemp[t] if flat_[ifld[t]] == 3
       if not istop[t]

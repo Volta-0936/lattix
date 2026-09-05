@@ -491,7 +491,11 @@ def close_upto(fl):
                 d = RT.write_data(info['prog'],
                                   os.path.join(info['dir'], f'data.{os.getpid()}.lxd'),
                                   atom=info['atom'])
-                st2, _m = RT.run(info['exe'], d)
+                os.environ['LATTIX_PRINT_S0'] = str(k)      # 層 k の面だけ出す
+                try:
+                    st2, _m = RT.run(info['exe'], d)
+                finally:
+                    os.environ.pop('LATTIX_PRINT_S0', None)
                 # 測定器の出力は **もう観測済みの数**である —— observe を
                 # 二重にかけない（sum の閉じ値が落ちて x_sumstrata が割れた）
                 obs = {f: (lambda v: v) for f in info['prog'].fields}

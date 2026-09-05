@@ -120,6 +120,7 @@ class Flatten:
         self.gvhit = False                  # 区間の端が場の読みだったか
         self.noclose = False                # 閉じ直さずに読む（層ごとに一度）
         self.gst = -1                       # どの層で閉じたか
+        self.clst = -1                      # 無い値を問うて閉じ直した層（層に一度）
         # ── 多面体の道 —— **反復空間を点に潰さずに渡す** ────────────────
         # 「宣言されているものを、そのまま機械に渡すには？」（CLAUDE.md）
         # 規則が「表と区間の直積を回り、座標が軸の一次式で書ける」形なら、
@@ -780,8 +781,9 @@ class Flatten:
                         if f == e[1] and isinstance(v, int)]
             vs = scan()
             if not vs and self.closer is not None and not self.noclose \
-                    and self.upto != len(self.eg) + len(self.fg):
-                self.closer(); vs = scan()
+                    and self.upto != len(self.eg) + len(self.fg) \
+                    and (self.fstr.get(e[1], -1) >= st or self.clst != st):
+                self.closer(); self.clst = st; vs = scan()
             return max(vs) if vs else None
         if e[0] == 'bin' and e[1] == '+':
             a, b = self._bmax(e[2], st), self._bmax(e[3], st)
@@ -1020,10 +1022,20 @@ class Flatten:
             self.seen[(f, i)] = (min(a, x), max(z, x))
 
     def name_of(self, c):
-        """升番号 → (場, 座標)。答えを見せるときに要る。"""
+        """升番号 → (場, 座標)。答えを見せるときに要る。
+        置き場は基の順に並んでいるので二分探索で引く（閉じの読み戻しが升の数 ×
+        場の数で回っていた —— 前段に本を読ませると升が数十万になる）。"""
         if c >= self.nbase:
             return self.rev[c - self.nbase]
-        for f, (base, sz, st, lo) in self.lay.items():
+        idx = self.__dict__.get('_layidx')
+        if idx is None or idx[2] != len(self.lay):
+            import bisect
+            items = sorted(self.lay.items(), key=lambda kv: kv[1][0])
+            idx = ([b for _f, (b, _sz, _st, _lo) in items], items, len(self.lay))
+            self._layidx = idx
+        import bisect
+        i = bisect.bisect_right(idx[0], c) - 1
+        for f, (base, sz, st, lo) in ([idx[1][i]] if i >= 0 else []):
             n = 1
             for x in sz: n *= x
             if base <= c < base + n:
@@ -1585,9 +1597,14 @@ class Flatten:
             k = (e[1], tuple(keys))
             self.gvhit = True
             v = self.closed.get(k)
+            # **閉じた場（この層より前に書き終わる場）の無い値は、閉じ直しても
+            # 出てこない。** 閉じ直すのは生きた場（fstr ≥ st）を問うときだけ ——
+            # 前段に本を読ませると、無い値を問う規則ごとに器を走らせ直していた
+            # （一回 15 秒 × 数百）。層の頭で一度閉じてあれば、閉じた場は揃っている。
             if v is None and self.closer is not None and not self.noclose \
-                    and self.upto != len(self.eg) + len(self.fg):
-                self.closer(); v = self.closed.get(k)
+                    and self.upto != len(self.eg) + len(self.fg) \
+                    and (self.fstr.get(e[1], -1) >= st or self.clst != st):
+                self.closer(); self.clst = st; v = self.closed.get(k)
             return v
         return None
 

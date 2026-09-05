@@ -1546,11 +1546,18 @@ int main(int argc, char **argv){
     # 既定では **検査器のために全部の場を出す**。`only_prints` を立てると
     # `print` と書いた場だけになる —— render だけのプログラム（生成器）を
     # 走らせるときは、標準出力に混ぜ物があってはならない。
+    # **出す面を絞れる。** 閉じの器は層 k の面だけ読む（層は座標 —— 先頭の座標が s）。
+    # 全部の面を出すと、前段に本を読ませたとき出力が升 × 層で数千万行になり、
+    # 読む Python が閉じの九割を食った。寄与元キー付きの束（sum/count/bag）は
+    # 面を引き継がないので絞らない。環境変数 LATTIX_PRINT_S0（無ければ全部）。
+    a('  const char* _ps0 = getenv("LATTIX_PRINT_S0"); long long _S0 = _ps0 ? atoll(_ps0) : -1;')
     for f in (prog.prints if ONLY_PRINTS else prog.fields):
         ar = arity[f]; lat = prog.fields[f].name
+        s0 = (ar >= 1 and lat not in ('sum', 'count', 'bag'))
         if not DENSE:
             a(f"  for(long long i=0;i<M_{f}.cap;i++){{ if(!M_{f}.used[i]) continue;")
             a(f"    if(M_{f}.v[i] == {BOT.get(lat, '0')}) continue;")
+            if s0: a(f"    if(_S0 >= 0 && M_{f}.k[i*{max(ar,1)}] != _S0) continue;")
             a(f'    printf("{f}");')
             for d in range(ar):
                 a(f'    printf(" %lld", (long long)M_{f}.k[i*{max(ar,1)}+{d}]);')
@@ -1570,6 +1577,9 @@ int main(int argc, char **argv){
             a("    if(!_any) continue;")
         else:
             a(f"    if(F_{f}[i]=={BOT[lat]}) continue;")
+        if s0:
+            div0 = " * ".join(["1"] + [f"DOM_{f}_{e}" for e in range(1, ar)])
+            a(f"    if(_S0 >= 0 && ((i / ({div0})) % DOM_{f}_0) != _S0) continue;")
         a(f'    printf("{f}");')
         for d in range(ar):
             # 次元 d の刻み幅は「後ろの次元の積」。割り算で書いていて、
