@@ -317,10 +317,18 @@ BOOKS 66/66 も保ったまま。二巡目の学びの輪で開いたもの（�
   食う（465 秒のほぼ全部）。器の build は走行内で一度なので通し運転では一度きり。
 - 道具: /tmp/pipe_self.py（`prep` で前段・審判・観測を漬け、引数なしで機械だけ回す
   —— BAKEDIR / N / BOOK）。二つの走行が同じ器を使えるよう、データは pid 名で書く。
-次: **入力の差し替え** —— 前段のソースに `table ch = (0,b0),(1,b1),…`（本のバイト）を
-埋めたものを前段（焼いた Lattix）に読ませれば、その表を run.lx が走らせ、結果の場
-（zdat/zfg…）がその本の家の表になる。新しい仕掛けは要らない —— 表の行が多いだけ
-（zdat/zdrt/zdsr の bound を広げる）。それが「前段が機械の上で本を読む」。
+**前段が機械の上で本を読んだ**（21958c4）: 前段のソースに `table ch = (0,b0),…`
+（a_min.lx のバイト）と口（orc/ext）を埋めた work/self_amin.lx（/tmp/mkself.py が作る）を、
+閉じの器（run.lx と同じ形）で最後まで走らせ、**899 場すべて**が参照実装と一致
+（/tmp/machine_check.py）。ただし flat 側の家は 4 規則が家にならず点の道に落ちた
+（nofam の中身は次に出す —— run.lx の通し運転には全部家であることが要る）。
+遅さ: flatten が 1.9 時間。閉じの器を走らせる回数が多い（一回 15 秒）。直したもの:
+出す面は層 k だけ（LATTIX_PRINT_S0）、無い値の閉じ直しは書き手が増えたときだけ、
+name_of は二分探索。まだ多い —— 閉じの回数を数えて、層ごとに一度に寄せるのが次。
+次: (1) self_amin の nofam 4 規則を家に（/tmp/machine_check.py が nofam を出す）、
+(2) 前段（焼いた Lattix）に self_amin.lx を読ませて表を出し、run.lx（層 48）で走らせ、
+zdat/zfg… が a_min の家の表になることを確かめる（/tmp/pipe_self.py prep/run, BOOK=…）、
+(3) 大きな本（22_parse）へ —— zdat/zdrt/zdsr の bound と前段の走行時間。
 
 残る大物: 31_gen（x86 の焼き）は旧断片（rrule/grd/trm/crd）の生成器 —— 家の表
 （fg/fc/fp/mp）を焼く形に書き直す必要がある（第4段）。32_shape は旧前段で
