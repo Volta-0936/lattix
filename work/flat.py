@@ -121,6 +121,8 @@ class Flatten:
         self.noclose = False                # 閉じ直さずに読む（層ごとに一度）
         self.gst = -1                       # どの層で閉じたか
         self.clst = -1                      # 無い値を問うて閉じ直した層（層に一度）
+        self.wseen = {}                     # 場 → ここまでに処理した書き手の規則の数
+        self.absent = {}                    # 鍵 → 無かったときの書き手の数（同じなら問わない）
         # ── 多面体の道 —— **反復空間を点に潰さずに渡す** ────────────────
         # 「宣言されているものを、そのまま機械に渡すには？」（CLAUDE.md）
         # 規則が「表と区間の直積を回り、座標が軸の一次式で書ける」形なら、
@@ -780,10 +782,13 @@ class Flatten:
                 return [v for (f, _k), v in self.closedany.items()
                         if f == e[1] and isinstance(v, int)]
             vs = scan()
+            wf = self.wseen.get(e[1], 0)
             if not vs and self.closer is not None and not self.noclose \
                     and self.upto != len(self.eg) + len(self.fg) \
-                    and (self.fstr.get(e[1], -1) >= st or self.clst != st):
+                    and (self.fstr.get(e[1], -1) >= st or self.clst != st) \
+                    and self.absent.get(('*', e[1])) != wf:
                 self.closer(); self.clst = st; vs = scan()
+                if not vs: self.absent[('*', e[1])] = wf
             return max(vs) if vs else None
         if e[0] == 'bin' and e[1] == '+':
             a, b = self._bmax(e[2], st), self._bmax(e[3], st)
@@ -1601,10 +1606,15 @@ class Flatten:
             # 出てこない。** 閉じ直すのは生きた場（fstr ≥ st）を問うときだけ ——
             # 前段に本を読ませると、無い値を問う規則ごとに器を走らせ直していた
             # （一回 15 秒 × 数百）。層の頭で一度閉じてあれば、閉じた場は揃っている。
+            # 生きた場でも、その場の **書き手が増えていなければ** 閉じ直しても
+            # 同じ（無いものは無い）—— 鍵ごとに「書き手の数」を覚えて一度だけ問う。
+            wf = self.wseen.get(e[1], 0)
             if v is None and self.closer is not None and not self.noclose \
                     and self.upto != len(self.eg) + len(self.fg) \
-                    and (self.fstr.get(e[1], -1) >= st or self.clst != st):
+                    and (self.fstr.get(e[1], -1) >= st or self.clst != st) \
+                    and self.absent.get(k) != wf:
                 self.closer(); self.clst = st; v = self.closed.get(k)
+                if v is None: self.absent[k] = wf
             return v
         return None
 
@@ -1682,6 +1692,7 @@ class Flatten:
             f = r.target
             st = getattr(r, 'stratum', 0) or 0
             lat = self.flat[f]
+            self.wseen[f] = self.wseen.get(f, 0) + 1
             if FAMILY and self.family(r, st, lat): continue
             # **閉じた層だけで決まる問いは、規則ごとに一度だけ閉じて答える。**
             # 実例ごとに閉じ直したら、それは関係を数え上げる代わりに
