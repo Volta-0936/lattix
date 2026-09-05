@@ -29,7 +29,7 @@ import baked as B
 
 W = 84
 BIG = 10 ** 9
-LIMIT = 420
+LIMIT = int(os.environ.get("LATTIX_LIMIT", "420"))
 
 
 def compact(fg, fc, fp, maps, sszr):
@@ -51,17 +51,21 @@ def compact(fg, fc, fp, maps, sszr):
     fix = lambda b: bmap.get(b, b)
     fp2 = [r[:5] + (fix(r[5]), r[6], r[7], fix(r[8]), fix(r[9]), r[10])
            for r in fp]
-    mtop = max((m for m in maps if m < BIG), default=0) + 1
+    # **写像の番号もラベルである。** 前段は規則ごとに 128 の帯で番号を配る
+    # （r·128 + k）ので番号は 22 万に届くが、使うのは 1.6 万 —— 機械の配列
+    # （nmp）に収まるよう、使う番号だけを詰め直す（0 は番兵のまま）。
     mmap = {}
+    mtop = 1
     for m in sorted(maps):
-        if m >= BIG:
-            mmap[m] = mtop; mtop += 1
+        if m == 0: continue
+        mmap[m] = mtop; mtop += 1
     maps2 = {}
     for m, row in maps.items():
         row = list(row)
         row[11] = fix(row[11]); row[14] = fix(row[14])
         maps2[mmap.get(m, m)] = tuple(row)
     fixm = lambda m: mmap.get(m, m)
+    fp2 = [r[:6] + (fixm(r[6]),) + r[7:] for r in fp2]     # 番地の写しの写像（am）も詰め直す
     fg2 = [r[:6] + (fixm(r[6]), fixm(r[7]), fixm(r[8]), fixm(r[9])) for r in fg]
     fc2 = [r[:5] + (fixm(r[5]), r[6], r[7], fixm(r[8]), fixm(r[9]),
                     fixm(r[10])) for r in fc]
@@ -97,7 +101,7 @@ def one(info, path):
                      'ate': [0, 999, 0]}[n]]
     src = B.enginesrc("".join(tbl(n, t[n]) for n in B.NAMES))
     q = L.parse(src)
-    d = R.write_data(q, os.path.join(info['dir'], 'data.lxd'))
+    d = R.write_data(q, os.path.join(info['dir'], f'data.{os.getpid()}.lxd'))
     t0 = time.time(); got, _meta = R.run(info['exe'], d)
     ms = (time.time() - t0) * 1000
     out = {}

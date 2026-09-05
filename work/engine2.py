@@ -484,7 +484,7 @@ def close_upto(fl):
                 if info is None:
                     # 掃き取りは一つの巨大な関数 —— 最適化は記憶を食う（cc1 が死ぬ）。-O0。
                     # 同じ器は一度だけ読む（parse/stratify も層ごとに払わない）。
-                    info = RT.build(eng_code, keep=os.path.join(cc, h), opt='-O0')
+                    info = RT.build(eng_code, keep=os.path.join(cc, h), opt='-O0', ranks=False)
                     _BUILT[h] = info
                 for n in names:                  # 表は焼いた後に差し替える
                     info['prog'].tables[n] = [tuple(r) for r in t[n]]

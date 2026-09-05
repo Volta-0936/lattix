@@ -153,8 +153,11 @@ zlevg[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if zlvg[s, k]
 # ── 誤りの報告（PLAN 2.7）—— 断るべき本は断る。行と理由を場に置く ────────
 # 種1: 成層できない（否定を跨いで自分に戻る —— 層が 127 を超える）。
 # 参照実装は「recursion through a non-monotone dep」で断る。行は輪の最初の文。
-field zerr : max bound 4096             # 文 s の誤りの種（0 無し / 1 成層できない）
+field zerr : max bound 4096             # 文 s の誤りの種（0 無し / 1 成層できない / 2 前段の制限）
 zerr[s] <- 1 for (s) in 0 .. nstz[0] if zlvl[s, 127]
+# 種2: 前段の制限（言語の制限ではない）—— 一文のガードは八つまで（席 8）。
+# 黙って九つ目を落としてはいけない（自己適用で三本落ちていた）。
+zerr[s] <- 2 for (s) in 0 .. nstz[0] if zgcn[s, 31] >= 9
 field zerrl : min bound 8               # 誤りの行（最初の文の行）
 zerrl[zerr[s]] <- tline[hotok[s]] for (s) in 0 .. nstz[0] if zerr[s] >= 1
       if hotok[s] >= 0

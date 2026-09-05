@@ -558,6 +558,12 @@ if __name__ == '__main__':
                     print(f"      {tg} (行 {ln}, 層 {st}): {why[:60]}", flush=True)
                 continue
             dat1, spc1, ssz1, g = run_front(f, oracle(fl), extrows(fl))
+            if g('zerra'):
+                # 前段が自分の制限で断る（参照は通す）—— 家の表を比べても意味がない
+                bad += 1
+                print(f"  {n:<22} ✗  前段が断る（行 {min(g('zerrl').values(), default='?')}）: "
+                      f"種 {max(g('zerr').values(), default='?')}", flush=True)
+                continue
             got = normalize(dat1, spc1, ssz1)
             want = normalize(dat2, spc2, ssz2)
             why = diff(got, want)

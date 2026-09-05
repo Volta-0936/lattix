@@ -621,6 +621,7 @@ CTX = {}            # 実行ファイル -> (原子表, 座標の種別, 値の�
                     # 別のプログラムを焼いたあとで古い実行ファイルを走らせると、
                     # 大域変数の残り香で復号が食い違う（束だけ直してあった）。
 ALLOW_SEMI = True   # 比較のために切れるようにしておく（既定は入り）
+RANKS = True        # 階数（順序の証人）を焼くか。走らせる物と閉じの器は切る
 
 
 def PUSH(f):
@@ -835,7 +836,9 @@ def emit_rule(a, prog, r, arity, indexed=None, push=False, only_new=False, row0=
     rk = frefs_all(r.value) + [x for g in r.guards for x in frefs_all(g)] \
          + [x for e in r.keys for x in frefs_all(e)]
     a(f"{ind}int _rk{r.id} = 0;")
-    for f, ix in rk:
+    # **階数（順序の証人）は測るときだけ。** 走らせる物（run.lx）や閉じの器では
+    # 要らず、読みごとの rget が C を四割太らせる（層 40 の機械が焼けない）。
+    for f, ix in (rk if RANKS else []):
         if DENSE:
             a(f"{ind}if(r_{f}({cidx(f, ix, arity[f], V)}) > _rk{r.id})"
               f" _rk{r.id} = r_{f}({cidx(f, ix, arity[f], V)});")
@@ -880,9 +883,12 @@ def emit_rule(a, prog, r, arity, indexed=None, push=False, only_new=False, row0=
             a(f"{ind}  i64 _nv = {_fv(r.value, lat, V)};")
             a(f"{ind}  if(mjoin_{r.target}({ks}{',' if ks else ''} _nv)){{ changed = 1;")
             a(f"{ind}    rset_{r.target}({ks}{',' if ks else ''} _rk{r.id} + 1); }}")
-            a(f"{ind}  else if(mget_{r.target}({ks}) == _nv && "
-              f"(rget_{r.target}({ks}) == 0 || _rk{r.id} + 1 < rget_{r.target}({ks})))")
-            a(f"{ind}    rset_{r.target}({ks}{',' if ks else ''} _rk{r.id} + 1); }}")
+            if RANKS:
+                a(f"{ind}  else if(mget_{r.target}({ks}) == _nv && "
+                  f"(rget_{r.target}({ks}) == 0 || _rk{r.id} + 1 < rget_{r.target}({ks})))")
+                a(f"{ind}    rset_{r.target}({ks}{',' if ks else ''} _rk{r.id} + 1); }}")
+            else:
+                a(f"{ind}}}")
         for _ in (r.sources[1:] if row0 is not None else r.sources):
             ind = ind[:-2]; a(f"{ind}}}")
         if wrap: ind = ind[:-2]; a(f"{ind}}}while(0);")
@@ -1637,9 +1643,10 @@ def write_data(prog, path, atom=None):
     return path
 
 
-def build(src, keep=None, opt="-O2", semi=True, only_prints=False):
+def build(src, keep=None, opt="-O2", semi=True, only_prints=False, ranks=True):
     """プログラムだけを C にする。データは触らない。"""
-    global ATOM
+    global ATOM, RANKS
+    RANKS = ranks
     prog = L.parse(src); L.check(prog); L.stratify(prog)
     L.io_rounds(prog); L.certify(prog)
     arity = analyse(prog)

@@ -44,7 +44,7 @@ def coverage(fl):
     return None
 DROP = ()          # **面はもう一つも落としていない**（集約も集合も焼ける）
 DROPLAT = ()
-NS = 16
+NS = 48
 LIMIT = 400
 W = 84
 
@@ -64,7 +64,7 @@ def bake(keep):
     # 検証の焼きは -O0 でよい —— 正しさに最適化は要らず、gcc の時間だけが減る。
     # 速さを測るときだけ LATTIX_OPT=-O2 にする（測る物と検べる物を混ぜない）。
     opt = os.environ.get('LATTIX_OPT', '-O0')
-    return R.build(src, keep=keep, opt=opt), time.time() - t0
+    return R.build(src, keep=keep, opt=opt, ranks=False), time.time() - t0   # 階数は要らない（測定器の走行）
 
 
 def one(info, path):
@@ -78,7 +78,7 @@ def one(info, path):
         return 'diff', "表に文字列がある（走らせる側は文字列を見ないはず）"
     src = enginesrc("".join(tbl(n, t[n]) for n in NAMES))
     q = L.parse(src)                      # 表を持つだけの写し（焼かない）
-    d = R.write_data(q, os.path.join(info['dir'], 'data.lxd'))
+    d = R.write_data(q, os.path.join(info['dir'], f'data.{os.getpid()}.lxd'))
     t0 = time.time(); got, _meta = R.run(info['exe'], d)
     ms = (time.time() - t0) * 1000
     out = {}

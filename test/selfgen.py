@@ -94,7 +94,8 @@ def _cinfo(key, src, allprints=True):
 def _crun(key, src, tables, allprints=True):
     info = _cinfo(key, src, allprints)
     for t, rows in tables.items(): info['prog'].tables[t] = rows
-    d = RT.write_data(info['prog'], os.path.join(info['dir'], 'data.lxd'),
+    # データは走行ごとの名で書く —— 二つの走行が同じ器を使うと踏み合っていた
+    d = RT.write_data(info['prog'], os.path.join(info['dir'], f'data.{os.getpid()}.lxd'),
                       atom=info['atom'])
     return info, d
 
