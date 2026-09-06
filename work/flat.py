@@ -2046,7 +2046,10 @@ def flatten(path, closer=None):
     # 衝突しない最小の 2 の冪である（noema は 6.4×10^16 の帯に 20 升だった）。
     # 衝突を許さないので `cons` の同一性は保たれる。二巡目は剰余を座標にする。
     mod, addrof = {}, {}
-    if os.environ.get('LATTIX_ADDRMOD', '1') == '1':
+    # **既定は off。** 前段（front.lx）はまだ法の枠を出さないので、on にすると
+    # front と flat の家の表が食い違う（第2段の出口条件が破れる）。前段に同じ
+    # 判断を移すまでは、測るためだけの口である（`LATTIX_ADDRMOD=1`）。
+    if os.environ.get('LATTIX_ADDRMOD', '0') == '1':
         for k, vs in fl.seenset.items():
             vs = {v for v in vs if isinstance(v, int) and not isinstance(v, bool)}
             if not vs: continue
