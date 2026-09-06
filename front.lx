@@ -3610,7 +3610,7 @@ zmc[r * 128] <- zfb[zsyf[r]] - zflo0[zsyf[r]] for (r) in 0 .. znr2m[0]
 zmia[r * 128] <- zfs0[zsyf[r]] for (r) in 0 .. znr2m[0] if zissy[r]
       if zsyf[r] >= 1
 zmib[r * 128] <- zfpb[r, 24] for (r) in 0 .. znr2m[0] if zissy[r]
-      if zfpb[r, 24] >= 1 if not zfpu[r, 26]
+      if zfpb[r, 24] >= 1
 zmiu[r * 128] <- 1 for (r) in 0 .. znr2m[0] if zissy[r]
 # 引数場の規則（j = k）: vf4、am は host の引数の写像
 field zfgam : max bound 4096            # am の写像の明示の番号
@@ -4491,26 +4491,3 @@ zfat[zafn[zuc[u], k], 3] <- true for (u) in 0 .. znusem[0] for (k) in 0 .. 7
       if zur[u] >= 0 if zlpg[zur[u], zvlpz[zuat[u, k]]] >= 0
       if zltb[zlpg[zur[u], zvlpz[zuat[u, k]]]] >= 0
       if zacl[zltb[zlpg[zur[u], zvlpz[zuat[u, k]]]], zvcolz[zuat[u, k]]]
-
-# ── 内容番地は法で畳む（座標だけ。値は生の番地のまま）────────────────
-#  番地は 2^56 に散らばるので、帯をそのまま取ると升の番号が 10^16 になる
-#  （使うのは数十升である）。同じ番地は同じ剰余なので `cons` の同一性は
-#  保たれる。法 W は一巡目に測った番地の集合が言う（衝突しない最小の 2 の冪）
-#  —— 口 `ext` の次元 32 が運ぶ。枠 26 = 種3（pa % W）。
-field zamw : max bound 1024             # 場 f の内容番地の法（0 なら畳まない）
-zamw[f] <- w for (f, d, lo, w) in ext if d == 32 if f <= 1021
-zfpu[r, 26] <- true for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1
-zfpk[r, 26] <- 3 for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1
-zfplt[r, 26] <- 0 for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1
-zfpam[r, 26] <- r * 128 + 4 for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1
-zfpsr[r, 26] <- zfpb[r, 24] for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1 if zfpb[r, 24] >= 1
-zfpmo[r, 26] <- zamw[zsyf[r]] for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-      if zamw[zsyf[r]] >= 1
-# 合成規則の dm は畳んだ枠を読む（畳まないときは枠 24 のまま）
-zmib[r * 128] <- zfpb[r, 26] for (r) in 0 .. znr2m[0] if zissy[r]
-      if zfpu[r, 26] if zfpb[r, 26] >= 1
