@@ -117,6 +117,10 @@ def extrows(fl):
         b, sz, st, lo = fl.lay[f]
         if d < len(sz):
             rows.append((fnum[f], d, lo[d], sz[d]))
+    # **内容番地の法**（次元の番号 32 は「広さ」ではなく「法」の印）——
+    # 番地は 2^56 に散らばるので、帯ではなく法で畳む（flat.py の mod）。
+    for (f, d), w in getattr(fl, 'mod', {}).items():
+        if d == 0 and f in fnum: rows.append((fnum[f], 32, 0, w))
     return sorted(set(rows))
 
 
