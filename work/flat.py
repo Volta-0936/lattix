@@ -90,7 +90,7 @@ class _NoFam(Exception):
 
 
 class Flatten:
-    def __init__(self, prog, extent=None, atomb=None):
+    def __init__(self, prog, extent=None, atomb=None, mod=None):
         self.p = prog
         self.flat = {}
         for f, lt in prog.fields.items():
@@ -116,6 +116,10 @@ class Flatten:
         self.upto = -1                      # どこまで（辺の数）閉じてあるか
         self.ntmp = 0                       # 中間の升の数
         self.nid = 0                        # 辺の通し番号（中間の辺も同じ列に並ぶ）
+        self.adim = _addrdims(prog)         # 内容番地を座標にする (場, 次元)
+        self.mod = dict(mod or {})          # (場, 次元) → 番地を畳む法
+        self.addrof = {}                    # (場, 次元) → {剰余: 番地}
+        self.seenset = {}                   # (場, 次元) → 見た番地の集合
         self.atn, self.atl = {}, []         # 原子 → 番号 / 番号 → 原子
         self.gvhit = False                  # 区間の端が場の読みだったか
         self.noclose = False                # 閉じ直さずに読む（層ごとに一度）
@@ -185,6 +189,8 @@ class Flatten:
                     w = (b[i] if isinstance(b, tuple) and i < len(b)
                          else (b if not isinstance(b, tuple) else b[-1]))
                     lo.append(-PAD); sz.append(w + PAD)
+                elif self.mod.get((f, i)):
+                    lo.append(0); sz.append(self.mod[(f, i)])   # 番地は法で畳む
                 elif extent is not None and (f, i) in extent:
                     a, z = extent[(f, i)]        # 数えたものをそのまま上端に
                     lo.append(a); sz.append(z - a + 1)
@@ -581,6 +587,21 @@ class Flatten:
         const, slots, ind, ind2 = base, [], (0, 0, 0), (0, 0, 0)
         for i, ke in enumerate(kexprs):
             c, ss, iv = self.pcell(ke, sl, axes, st, sp, npt)
+            # **内容番地は法で畳む。** 番地は 2^56 に散らばるので、帯をそのまま
+            # 取ると升の番号が 10^16 になる（使うのは数十升である）。同じ番地は
+            # 同じ剰余なので、法 W で畳めば cons の同一性は保たれる。W は
+            # 一巡目に測った番地の集合が言う（衝突しない最小の 2 の冪。flatten）。
+            w = self.mod.get((f, i))
+            if w:
+                if iv[2]:
+                    bm = self.pslot(npt)
+                    self.fp.append((self.newid(), sp, st, 3, 0, bm,
+                                    self.mapof(0, [], axes), w, iv[1], 0, 0))
+                    if iv[0] != 1 or c or ss:
+                        raise NotImplementedError(f"`{f}` の番地の次元が一次式")
+                    iv = (1, bm, 1)
+                else:
+                    c %= w
             if iv[2]:
                 if not ind[2]:
                     ind = (iv[0] * stp[i], iv[1], 1)
@@ -987,6 +1008,9 @@ class Flatten:
                 k = self.atom(k)          # 原子も番号である。上の段に置くだけ
             a, z = self.seen.get((f, i), (k, k))
             self.seen[(f, i)] = (min(a, k), max(z, k))
+            if (f, i) in self.adim:
+                self.seenset.setdefault((f, i), set()).add(k)
+            if (f, i) in self.mod: k %= self.mod[(f, i)]   # 番地は法で畳む
             k -= lo[i]
             if k < 0:
                 raise NotImplementedError(f"`{f}` の座標が余白 {PAD} より小さい")
@@ -1019,12 +1043,16 @@ class Flatten:
         return None, ()
 
     def measure(self, c):
-        """走らせて **実際に触れた升**を、そのまま上端にする（CLAUDE.md）。"""
+        """走らせて **実際に触れた升**を、そのまま上端にする（CLAUDE.md）。
+        内容番地の次元は上端ではなく **集合**を覚える —— 帯は 2^56 でも
+        中身は数十なので、法で畳むための最小の 2 の冪はそこから出る。"""
         f, k = self.axes(c)
         if f is None: return
         for i, x in enumerate(k):
             a, z = self.seen.get((f, i), (x, x))
             self.seen[(f, i)] = (min(a, x), max(z, x))
+            if (f, i) in self.adim:
+                self.seenset.setdefault((f, i), set()).add(x)
 
     def name_of(self, c):
         """升番号 → (場, 座標)。答えを見せるときに要る。
@@ -1048,6 +1076,8 @@ class Flatten:
                 for i, s in enumerate(st):
                     if i >= self.nk.get(f, len(st)): break
                     x = r // s + lo[i]; r %= s
+                    if (f, i) in self.mod:      # 剰余 → 測った番地に戻す
+                        x = self.addrof.get((f, i), {}).get(x, x)
                     if x >= self.ATOMB:
                         i2 = x - self.ATOMB
                         if i2 >= len(self.atl): raise KeyError(c)
@@ -1915,6 +1945,37 @@ def _hasctor(e):
     return False
 
 
+def _addrdims(prog):
+    """**内容番地を座標にする (場, 次元)。** 構成子の式を鍵に書いた場所を
+    記述から数える（書き先でも読みでも同じ次元である）。番地は 2^56 に
+    散らばるので、この次元だけは帯ではなく法で畳む（flatten が法を測る）。"""
+    out = set()
+    def keyd(f, keys):
+        for d, k in enumerate(keys):
+            if isinstance(k, tuple) and _hasctor(k): out.add((f, d))
+            walk(k)
+    def _hasctor(e):
+        if not isinstance(e, tuple) or not e: return False
+        if e[0] == 'ctor': return True
+        return any(_hasctor(x) if isinstance(x, tuple) else
+                   any(_hasctor(y) for y in x) if isinstance(x, list) else False
+                   for x in e[1:])
+    def walk(e):
+        if not isinstance(e, tuple) or not e: return
+        if e[0] == 'fref': keyd(e[1], e[2]); return
+        for x in e[1:]:
+            if isinstance(x, tuple): walk(x)
+            elif isinstance(x, list):
+                for y in x: walk(y)
+    for r in prog.rules:
+        keyd(r.target, r.keys)
+        walk(r.value)
+        for q in r.guards: walk(q)
+        for _vs, srcx in (r.sources or []):
+            if isinstance(srcx, tuple): walk(srcx)
+    return out
+
+
 def _allatoms(prog):
     """プログラムに現れる原子（文字列）を、**綴りの順**にすべて集める。
     走らせる側に渡す表に文字列を一つも入れないための下ごしらえである ——
@@ -1957,10 +2018,11 @@ def flatten(path, closer=None):
     それは「上限を測らないことの言い換え」である（CLAUDE.md）。"""
     src = open(path, encoding='utf-8').read()
 
-    def once(extent=None, atomb=None):
+    def once(extent=None, atomb=None, mod=None, addrof=None):
         p = L.parse(src, base=os.path.dirname(os.path.abspath(path)))
         L.check(p); L.stratify(p)
-        fl = Flatten(p, extent, atomb)
+        fl = Flatten(p, extent, atomb, mod)
+        if addrof: fl.addrof = addrof
         import hashlib
         # 閉じの器の覚え書きの鍵 —— 本の**置き場**で引く（字面を直しても覚え書きは生きる。形の和は上位互換）
         fl.srcsha = hashlib.sha1(os.path.abspath(path).encode('utf-8')).hexdigest()[:16]
@@ -1980,7 +2042,23 @@ def flatten(path, closer=None):
     for k, (a, z) in fl.seen.items():
         ext[k] = (a - ATOMB0 + nb if a >= ATOMB0 else a,
                   z - ATOMB0 + nb if z >= ATOMB0 else z)
-    return once(ext, nb)
+    # **内容番地は法で畳む。** 一巡目に触れた番地の集合が法を言う ——
+    # 衝突しない最小の 2 の冪である（noema は 6.4×10^16 の帯に 20 升だった）。
+    # 衝突を許さないので `cons` の同一性は保たれる。二巡目は剰余を座標にする。
+    mod, addrof = {}, {}
+    if os.environ.get('LATTIX_ADDRMOD', '1') == '1':
+        for k, vs in fl.seenset.items():
+            vs = {v for v in vs if isinstance(v, int) and not isinstance(v, bool)}
+            if not vs: continue
+            w = 8
+            while w < (1 << 40):
+                if len({v % w for v in vs}) == len(vs): break
+                w *= 2
+            else:
+                continue                  # 畳めない —— 帯のまま（黙って潰さない）
+            mod[k] = w; addrof[k] = {v % w: v for v in vs}
+            ext.pop(k, None)
+    return once(ext, nb, mod, addrof)
 
 
 if __name__ == '__main__':
