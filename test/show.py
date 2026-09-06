@@ -19,9 +19,9 @@ def tables(path):
     return tables_of(fl, p, ref)
 
 
-def tables_of(fl, p, ref, fat_ref=None):
+def tables_of(fl, p, ref):
     """見せる物の表。ref は場 → {座標: 値}（参照実装の答えでも、機械の面の
-    読みでも同じ形）。原子の型は **記述から**出す（fat_ref は使わない）。"""
+    読みでも同じ形）。**原子の型は記述から出す** —— 答えは見ない。"""
     fnum = {f: i for i, f in enumerate(p.fields)}
     atn = {a: i for i, a in enumerate(fl.atl)}          # 綴り → 番号（基から）
     fld, fnm, atm, pv, prn, ps = [], [], [], [], [], []

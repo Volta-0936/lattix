@@ -4467,3 +4467,27 @@ zmib2[r * 128 + 60] <- zfpb[r, 30] for (r) in 0 .. znr2m[0] if zhr2[r]
 zmia2[r * 128 + 61] <- 1 for (r) in 0 .. znr2m[0] if zhr2[r]
 zmib2[r * 128 + 61] <- zfpb[r, 31] for (r) in 0 .. znr2m[0] if zhr2[r]
       if zfpb[r, 31] >= 1
+
+# ── 見せる物の型（fat）—— **原子か数かは記述が言う** ──────────────────
+#  原子性は (場, 次元) を升にした `or` の場である（次元 3 は値）。表の綴りの
+#  列（zacl）に束ねた変数を座標に書けばその次元が、値に書けばその値が原子。
+#  答えを見る必要はない —— 見ていたのは `test/show.py` の側だった。
+#  まだ入れていないのは **写しの伝播**（`f[i] <- g[i]` で g の値が原子）。
+#  要る本が出たら原子が数として出るので突き合わせが言う（黙って真にならない）。
+field zfat : or bound 1024 4
+# 座標: 頭の出現の次元 d が、綴りの列に束ねた変数
+zfat[ofl[o] - 1, d] <- true for (o) in 0 .. nocz[0] for (d) in 0 .. 2
+      if okk[o] == 2 if ofl[o] >= 1 if zdk[o, d] == 0
+      if zlpg[zsr[o], zdj[o, d]] >= 0
+      if zacl[zltb[zlpg[zsr[o], zdj[o, d]]], zdc[o, d]]
+# 値: 変数の項が、綴りの列に束ねた変数（一元の集合 {c} も同じ項である）
+zfat[hfl[snum[t]] - 1, 3] <- true for (t,zc) in ch if zvarl[t]
+      if hfl[snum[t]] >= 1 if lkd[snum[t], zvlpz[t]] == 0
+      if zlpg[zrn[snum[t]], zvlpz[t]] >= 0
+      if zacl[zltb[zlpg[zrn[snum[t]], zvlpz[t]]], zvcolz[t]]
+# 構成子の引数場: 使用の引数が綴りの列に束ねた変数（種8 と同じ判断）
+zfat[zafn[zuc[u], k], 3] <- true for (u) in 0 .. znusem[0] for (k) in 0 .. 7
+      if zuat[u, k] >= 0 if not isnum[zuat[u, k]] if not isocc[zuat[u, k]]
+      if zur[u] >= 0 if zlpg[zur[u], zvlpz[zuat[u, k]]] >= 0
+      if zltb[zlpg[zur[u], zvlpz[zuat[u, k]]]] >= 0
+      if zacl[zltb[zlpg[zur[u], zvlpz[zuat[u, k]]]], zvcolz[zuat[u, k]]]

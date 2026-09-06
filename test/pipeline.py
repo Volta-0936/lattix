@@ -119,7 +119,7 @@ def one(info, path):
     if os.environ.get('LATTIX_SHOW') == '1' and p.prints:
         # 三段目: 機械の面 → show.lx → 字面。参照実装の標準出力とバイト一致。
         import show as SH, subprocess
-        tb = SH.tables_of(fl, p, out, fat_ref=ref)
+        tb = SH.tables_of(fl, p, out)   # 原子の型は記述から（参照の答えは見ない）
         txt = SH.render(tb)
         r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
                            capture_output=True)
