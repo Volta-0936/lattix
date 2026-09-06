@@ -9,7 +9,7 @@ sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, 'work'))
 os.environ.setdefault('LATTIX_FAMILY_MIN', '1')
 import lattix as L
 import engine2
-from flat import flatten
+from flat import flatten, fat_of
 SHOW = open(os.path.join(ROOT, 'show.lx'), encoding='utf-8').read()
 
 
@@ -21,8 +21,7 @@ def tables(path):
 
 def tables_of(fl, p, ref, fat_ref=None):
     """見せる物の表。ref は場 → {座標: 値}（参照実装の答えでも、機械の面の
-    読みでも同じ形）。fat_ref は原子の型の出どころ（省けば ref から）。"""
-    fat_ref = ref if fat_ref is None else fat_ref
+    読みでも同じ形）。原子の型は **記述から**出す（fat_ref は使わない）。"""
     fnum = {f: i for i, f in enumerate(p.fields)}
     atn = {a: i for i, a in enumerate(fl.atl)}          # 綴り → 番号（基から）
     fld, fnm, atm, pv, prn, ps = [], [], [], [], [], []
@@ -62,13 +61,8 @@ def tables_of(fl, p, ref, fat_ref=None):
     for ci, (nm, (fs, _bd)) in enumerate(p.ctors.items()):
         for k, ch in enumerate(nm.encode()): ctr.append((ci, k, ch))
         for i, a in enumerate(fs): cac.append((ci, i, fnum[f"{nm}_{a}"]))
-    fat = set()
-    for f, i in fnum.items():
-        for keys, v in fat_ref.get(f, {}).items():
-            for d, k in enumerate(keys):
-                if isinstance(k, str): fat.add((i, d))
-            if isinstance(v, str): fat.add((i, 3))
-            if isinstance(v, frozenset) and any(isinstance(e, str) for e in v): fat.add((i, 3))
+    # **原子の型は記述が言う**（答えを見ない）。flat.fat_of の不動点。
+    fat = {(fnum[f], d) for f, d in fat_of(p) if f in fnum}
     return (fld, fnm or [(0, 0, 32)], atm or [(0, 0, 32)], pv or [(0, 0, 0)], prn,
             [(fl.ATOMB,)], sorted(fat) or [(1023, 0)], ps or [(1023, 0, 0, 0)],
             ctr or [(0, 0, 32)], cac or [(1023, 0, 1023)])

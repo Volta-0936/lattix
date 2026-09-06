@@ -1990,3 +1990,41 @@ if __name__ == '__main__':
     print("層", fl.strata(), " 升", fl.ncell(), " 指し番号", len(fl.ix))
     v, c, l = fl.shapes()
     print("形", v); print("条件", c); print("束", l)
+
+def fat_of(prog):
+    """**原子か数かは、答えではなく記述が言う。** 場の次元 d（3 は値）が原子を
+    持つか —— これは (場, 次元) を升にした `or` の場の不動点である:
+      ・表の列に綴りがあれば、その列に束ねた変数は原子
+      ・原子の項を座標／値に書けば、その (場, 次元) は原子
+      ・場の読みは、読まれた場の値の次元から継ぐ（写しの伝播）
+    見せる物の `fat` 表はこれで出る（答えを見ない）。前段が同じ判断を持つ。"""
+    atomcol = set()
+    for t, rows in prog.tables.items():
+        for row in rows:
+            for c, x in enumerate(row):
+                if isinstance(x, str): atomcol.add((t, c))
+    fat = set()
+    def binds(r):
+        b = {}
+        for s in r.sources:
+            if isinstance(s, tuple) and len(s) == 2 and isinstance(s[1], str) \
+               and s[1] in prog.tables:
+                for c, v in enumerate(s[0]):
+                    if v is not None: b[v] = (s[1], c)
+        return b
+    def at(e, b):
+        if not isinstance(e, tuple) or not e: return False
+        k = e[0]
+        if k == 'str': return True
+        if k == 'var': return b.get(e[1]) in atomcol
+        if k == 'fref': return (e[1], 3) in fat
+        if k == 'set': return any(at(x, b) for x in e[1])
+        return False
+    while True:                              # 単調なので必ず止まる
+        n = len(fat)
+        for r in prog.rules:
+            b = binds(r)
+            for d, k in enumerate(r.keys):
+                if d < 3 and at(k, b): fat.add((r.target, d))
+            if at(r.value, b): fat.add((r.target, 3))
+        if len(fat) == n: return fat
