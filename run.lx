@@ -8,7 +8,7 @@
 #   辺の上限: 6136   指し番号の上限: 3996
 #
 #   プログラムごとに変わるのは **表だけ**である。
-#   規則の数 335 行は、言語の形の数であって
+#   規則の数 353 行は、言語の形の数であって
 #   プログラムの大きさではない。
 
 # ══ 走らせる物 —— 寄与の関係を閉じる ════════════════════════════
@@ -328,6 +328,24 @@ vm[s, rz[s, t]] <- vf[s, rz[s, a]]   for (s) in 0 .. 47 for (e,st,lat,t,vf,n,a,l
 vx[s, rz[s, t]] <- vn[s - 1, rz[s, a]]   for (s) in 1 .. 47 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 2 if vf == 4 if la == 1
 vn[s, rz[s, t]] <- vn[s, rz[s, a]] + vn[s, rz[s, b]] + w   for (s) in 0 .. 47 for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 0 if st == s if ok[s, e] if lat == 1 if vf == 1 if n == 2 if la == 1
 
+field zov : or bound 8      # 宣言した上限を超えた（0 層 / 1 空間 / 2 写像 / 3 辺 / 4 指し番号 / 5 行 / 6 点 / 7 番地）
+zov[0] <- true for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if st >= 48 if st != 999
+zov[0] <- true for (e,sp,st,kk,lat,cm,op,n,r1,r2,wm) in fc if st >= 48 if st != 999
+zov[0] <- true for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp if st >= 48 if st != 999
+zov[0] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if st >= 48 if st != 999
+zov[0] <- true for (e,st,k,lat,c,op,n,r1,r2,w) in cd if st >= 48 if st != 999
+zov[0] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if 0 - st > 48
+zov[1] <- true for (sp,n) in ssz if sp >= 128
+zov[2] <- true for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2) in mp if x >= 32768
+zov[3] <- true for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if e >= 6136
+zov[3] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if e >= 6136
+zov[4] <- true for (q,im,ic,il,iz,dl) in ix if q >= 3996
+zov[5] <- true for (r,c,v) in dat if r >= 1002
+zov[5] <- true for (r,c,v) in dat if c >= 6
+zov[6] <- true for (sp,n) in ssz if n > 10368
+zov[7] <- true for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp if pb >= 137378
+
+print zov
 print vn
 print vx
 print vo

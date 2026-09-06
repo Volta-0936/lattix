@@ -45,6 +45,9 @@ KEYED = (8, 9, 10)                  # sum / count / bag —— 寄与元キー�
 BOOL  = (3, 4, 9)                   # true を寄せる束
 
 
+SENT = 999            # 空の表の番兵の層（どの層にも当たらない印）
+
+
 def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 nsp=1, nmp=1, nax=1, fcsh=(), npt=1, fpsh=(), npa=1, nat=1):
     """**層は座標である。** 前は層ごとに規則を字面で展開していた（vf0, vf1,
@@ -341,7 +344,35 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
             else:
                 A(f"{D} <- {src} + v{ql}[{r}, rz[s, b]] + w   "
                   f"{g} if n == 2 if la == {la}")
+    # ── 宣言した上限を **超えたら言う**（黙って空にしない）───────────────
+    #  「上限は、超えたときに何が起きるかを試すまで上限ではない」（気づき44）。
+    #  層 16 の一枚に層 38 の表を食わせて 18 場が黙って空になった事故はここから
+    #  出た。**表が言う番号を、宣言した箱と突き合わせる**だけでよい。
     A("")
+    A(f"field zov : or bound 8      # 宣言した上限を超えた（0 層 / 1 空間 /"
+      f" 2 写像 / 3 辺 / 4 指し番号 / 5 行 / 6 点 / 7 番地）")
+    #  空の表の番兵は層 999（「どの層にも当たらない」印。flat.tables /
+    #  mkrun.pad / pipeline が同じ数を書いている —— 同じ判断が四箇所にある。
+    #  気づき34 の形なので、番兵を「本物の個数」にする直しは宿題）。
+    for tp, tu in (('fg', 'e,sp,st,lat,vf,n,dm,am,bm,wm'),
+                   ('fc', 'e,sp,st,kk,lat,cm,op,n,r1,r2,wm'),
+                   ('fp', 'e,sp,st,kd,lat,pb,am,mo,p1,p2,mu'),
+                   ('eg', 'e,st,lat,t,vf,n,a,la,b,w'),
+                   ('cd', 'e,st,k,lat,c,op,n,r1,r2,w')):
+        A(f"zov[0] <- true for ({tu}) in {tp} if st >= {ns} if st != {SENT}")
+    A(f"zov[0] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if 0 - st > {ns}")
+    A(f"zov[1] <- true for (sp,n) in ssz if sp >= {nsp}")
+    A(f"zov[2] <- true for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2)"
+      f" in mp if x >= {nmp}")
+    A(f"zov[3] <- true for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if e >= {ne}")
+    A(f"zov[3] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if e >= {ne}")
+    A(f"zov[4] <- true for (q,im,ic,il,iz,dl) in ix if q >= {nq}")
+    A(f"zov[5] <- true for (r,c,v) in dat if r >= {nrow}")
+    A(f"zov[5] <- true for (r,c,v) in dat if c >= {ncol}")
+    A(f"zov[6] <- true for (sp,n) in ssz if n > {npt}")
+    A(f"zov[7] <- true for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp if pb >= {npa}")
+    A("")
+    A("print zov")
     for lt in lats:
         A(f"print v{PLANE[lt][0]}")
     return "\n".join(T) + "\n"
