@@ -297,6 +297,12 @@ def run_front(path, orc=None, ext=None):
     return dat, spc, ssz, g
 
 
+def fatrows(g):
+    """**前段が出した原子の型**（見せる物の fat）。答えは見ない —— 綴りの列に
+    束ねた変数を座標／値に書いたか、というだけの判断である（front.lx zfat）。"""
+    return sorted(g('zfat'))
+
+
 def front_family(g):
     """front.lx の場から fg/fc/fp/写像 を組み立てる（0 は居ない部品の埋め草）。"""
     zmu = g('zmu')

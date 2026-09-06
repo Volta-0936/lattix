@@ -19,9 +19,10 @@ def tables(path):
     return tables_of(fl, p, ref)
 
 
-def tables_of(fl, p, ref):
+def tables_of(fl, p, ref, fat=None):
     """見せる物の表。ref は場 → {座標: 値}（参照実装の答えでも、機械の面の
-    読みでも同じ形）。**原子の型は記述から出す** —— 答えは見ない。"""
+    読みでも同じ形）。**原子の型は記述から出す** —— 答えは見ない。
+    fat を渡せば前段（front.lx の zfat）が出した物を使う。省けば flat.fat_of。"""
     fnum = {f: i for i, f in enumerate(p.fields)}
     atn = {a: i for i, a in enumerate(fl.atl)}          # 綴り → 番号（基から）
     fld, fnm, atm, pv, prn, ps = [], [], [], [], [], []
@@ -61,8 +62,10 @@ def tables_of(fl, p, ref):
     for ci, (nm, (fs, _bd)) in enumerate(p.ctors.items()):
         for k, ch in enumerate(nm.encode()): ctr.append((ci, k, ch))
         for i, a in enumerate(fs): cac.append((ci, i, fnum[f"{nm}_{a}"]))
-    # **原子の型は記述が言う**（答えを見ない）。flat.fat_of の不動点。
-    fat = {(fnum[f], d) for f, d in fat_of(p) if f in fnum}
+    # **原子の型は記述が言う**（答えを見ない）。前段が出した物があればそれ、
+    # 無ければ同じ判断の参照側（flat.fat_of の不動点）。
+    fat = (set(fat) if fat is not None
+           else {(fnum[f], d) for f, d in fat_of(p) if f in fnum})
     return (fld, fnm or [(0, 0, 32)], atm or [(0, 0, 32)], pv or [(0, 0, 0)], prn,
             [(fl.ATOMB,)], sorted(fat) or [(1023, 0)], ps or [(1023, 0, 0, 0)],
             ctr or [(0, 0, 32)], cac or [(1023, 0, 1023)])

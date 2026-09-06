@@ -119,7 +119,14 @@ def one(info, path):
     if os.environ.get('LATTIX_SHOW') == '1' and p.prints:
         # 三段目: 機械の面 → show.lx → 字面。参照実装の標準出力とバイト一致。
         import show as SH, subprocess
-        tb = SH.tables_of(fl, p, out)   # 原子の型は記述から（参照の答えは見ない）
+        # 原子の型も **前段**が出す。ただし番号は前段のもの（宣言 → _size →
+        # 引数場）なので、見せる物の番号（p.fields の順）へ名前で渡し直す ——
+        # 番号はラベルであって、名前ではない。
+        inv = {i: f for f, i in F.frontnum(fl)[0].items()}
+        sn = {f: i for i, f in enumerate(p.fields)}
+        fat = {(sn[inv[i]], d) for (i, d) in F.fatrows(g)
+               if i in inv and inv[i] in sn}
+        tb = SH.tables_of(fl, p, out, fat=fat)
         txt = SH.render(tb)
         r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
                            capture_output=True)
