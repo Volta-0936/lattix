@@ -33,7 +33,7 @@ import pipeline as P
 import lattix as L
 import runtime as R
 import baked as B
-from engine2 import tbl, answers
+from engine2 import tbl, answers, Rejected
 from flat import PLANE
 
 W = 84
@@ -238,18 +238,20 @@ if __name__ == '__main__':
     print("-" * W)
     def bell(s, f): raise TimeoutError()
     signal.signal(signal.SIGALRM, bell)
-    ok = bad = 0
+    ok = bad = skip = 0
     for path in sys.argv[1:]:
         n = os.path.basename(path)
         signal.alarm(LIMIT)
         try:
             v, why = one(info, os.path.join(ROOT, path))
+        except Rejected as ex: v, why = 'skip', f"参照が断る本: {str(ex)[:40]}"
         except TimeoutError: v, why = 'diff', f"{LIMIT}s で切った"
         except Exception as ex: v, why = 'diff', f"{type(ex).__name__}: {ex}"[:70]
         finally: signal.alarm(0)
         if v == 'ok': ok += 1; print(f"  {n:<22} ✓  {why}", flush=True)
+        elif v == 'skip': skip += 1; print(f"  {n:<22} —  {why}", flush=True)
         else: bad += 1; print(f"  {n:<22} ✗  {why}", flush=True)
     print("-" * W)
-    print(f"  一致 {ok} / 食い違い {bad}")
+    print(f"  一致 {ok} / 断る本 {skip} / 食い違い {bad}")
     print("=" * W)
     sys.exit(1 if bad else 0)
