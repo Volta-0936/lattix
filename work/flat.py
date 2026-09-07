@@ -343,16 +343,17 @@ class Flatten:
         """番地の面に、点 n 個ぶんの枠を一つ取る（基は 1 以上 —— 0 は番兵）。"""
         b = self.pab; self.pab += max(1, n); return b
 
-    def pcell(self, e, sl, axes, st, sp, npt):
+    def pcell(self, e, sl, axes, st, sp, npt, mod=None):
         """座標の式 → (定数, 軸の枠, 間接の項)。一次に収まらない読みは
-        `pa` に写して一次に戻す。**間接の項は一つまで**（写像が一行だから）。"""
+        `pa` に写して一次に戻す。**間接の項は一つまで**（写像が一行だから）。
+        `mod` は内容番地の法（この次元が番地なら、写し／対の枠で畳む）。"""
         try:
             c, ss = self.affine(e, sl)
             return c, ss, (0, 0, 0)
         except NotImplementedError:
             pass
         if e[0] == 'ctor':
-            return self.pctor(e, sl, axes, st, sp, npt)
+            return self.pctor(e, sl, axes, st, sp, npt, mod)
         # `A + m·g[…]` の形に分ける（`g[…]` はちょうど一つ）。座標は
         # 単調性が要らないので、引かれた読み（`i - owner[i]`、m = -1）も
         # そのまま間接に畳める —— _addok（値の形の検査）はここでは強すぎる。
@@ -385,9 +386,12 @@ class Flatten:
                         f"`{g[1]}` は同じ層で育つので番地にできない")
                 lt = -lt                  # 生きた面から読む合図（`ix` と同じ）
             b = self.pslot(npt)
-            self.fp.append((self.newid(), sp, st, 0, lt, b, am, 0, 0, 0, 0))
+            self.fp.append((self.newid(), sp, st, 0, lt, b, am, mod or 0, 0, 0, 0))
             ivs.append((m, b, 1))
         c, ss = self.affine(_strip(e, fl + chs), sl)
+        if mod and (len(ivs) != 1 or c or ss or ivs[0][0] != 1):
+            # 法で畳めるのは「読み一本そのもの」だけ（剰余は和に分配できない）
+            raise NotImplementedError(f"番地の次元が一次式: {e}")
         # **読みは何本でも一本に畳める**（種7: μ·pa + ν·pa）—— pctor の
         # 間接の畳みと同じ算術を、座標そのものに使うだけである。
         while len(ivs) > 1:
@@ -485,7 +489,7 @@ class Flatten:
             return (1, b0, 1)
         raise NotImplementedError(f"鎖の形でない: {e}")
 
-    def pctor(self, e, sl, axes, st, sp, npt):
+    def pctor(self, e, sl, axes, st, sp, npt, mod=None):
         """**構成子の番地は、引数の一次式である（法 M）。**
 
         `ctor_id` は Horner の折り込みで書いてあり、mod は環の準同型なので
@@ -578,7 +582,7 @@ class Flatten:
             b.append(bx)
         bz = self.pslot(npt)
         self.fp.append((self.newid(), sp, st, 2, 0, bz,
-                        self.mapof(0, [], axes), 0, b[0], b[1], L.CTOR_M2))
+                        self.mapof(0, [], axes), mod or 0, b[0], b[1], L.CTOR_M2))
         return 0, [], (1, bz, 1)
 
     def pmapcell(self, f, kexprs, sl, axes, st, sp, npt):
@@ -586,22 +590,14 @@ class Flatten:
         base, sz, stp, lo = self.lay[f]
         const, slots, ind, ind2 = base, [], (0, 0, 0), (0, 0, 0)
         for i, ke in enumerate(kexprs):
-            c, ss, iv = self.pcell(ke, sl, axes, st, sp, npt)
+            c, ss, iv = self.pcell(ke, sl, axes, st, sp, npt, self.mod.get((f, i)))
             # **内容番地は法で畳む。** 番地は 2^56 に散らばるので、帯をそのまま
             # 取ると升の番号が 10^16 になる（使うのは数十升である）。同じ番地は
             # 同じ剰余なので、法 W で畳めば cons の同一性は保たれる。W は
             # 一巡目に測った番地の集合が言う（衝突しない最小の 2 の冪。flatten）。
             w = self.mod.get((f, i))
-            if w:
-                if iv[2]:
-                    bm = self.pslot(npt)
-                    self.fp.append((self.newid(), sp, st, 3, 0, bm,
-                                    self.mapof(0, [], axes), w, iv[1], 0, 0))
-                    if iv[0] != 1 or c or ss:
-                        raise NotImplementedError(f"`{f}` の番地の次元が一次式")
-                    iv = (1, bm, 1)
-                else:
-                    c %= w
+            if w and not iv[2]:
+                c %= w                    # 定数の番地（定数の構成子）
             if iv[2]:
                 if not ind[2]:
                     ind = (iv[0] * stp[i], iv[1], 1)
@@ -1949,10 +1945,14 @@ def _addrdims(prog):
     """**内容番地を座標にする (場, 次元)。** 構成子の式を鍵に書いた場所を
     記述から数える（書き先でも読みでも同じ次元である）。番地は 2^56 に
     散らばるので、この次元だけは帯ではなく法で畳む（flatten が法を測る）。"""
-    out = set()
+    out, bad = set(), set()
     def keyd(f, keys):
         for d, k in enumerate(keys):
             if isinstance(k, tuple) and _hasctor(k): out.add((f, d))
+            # 番地を **一次式**で書いた次元（25_eval の `h1 * M2 + h2`）は畳めない
+            # —— 剰余は和に分配できない。その次元は帯のまま（畳むのは読み一本か
+            # 構成子そのものの次元だけ）。
+            if isinstance(k, tuple) and k[0] == 'bin': bad.add((f, d))
             walk(k)
     def _hasctor(e):
         if not isinstance(e, tuple) or not e: return False
@@ -1973,7 +1973,7 @@ def _addrdims(prog):
         for q in r.guards: walk(q)
         for _vs, srcx in (r.sources or []):
             if isinstance(srcx, tuple): walk(srcx)
-    return out
+    return out - bad
 
 
 def _allatoms(prog):
@@ -2046,10 +2046,9 @@ def flatten(path, closer=None):
     # 衝突しない最小の 2 の冪である（noema は 6.4×10^16 の帯に 20 升だった）。
     # 衝突を許さないので `cons` の同一性は保たれる。二巡目は剰余を座標にする。
     mod, addrof = {}, {}
-    # **既定は off。** 前段（front.lx）はまだ法の枠を出さないので、on にすると
-    # front と flat の家の表が食い違う（第2段の出口条件が破れる）。前段に同じ
-    # 判断を移すまでは、測るためだけの口である（`LATTIX_ADDRMOD=1`）。
-    if os.environ.get('LATTIX_ADDRMOD', '0') == '1':
+    # 前段（front.lx zamw / zfpmo）も同じ判断を持つ。`LATTIX_ADDRMOD=0` で外せる
+    # （帯のまま —— 測るための口）。
+    if os.environ.get('LATTIX_ADDRMOD', '1') == '1':
         for k, vs in fl.seenset.items():
             vs = {v for v in vs if isinstance(v, int) and not isinstance(v, bool)}
             if not vs: continue

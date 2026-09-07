@@ -181,13 +181,18 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
         PL1 = f"{S1} for {FP} for (t) in 0 .. SZ[sp] - 1 if st >= 0 if st <= s"
         for (kd, lt) in fpsh:
             if kd == 0:
+                # **内容番地は法で畳む（mo ≥ 1 のとき）。** 番地を座標にする場は
+                # 帯が 2^56 に散らばるので、写しの時点で法 W に畳む。同じ番地は
+                # 同じ剰余 —— cons の同一性は保たれる。mo = 0 は畳まない。
                 ql, _ = PLANE[abs(lt)]
-                if lt < 0:
-                    A(f"pa[s, pb + t] <- v{ql}[s, {_map('am', PS)}]   "
-                      f"{PL0} if kd == 0 if lat == {lt}")
-                else:
-                    A(f"pa[s, pb + t] <- v{ql}[s - 1, {_map('am', PS)}]   "
-                      f"{PL1} if kd == 0 if lat == {lt}")
+                src = f"v{ql}[s, {_map('am', PS)}]" if lt < 0 else f"v{ql}[s - 1, {_map('am', PS)}]"
+                pl = PL0 if lt < 0 else PL1
+                A(f"pa[s, pb + t] <- {src}   {pl} if kd == 0 if lat == {lt} if mo == 0")
+                # 剰余は育つ束の上では単調でない（残りが減る）。畳めるのは
+                # 閉じた読み（s−1）か、生きていても flat / fourv（⊥→v で止まる）
+                # だけ —— 番地は flat の升に住むので、それで足りる。
+                if lt > 0 or abs(lt) in (5, 6):
+                    A(f"pa[s, pb + t] <- ({src}) % mo   {pl} if kd == 0 if lat == {lt} if mo >= 1")
             elif kd == 1:
                 # **構成子の番地は引数の一次式（法 M）である。** 括弧を忘れない
                 # —— `%` は `+` より強く、無いと最後の項しか畳まれない。
@@ -198,7 +203,9 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
                 A(f"pa[s, pb + t] <- pa[s, p1 + t] / mo   {PL0} if kd == 4")
             elif kd == 2:
                 A(f"pa[s, pb + t] <- mu * pa[s, p1 + t] + pa[s, p2 + t]   "
-                  f"{PL0} if kd == 2")
+                  f"{PL0} if kd == 2 if mo == 0")
+                A(f"pa[s, pb + t] <- (mu * pa[s, p1 + t] + pa[s, p2 + t]) % mo   "
+                  f"{PL0} if kd == 2 if mo >= 1")
             elif kd == 5:
                 A(f"pa[s, pb + t] <- AE1[{_map('am', PS)}]   {PL0} if kd == 5")
             elif kd == 6:
