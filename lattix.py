@@ -1589,9 +1589,18 @@ def _stratify_core(prog):
         wc[r.id] = _const_int(r.keys[d]) if d is not None and d < len(r.keys) \
                    else None
 
+    # **同じ規則の同じ場を、書き手の数だけ歩き直すな。** 座標の集合は
+    # (規則, 場) だけで決まる（軸は固定）—— 判断は変わらない。前は
+    # 書き手 × 読み手 × 場ぶん歩いていたので、一枚の本（前段 2371 規則 ∪
+    # 走らせる物 366 規則）では成層だけで数十分掛かっていた。
+    _rc = {}
+
     def rcoords(r, f):
         d = axis.get(f)
         if d is None: return {None}
+        key = (r.id, f)
+        hit = _rc.get(key)
+        if hit is not None: return hit
         out = set()
         for e in r.keys + [r.value] + r.guards:
             _fref_axis_coords(e, f, d, out)
@@ -1599,7 +1608,8 @@ def _stratify_core(prog):
             if isinstance(src, tuple) and src[0] == '..':
                 _fref_axis_coords(src[1], f, d, out)
                 _fref_axis_coords(src[2], f, d, out)
-        return out or {None}
+        _rc[key] = out or {None}
+        return _rc[key]
 
     def joined(w, r, f):
         if f not in axis: return True
