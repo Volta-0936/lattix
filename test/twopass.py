@@ -119,6 +119,21 @@ def planes(got, lats, lay):
     return out
 
 
+def moduli(seen, adim, fnum):
+    """一巡目の面から **内容番地の法** を測る（口 ext の次元 32）。番地の次元で
+    触れた座標の集合が、衝突しない最小の 2 の冪を言う（flat.flatten と同じ判断）。"""
+    rows = []
+    for f, d in sorted(adim):
+        i = fnum.get(f)
+        if i is None or i not in seen or d != 0: continue
+        vs = {k[0] for k in seen[i] if len(k) > 0 and isinstance(k[0], int)}
+        if not vs: continue
+        w = 8
+        while w < (1 << 40) and len({v % w for v in vs}) != len(vs): w *= 2
+        if w < (1 << 40): rows.append((i, 32, 0, w))
+    return rows
+
+
 def measured(seen, dyn, syn, fnum):
     """一巡目の面から口 `ext` を作る —— **触れた升が広さを言う**。"""
     rows = []
@@ -163,6 +178,8 @@ def one(info, path):
     sh = Shim(); sh.p = p
     fnum, syn = F.frontnum(sh)
     dyn = {(f, d) for f, d in F._dynd(sh)} if hasattr(F, '_dynd') else set()
+    from flat import _addrdims
+    adim = _addrdims(p)
 
     t0 = time.time()
     # **巡の数は二ではない —— 広さの鎖の高さである。**
@@ -176,6 +193,15 @@ def one(info, path):
     # 「広いが有限」の帯を敷く（超えたら run.lx の zov が言う）。
     PROV = int(os.environ.get('LATTIX_PROV', 1 << 20))
     ext = sorted({(fnum[f], d, 0, PROV) for f, d in dyn if f in fnum})
+    # 内容番地の次元は **仮の法** 2^20 で畳んで走らせる（帯を敷くと 2^56 で
+    # 溢れる）。一巡目の剰余の集合から本当の法 W ≤ 2^20 が出る —— W が 2^20 を
+    # 割るので、剰余の衝突は番地の衝突と同じである。衝突すれば flat の升が
+    # ⊤ になって機械が断る（黙って潰れない）。
+    ext += sorted({(fnum[f], 32, 0, PROV) for f, d in adim if f in fnum and d == 0})
+    # 畳んだ帯の **広さ**も同時に言う（法 W なら幅 W・下端 0）。言わないと
+    # 引数場の広さが ⊥ のままで、置き場の鎖（zfb）がそこで途切れる —— 一巡目の
+    # 面が空になって機械が黙る（noema が 900 秒で切れた理由）。
+    ext += sorted({(fnum[f], 0, 0, PROV) for f, d in adim if f in fnum and d == 0})
     orc, rounds = None, 0
     while True:
         rounds += 1
@@ -184,12 +210,18 @@ def one(info, path):
         got, lats = machine(info, g, dat, spc, ssz)
         seen = planes(got, lats, lay)
         e2 = [(1022, 0, g('zamx').get((0,), 0), 1)] + measured(seen, dyn, syn, fnum)
+        e2 += moduli(seen, adim, fnum)
+        e2 += [(f, 0, 0, w) for (f, d, _lo, w) in moduli(seen, adim, fnum)]   # 幅 = 法
         o2 = closedrows(p, seen, fnum) or [(0, 0, -1)]
         # 広さは縮めない（測りは join である）
         if ext:
             w = {(f, d): (lo, wd) for f, d, lo, wd in ext}
             for f, d, lo, wd in e2:
-                if (f, d) in w:
+                if d == 32:                       # 法: 測った値そのもの
+                    w[(f, d)] = (0, wd)
+                elif d == 0 and (f, 32) in w:     # 番地の帯の幅 = 法（縮んでよい）
+                    w[(f, d)] = (0, wd)
+                elif (f, d) in w:
                     l0, w0 = w[(f, d)]
                     lo2 = min(lo, l0); w[(f, d)] = (lo2, max(lo + wd, l0 + w0) - lo2)
                 else: w[(f, d)] = (lo, wd)

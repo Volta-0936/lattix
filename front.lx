@@ -3242,12 +3242,14 @@ zfk3[f] <- zaky[f, 23] for (f) in 0 .. znf2m[0] for (z) in 0 .. 0
 
 # ── 測った広さの口（走らせた側が寄越す。合成の場はここが言う） ───────
 table ext = (0, 0, 0, 0)
+# 口の次元は 0..2 が広さ、32 が内容番地の法（zamw）。宣言した広さの外の次元を
+# 書かない —— 次元 32 の行が来ると `zexw[f, 32]` は箱の外である（黙って隣を踏む）。
 field zexl : max bound 1024 2           # 場 f の次元 d の下端
-zexl[f, d] <- lo for (f, d, lo, w) in ext if f <= 1021
+zexl[f, d] <- lo for (f, d, lo, w) in ext if f <= 1021 if d <= 1
 field zexw : max bound 1024 3           # 幅
-zexw[f, d] <- w for (f, d, lo, w) in ext if f <= 1021
+zexw[f, d] <- w for (f, d, lo, w) in ext if f <= 1021 if d <= 2
 field zexu : or bound 1024 3            # 口が言っている
-zexu[f, d] <- true for (f, d, lo, w) in ext if w >= 1 if f <= 1021
+zexu[f, d] <- true for (f, d, lo, w) in ext if w >= 1 if f <= 1021 if d <= 2
 
 # ── 合成の規則（使用ごと: 引数場 ×n・_size ×(n+1)） ─────────────────
 field zucar : max bound 4096            # 使用 u の引数の数
