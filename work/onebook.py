@@ -302,8 +302,12 @@ def prune(head, eng, say=print):
             ln = int(m.group(1)) - 1 - off
             if ln < 0 or ln >= len(lines) or lines[ln].startswith('#'):
                 raise
-            out.append(lines[ln][:110])
-            say(f"  刈った: {lines[ln][:78]}")
+            #  **刈った物は、字面ではなく形で言う。** 頭を 80 字切っても
+            #  どの形かは分からない —— 判断はガードに書いてある。
+            shp = re.findall(r'if (?:F\w+\[[^\]]*\]|\w+) == -?\d+', lines[ln])
+            who = lines[ln].split('[')[0]
+            out.append(f"{who}: {' '.join(shp)}")
+            say(f"  刈った: {who:<4} {' '.join(shp)}")
             lines[ln] = '# 刈った（場の形では単調でない）: ' + lines[ln][:60]
     raise SystemExit("刈っても閉じない —— 数え上げの根拠が破れている")
 
