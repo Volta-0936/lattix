@@ -4,7 +4,7 @@
 import os, re, struct, subprocess, sys, io, collections, tempfile
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__))); sys.path.insert(0,ROOT)
 import lattix as L
-LATTIX=os.path.join(ROOT,"lattix")
+LATTIX=os.environ.get("LATTIX_EXE", os.path.join(ROOT,"lattix"))
 
 CASES=[]
 def case(name, src, data=b'', rows=None, exit=None, known=False, why=None):

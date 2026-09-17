@@ -46,6 +46,9 @@ BOOL  = (3, 4, 9)                   # true を寄せる束
 
 
 SENT = 999            # 空の表の番兵の層（どの層にも当たらない印）
+# 表の次数（行が一つも無い表にも零の行を置くために要る）。**一箇所で言う**
+ARITY = {'eg': 10, 'cd': 10, 'ix': 6, 'dat': 3, 'spc': 5, 'ssz': 2,
+         'mp': 17, 'fg': 10, 'fc': 11, 'fp': 11, 'ate': 3}
 
 
 def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
@@ -361,23 +364,29 @@ def engine_text(nc, ne, nq, ns, shapes, ixlat, fsh=(), nrow=1, ncol=1,
     #  空の表の番兵は層 999（「どの層にも当たらない」印。flat.tables /
     #  mkrun.pad / pipeline が同じ数を書いている —— 同じ判断が四箇所にある。
     #  気づき34 の形なので、番兵を「本物の個数」にする直しは宿題）。
-    for tp, tu in (('fg', 'e,sp,st,lat,vf,n,dm,am,bm,wm'),
-                   ('fc', 'e,sp,st,kk,lat,cm,op,n,r1,r2,wm'),
-                   ('fp', 'e,sp,st,kd,lat,pb,am,mo,p1,p2,mu'),
-                   ('eg', 'e,st,lat,t,vf,n,a,la,b,w'),
-                   ('cd', 'e,st,k,lat,c,op,n,r1,r2,w')):
+    #  **口に無い表は読めない。** 家の表（fg/fc/fp/dat/spc/ssz/mp）は、家の形が
+    #  一つも無い本では宣言されない —— 見張りだけが読みに行くと
+    #  `unknown table 'fg'` で本ごと落ちる（点の道しか持たない 02_strata などが
+    #  丸ごと割れた）。**見張りは、宣言されている表だけを見る。**
+    fam = [('fg', 'e,sp,st,lat,vf,n,dm,am,bm,wm')] if fsh else []
+    fam += [('fc', 'e,sp,st,kk,lat,cm,op,n,r1,r2,wm')] if fcsh else []
+    fam += [('fp', 'e,sp,st,kd,lat,pb,am,mo,p1,p2,mu')] if fpsh else []
+    for tp, tu in fam + [('eg', 'e,st,lat,t,vf,n,a,la,b,w'),
+                         ('cd', 'e,st,k,lat,c,op,n,r1,r2,w')]:
         A(f"zov[0] <- true for ({tu}) in {tp} if st >= {ns} if st != {SENT}")
     A(f"zov[0] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if 0 - st > {ns}")
-    A(f"zov[1] <- true for (sp,n) in ssz if sp >= {nsp}")
-    A(f"zov[2] <- true for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2)"
-      f" in mp if x >= {nmp}")
-    A(f"zov[3] <- true for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if e >= {ne}")
+    if fsh:
+        A(f"zov[1] <- true for (sp,n) in ssz if sp >= {nsp}")
+        A(f"zov[2] <- true for (x,k0,a0,l0,m0,a1,l1,m1,a2,l2,m2,im,ib,iu,i2,b2,u2)"
+          f" in mp if x >= {nmp}")
+        A(f"zov[3] <- true for (e,sp,st,lat,vf,n,dm,am,bm,wm) in fg if e >= {ne}")
+        A(f"zov[5] <- true for (r,c,v) in dat if r >= {nrow}")
+        A(f"zov[5] <- true for (r,c,v) in dat if c >= {ncol}")
+        A(f"zov[6] <- true for (sp,n) in ssz if n > {npt}")
     A(f"zov[3] <- true for (e,st,lat,t,vf,n,a,la,b,w) in eg if e >= {ne}")
     A(f"zov[4] <- true for (q,im,ic,il,iz,dl) in ix if q >= {nq}")
-    A(f"zov[5] <- true for (r,c,v) in dat if r >= {nrow}")
-    A(f"zov[5] <- true for (r,c,v) in dat if c >= {ncol}")
-    A(f"zov[6] <- true for (sp,n) in ssz if n > {npt}")
-    A(f"zov[7] <- true for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp if pb >= {npa}")
+    if fpsh:
+        A(f"zov[7] <- true for (e,sp,st,kd,lat,pb,am,mo,p1,p2,mu) in fp if pb >= {npa}")
     A("")
     A("print zov")
     for lt in lats:
@@ -436,8 +445,8 @@ def close_upto(fl):
         sh = fl.shapes()
         t = fl.tables()
         k = fl.strata() - 1
-        names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc',
-                                       'fp', 'ate') if fl.fg else ())
+        # names は下で **字面が読む表**から決める（形の union が家の規則を
+        # 呼び出すことがあるので、`fl.fg` で決めると宣言の無い表を読みに行く）
         # **器は表に依らない。** 前は表の行を字面に混ぜて焼いていたので、層が
         # 一つ進むたびに C が変わり（広さと形が育つ）、36 層 × 二周を毎回焼いた
         # （一周 3.5 時間）。広さは 2 の冪に丸め、形は本ごとの覚え書き（union）
@@ -471,6 +480,14 @@ def close_upto(fl):
         fpsh = uni('fpsh', fl.fpsh if fl.fp else ())
         ixlat = uni('ixlat', fl.ixlat)
         _hint_save(fl, hint)
+        # **字面が読む表だけを宣言する。** 形は本ごとの覚え書き（union）で
+        # 先回りするので、いまの本に家の行が一つも無くても家の規則が字面に
+        # 入ることがある —— そのとき表が無ければ `unknown table 'dat'` で
+        # 本ごと落ちる（点の道しか持たない本が丸ごと割れていた）。
+        names = ('eg', 'cd', 'ix')
+        if fsh: names += ('dat', 'spc', 'ssz', 'mp', 'fg', 'ate')
+        if fcsh: names += ('fc',)
+        if fpsh: names += ('fp',)
         code = engine_text(r2(sizes['nc']), r2(sizes['ne']), r2(sizes['nq']),
                            sizes['ns'], (vals, cond, lats), ixlat, fsh,
                            r2(sizes['nrow']), r2(sizes['ncol'], 4),
@@ -479,11 +496,13 @@ def close_upto(fl):
                            fpsh, r2(sizes['npa']),
                            sizes['nat'] if sizes['nat'] >= (1 << 40) else r2(sizes['nat']))
         # 焼く字面には各表の一行（零の行 —— 次数だけを言う）を置く
-        def dummy(rows):
-            return [tuple(0 for _ in rows[0])] if rows else []
-        eng_code = "".join(tbl(n, dummy(t[n])) for n in names) + code
+        # 空の表にも一行置く —— 次数は表が決める（行が無いと次数が言えない）
+        def dummy(rows, nm=None):
+            if rows: return [tuple(0 for _ in rows[0])]
+            return [tuple(0 for _ in range(ARITY[nm]))] if nm in ARITY else []
+        eng_code = "".join(tbl(n, dummy(t[n], n)) for n in names) + code
         def full_eng():          # 解釈実行に落ちるときだけ、表ごと組み立てる
-            return "".join(tbl(n, t[n]) for n in names) + code
+            return "".join(tbl(n, t[n] or dummy([], n)) for n in names) + code
         open('/tmp/close_gen.lx', 'w', encoding='utf-8').write(eng_code)
         # 一巡目の升番号は仮の帯（ATOMB0*2 = 2^63）を使うことがある。
         # 測定器は i64 —— 溢れる番号は flat の ⊤ と衝突する。**収まる
@@ -584,7 +603,8 @@ def build(path):
     sh = fl.shapes()
     names = ('eg', 'cd', 'ix') + (('dat', 'spc', 'ssz', 'mp', 'fg', 'fc', 'fp',
                                    'ate') if fl.fg else ())
-    src = "".join(tbl(n, t[n]) for n in names)
+    src = "".join(tbl(n, t[n] or [tuple(0 for _ in range(ARITY[n]))])
+                  for n in names)
     eng = engine_text(fl.ncell() + 1, fl.nid + 1, len(fl.ix) + 1,
                       fl.strata(), sh, fl.ixlat, fl.fsh if fl.fg else (),
                       fl.nrow + 1, max((r[1] for r in fl.dat), default=0) + 1,

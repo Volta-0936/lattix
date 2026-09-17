@@ -240,7 +240,7 @@ lpbc8[gl] <- lpbc[gl] * 8           for (gl) in 0 .. nglz[0]
 # ── 命令の骨。**表ではなく種で置く** —— 焼いた実行ファイルが読める表は
 # 標準入力の一つだけなので、生成器の定数は種でなければならない。
 # encb (形, 位置) → バイト。穴の位置には何も置かない（下で埋める）。
-field encb : max bound 169 12
+field encb : max bound 176 12
 encb[1,0] <- 72
 encb[1,1] <- 199
 encb[1,2] <- 195
@@ -714,10 +714,30 @@ encb[168,1] <- 199
 encb[168,2] <- 194
 encb[168,3] <- 61
 
+# ── 内側の読みの座標を畳む五つ（**r12 を使わない**）────────────────
+#  `f[g[i,j]]` の `g[i,j]` は外側の次元 d の**源**なので、外側の畳み（r12）が
+#  生きている最中に評価される。だから内側は r9 だけで畳む ——
+#  `imul r9, 広さ` の次に `add r9, <源>` を直に足せば、余分な register は要らない。
+encb[169,0] <- 77
+encb[169,1] <- 105
+encb[169,2] <- 201
+encb[170,0] <- 73
+encb[170,1] <- 1
+encb[170,2] <- 201
+encb[171,0] <- 77
+encb[171,1] <- 1
+encb[171,2] <- 233
+encb[172,0] <- 77
+encb[172,1] <- 1
+encb[172,2] <- 241
+encb[173,0] <- 73
+encb[173,1] <- 129
+encb[173,2] <- 193
+
 
 # 形の寸法を一つの数に畳む: 長さ*4096 + 穴の位置*64 + 穴の種
 # （二のべきで割れば戻る —— 種を三本並べるより一本の方が短い）
-field shp : max bound 169
+field shp : max bound 176
 shp[1] <- 28868
 shp[2] <- 28868
 shp[3] <- 28868
@@ -942,13 +962,23 @@ shp[33] <- 4096
 # 形 35: pop rdx
 encb[35,0] <- 90
 shp[35] <- 4096
+shp[169] <- 28868
+shp[170] <- 12288
+shp[171] <- 12288
+shp[172] <- 12288
+shp[173] <- 28868
 
-field shln : max bound 169           # 命令の長さ
-shln[f] <- shp[f] / 4096            for (f) in 0 .. 168
-field shho : max bound 169           # 穴の位置
-shho[f] <- shp[f] / 64 % 64         for (f) in 0 .. 168
-field shhk : max bound 169           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
-shhk[f] <- shp[f] % 64              for (f) in 0 .. 168
+# **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
+# 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
+# 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
+field nfm : max bound 1              # 形の番号の上限
+nfm[0] <- 173
+field shln : max bound 176           # 命令の長さ
+shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
+field shho : max bound 176           # 穴の位置
+shho[f] <- shp[f] / 64 % 64         for (f) in 0 .. nfm[0]
+field shhk : max bound 176           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
+shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 # 長さと、穴の位置・幅。kind 4 = imm32/d32 / 1 = imm8 / 5 = rel32
 # ── 配置 ─────────────────────────────────────────────────────────
 #   コード 0x400078  データ 0x401000  場 F 0x402000+foff[f]  階数 K はその後ろ
@@ -1205,6 +1235,17 @@ field oflg : max bound 8192                    # スロット gc の所有者が
 oflg[gc] <- ofld[cso[gc]]           for (gc) in 0 .. ngcz[0]
 field cdpos : max bound 8192                    # スロット gc の命令の位置（**一次元**）
 cdpos[gc] <- cb[cso[gc]] + coff[gc]  for (gc) in 0 .. ngcz[0]
+
+# ── **座標は入れ子になれる**（所有者が所有者を持つ）───────────────────
+#  `v[s, rz[s,t]]` の `rz[s,t]` は**二次元の読み**である。源2/3 は内側の
+#  次元を一本しか持てなかったので、内側の次元1 が黙って落ち、別の升を読んで
+#  いた（`o[p[i,j]]` が o[0]/o[1] にしか書かない）。
+#  直し: **内側の読みを一つの所有者にする**。源5 の行は「内側の座標は
+#  所有者 <列> が作る」と言い、その所有者の行は普通の crd 行（源 0/1/4）である。
+#  入れ子の深さにも次数にも上限が要らない —— 気づき23 の「形を足すのに列を
+#  足すな」の三度目。
+field isin : or bound 8192                     # 所有者は内側（r9 だけで畳む）
+isin[cdcc[gc]] <- true   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 field clen : max bound 8192                    # 次元 d の命令数
 # ずれは 0 無し / 1 後置（読んだ値に足す） / 2 前置（読む前に添字を動かす）。
 # **前置も後置も三命令**なので、長さは同じ —— 違うのは置く場所だけである。
@@ -1214,13 +1255,23 @@ clen[gc] <- 1   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0
 clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] >= 1
 clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
 clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] >= 1
+# 源5: 内側の所有者の長さ + 読み三命令（読む・⊥ と比べる・⊥ なら抜ける）
+clen[gc] <- ctot[cdcc[gc]] + 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+# 内側のスロット: 次元0 は載せるだけ、次元1 以降は **畳んで足す**（二命令）
+clen[gc] <- 2   for (gc) in 0 .. ngcz[0] if isin[cso[gc]] if csd[gc] >= 1
 field coff : max bound 8192                    # 所有者の中での次元 d の始まり
 coff[gc] <- 0                 for (gc) in 0 .. ngcz[0]
 coff[gc] <- coff[gc-1] + clen[gc-1] + 2   for (gc) in 0 .. ngcz[0] if csd[gc] > 0
+      if not isin[cso[gc]]
+coff[gc] <- coff[gc-1] + clen[gc-1]       for (gc) in 0 .. ngcz[0] if csd[gc] > 0
+      if isin[cso[gc]]
 field ctot : max bound 8192                    # 座標ぜんぶ（畳みの命令を含む）
 ctot[cso[gc]] <- 0                   for (gc) in 0 .. ngcz[0]
 ctot[cso[gc]] <- coff[gc] + clen[gc]   for (gc) in 0 .. ngcz[0] if csd[gc] == 0
 ctot[cso[gc]] <- coff[gc] + clen[gc] + 2   for (gc) in 0 .. ngcz[0] if csd[gc] > 0
+      if not isin[cso[gc]]
+ctot[cso[gc]] <- coff[gc] + clen[gc]       for (gc) in 0 .. ngcz[0] if csd[gc] > 0
+      if isin[cso[gc]]
 
 # ── 項も表である。長さも位置も **項番号に沿った前置きの鎖**（七度目）────
 field tmlen : max bound 4096
@@ -1618,6 +1669,8 @@ cb[tmoo[gt]] <- tpos[gt]      for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
 cb[tmoo[gt]] <- tpos[gt]      for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 cb[gdoo[gg]] <- gpos[gg] + 1  for (gg) in 0 .. nggz[0] if gdk[gg] >= 2
 cb[rroo[r]] <- wpos[r]                for (r) in 0 .. nrlz[0]
+# 内側の所有者は、外側のスロットの位置から始まる（入れ子はそこに開く）
+cb[cdcc[gc]] <- cdpos[gc]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 
 field ofld : max bound 8192                    # 所有者が指している場
 ofld[tmoo[gt]] <- tmf[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
@@ -1625,6 +1678,8 @@ ofld[tmoo[gt]] <- tmf[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
 ofld[tmoo[gt]] <- tmf[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 ofld[gdoo[gg]] <- gdf[gg]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 2
 ofld[rroo[r]] <- rrwf[r]  for (r) in 0 .. nrlz[0]
+# 内側の所有者が指す場は、外側の源5 の行が言う（畳みの広さはそこから引く）
+ofld[cdcc[gc]] <- cdcf[gc]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 
 # 次元 d の載せ方。源は四つ ——
 #   0 列 / 1 区間の計数器 / 2 列で引いた場の値 / 3 計数器で引いた場の値
@@ -1638,6 +1693,37 @@ form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] ==
 # 座標の源は「列・計数器・場の値」の三つだと思い込んでいた。定数も座標である。
 form[cdpos[gc]] <- 138  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4
 imm[cdpos[gc]]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4
+
+# ── 内側の次元1 以降。**畳んで足す**（r9 だけ。r12 は外側が使っている）───
+#  上の四つは次元0 を r9 に「載せる」。内側の次元1 以降は載せてはいけない
+#  —— 先に `imul r9, 広さ` で桁を上げ、源を **直に足す**。
+form[cdpos[gc]] <- 169  for (gc) in 0 .. ngcz[0] if isin[cso[gc]] if csd[gc] >= 1
+imm[cdpos[gc]]  <- fw[oflg[gc], csd[gc]] + bias[0]
+      for (gc) in 0 .. ngcz[0] if isin[cso[gc]] if csd[gc] >= 1
+form[cdpos[gc] + 1] <- 61   for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
+      if csd[gc] >= 1 if cdsr[gc] == 0
+imm[cdpos[gc] + 1]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0]
+      if isin[cso[gc]] if csd[gc] >= 1 if cdsr[gc] == 0
+form[cdpos[gc] + 1] <- 170  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
+      if csd[gc] >= 1 if cdsr[gc] == 1 if cdcc[gc] == 0
+form[cdpos[gc] + 1] <- 171  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
+      if csd[gc] >= 1 if cdsr[gc] == 1 if cdcc[gc] == 1
+form[cdpos[gc] + 1] <- 172  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
+      if csd[gc] >= 1 if cdsr[gc] == 1 if cdcc[gc] == 2
+form[cdpos[gc] + 1] <- 173  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
+      if csd[gc] >= 1 if cdsr[gc] == 4
+imm[cdpos[gc] + 1]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0]
+      if isin[cso[gc]] if csd[gc] >= 1 if cdsr[gc] == 4
+
+# ── 源5: 内側の所有者が座標を作り終えた所で読む ──────────────────
+field inrd : max bound 8192                    # 読みの命令の位置
+inrd[gc] <- cdpos[gc] + ctot[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc]] <- 100   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+imm[inrd[gc]]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 1] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+imm[inrd[gc] + 1]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 2] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+jt[inrd[gc] + 2]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[cdpos[gc]] <- 29   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 2
 imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 2
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 0
@@ -1677,16 +1763,23 @@ imm[cend[gc] - 2]  <- fw[oflg[gc], csd[gc]] + bias[0]  for (gc) in 0 .. ngcz[0] 
 form[cend[gc] - 1] <- 73   for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
 jt[cend[gc] - 1]   <- av[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
 
-# 次元をまたぐ畳み: r12 に溜めて、掛けて足す（次元は何本でも並ぶ）
+# 次元をまたぐ畳み: r12 に溜めて、掛けて足す（次元は何本でも並ぶ）。
+# **内側の所有者はここを通らない** —— 内側は外側の畳みの最中に評価されるので、
+# r12 に触れば外側の桁が消える（`o[p[i,j]]` が segfault した）。内側は r9 だけ。
 form[cdpos[gc] - 2] <- 96   for (gc) in 0 .. ngcz[0] if csd[gc] == 1    # mov r12,r9（d==1 のとき）
+      if not isin[cso[gc]]
 form[cdpos[gc] - 1] <- 97   for (gc) in 0 .. ngcz[0] if csd[gc] > 0    # imul r12, 次元の広さ
+      if not isin[cso[gc]]
 imm[cdpos[gc] - 1]  <- fw[oflg[gc], csd[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if csd[gc] > 0
+      if not isin[cso[gc]]
 form[cend[gc]] <- 98   for (gc) in 0 .. ngcz[0] if csd[gc] > 0   # add r12,r9
+      if not isin[cso[gc]]
 
 # 所有者の座標のあと
 field ccp : max bound 8192
 ccp[gc] <- cb[cso[gc]] + ctot[cso[gc]]  for (gc) in 0 .. ngcz[0]
 form[ccp[gc] - 1] <- 99   for (gc) in 0 .. ngcz[0] if csd[gc] > 0      # mov r9,r12
+      if not isin[cso[gc]]
 
 # ── 項の発行。**値も式である** —— 定数・列・場の読みが行として並ぶ ─────
 # 一つの規則にいくつでも並ぶ。最初の項が置き、あとの項が足す。

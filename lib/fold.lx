@@ -235,11 +235,37 @@ cdcf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdcf[csb[o]] <- c0cf[o]             for (o) in 0 .. nocz[0] if hasc[o]
 cdcf[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdcf[csb[o] + 1] <- c1cf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+# ── **内側の読みが二次元なら、内側の出現そのものを所有者にする** ───────
+#  `o[p[i,j]]` の `p[i,j]` は二次元の読みである。源2/3 は内側の次元を一本しか
+#  持てないので、内側の次元1 が黙って落ちて **別の升を読んでいた**
+#  （o[0] と o[1] にしか書かない）。だが内側の出現はもう所有者の番号を持ち、
+#  座標のスロットも持っている —— 外側は **源5 でその番号を指す**だけでよい。
+#  表に列は一つも増えない（気づき23: 形を足すのに列を足すな）。
+field d1to : max bound 8192            # 出現 o の次元1 の索引トークン
+d1to[o] <- d1t[otok[o]]             for (o) in 0 .. nocz[0] if hasc2[o]
+field in2a : max bound 8192            # 次元0 の索引が指す内側の出現
+in2a[o] <- oseq[otok[o] + 2]        for (o) in 0 .. nocz[0] if hasc[o]
+      if c0sr[o] >= 2 if c0sr[o] <= 3
+field in2b : max bound 8192            # 次元1 の索引が指す内側の出現
+in2b[o] <- oseq[d1to[o]]            for (o) in 0 .. nocz[0] if hasc2[o]
+      if c1sr[o] >= 2 if c1sr[o] <= 3
+field innr0 : or bound 8192            # 次元0 の内側の読みが二次元
+innr0[o] <- true                    for (o) in 0 .. nocz[0] if hasc[o]
+      if in2a[o] >= 0 if has1[in2a[o]]
+field innr1 : or bound 8192            # 次元1 の内側の読みが二次元
+innr1[o] <- true                    for (o) in 0 .. nocz[0] if hasc2[o]
+      if in2b[o] >= 0 if has1[in2b[o]]
+cdsr[csb[o]] <- 5                   for (o) in 0 .. nocz[0] if innr0[o]
+cdsr[csb[o] + 1] <- 5               for (o) in 0 .. nocz[0] if innr1[o]
 field cdcc : max bound 8192
 cdcc[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdcc[csb[o]] <- c0cc[o]             for (o) in 0 .. nocz[0] if hasc[o]
+      if not innr0[o]
+cdcc[csb[o]] <- in2a[o]             for (o) in 0 .. nocz[0] if innr0[o]
 cdcc[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdcc[csb[o] + 1] <- c1cc[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+      if not innr1[o]
+cdcc[csb[o] + 1] <- in2b[o]         for (o) in 0 .. nocz[0] if innr1[o]
 field cdhf : max bound 8192
 cdhf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdhf[csb[o]] <- c0hf[o]             for (o) in 0 .. nocz[0] if hasc[o]
