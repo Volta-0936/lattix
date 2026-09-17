@@ -4510,3 +4510,49 @@ zfpmo[r, 24] <- zamw[zsyf[r]] for (r) in 0 .. znr2m[0] if zissy[r]
 # 深い読み（`f[g[i]]` の g の値を写した枠 zdu0 が f の次元0 の間接）
 zfpmo[zsr[o], zdu0[o]] <- zamw[zrdf[o]] for (o) in 0 .. nocz[0] if zdpo[o]
       if zdk[o, 0] == 7 if zdu0[o] >= 68 if zrdf[o] >= 0 if zamw[zrdf[o]] >= 1
+
+# ── `print f` の文 —— **見せる物が要る最後の一つ** ──────────────────
+#   33_self は `print` の語（kwprn）を知っているのに、誰も使っていなかった。
+#   見せる物（show.lx）の表のうち fld / fnm / fat / ab は前段がもう持って
+#   いて、足りないのは「何番目の print が、どの場か」だけである。
+#
+#   `print f` の `f` は **出現ではない**（出現は `f[` の f）。だから綴りの鍵を
+#   宣言と同じ畳み方で作って、宣言と突き合わせる —— 33_self が出現に対して
+#   やっているのと同じ判断を、print のトークンに対してもう一度やる。
+field zisp : or bound 4096              # 文 s は print の文
+zisp[snum[t]] <- true for (t,zc) in ch if kwprn[t]
+field zpt : max bound 4096              # その文の print が指すトークン
+zpt[snum[t]] <- nextw[t] for (t,zc) in ch if kwprn[t]
+#   **`tch` は 8 文字しか持っていない。** 宣言の側（`dch`）は 16 文字ある
+#   ので、8 文字で切ると長い名前（`unreachable_from_0`）が二本目の鍵で
+#   食い違う。だから綴りは **文字の流れから直に**拾う（33_self が `och` を
+#   作るのと同じ判断）。
+field zispt : or bound 262144           # print が指す名前のトークン
+zispt[nextw[t]] <- true for (t,zc) in ch if kwprn[t]
+field zpch : max bound 4096 16          # 文 s の名前の k 文字目
+zpch[snum[tnum[i]], i - tstart[tnum[i]]] <- c for (i,c) in ch
+      if zispt[tnum[i]] if i - tstart[tnum[i]] <= 15
+field zpk : max bound 4096 16           # 鍵（k 文字目まで畳んだもの）
+zpk[s,0] <- zpch[s,0] for (s) in 0 .. nstz[0] if zisp[s]
+zpk[s,k] <- zpk[s,k-1] * 128 + zpch[s,k] for (s) in 0 .. nstz[0]
+      for (k) in 1 .. 7 if zisp[s]
+zpk[s,8] <- zpch[s,8] for (s) in 0 .. nstz[0] if zisp[s]
+zpk[s,k] <- zpk[s,k-1] * 128 + zpch[s,k] for (s) in 0 .. nstz[0]
+      for (k) in 9 .. 15 if zisp[s]
+field zpkey : max bound 4096            # 鍵（1〜8 文字目）
+zpkey[s] <- zpk[s,k] for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if zisp[s]
+field zpkey2 : max bound 4096           # 鍵（9〜16 文字目。無ければ 0）
+zpkey2[s] <- 0 for (s) in 0 .. nstz[0] if zisp[s]
+zpkey2[s] <- zpk[s,k] for (s) in 0 .. nstz[0] for (k) in 8 .. 15 if zisp[s]
+field zpf : max bound 4096              # 文 s が見せる場（0 起点）
+zpf[s] <- d - 1 for (s) in 0 .. nstz[0] for (d) in 0 .. ndcz[0]
+      if zisp[s] if din[d] if zpkey[s] == dkey[d] if zpkey2[s] == dkey2[d]
+field zpc : max bound 4096              # 文 s までの print の数（s を含む）
+zpc[0] <- 0
+zpc[0] <- 1 for (s) in 0 .. 0 if zisp[0]
+zpc[s] <- zpc[s-1]     for (s) in 1 .. nstz[0] if not zisp[s]
+zpc[s] <- zpc[s-1] + 1 for (s) in 1 .. nstz[0] if zisp[s]
+field zprn : max bound 256              # print i → 場（見せる物の prn）
+zprn[zpc[s] - 1] <- zpf[s] for (s) in 0 .. nstz[0] if zisp[s] if zpf[s] >= 0
+field znpz : max bound 1                # print の数 − 1
+znpz[z] <- zpc[s] - 1 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if zisp[s]
