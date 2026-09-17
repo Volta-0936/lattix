@@ -61,6 +61,34 @@ def one(path):
     for f in (q.prints or list(q.fields)):
         if dict(ref.get(f, {})) != out.get(f, {}):
             return 'diff', f"{f}（刈った形 {len(cut)}）"
+    if os.environ.get('LATTIX_SHOW') == '1' and q.prints:
+        # **三段目 —— 一枚の本が出した面を、そのまま字面にする。**
+        # show.lx はまだ表で食っている（場にするには前段が `print` の文を
+        # 読めるようにする必要がある —— 33_self は `print` の語を知っているが
+        # 誰も使っていない）。ここで測るのは「一枚の本の面が、参照実装の
+        # 標準出力をバイトまで作れるだけ揃っているか」である。
+        import show as SH, subprocess
+        import front as F
+        inv = {i: f for f, i in F.frontnum(fl)[0].items()}
+        sn = {f: i for i, f in enumerate(q.fields)}
+        # **原子の型も一枚の本の中から出す**（front.lx の zfat）。番号は前段の
+        # もの（宣言 → _size → 引数場）なので、見せる物の番号へ **名前で**
+        # 渡し直す —— 番号はラベルであって名前ではない（五度目）。
+        zfat = sorted(k for k, v in st.get('zfat', {}).items() if v)
+        fat = {(sn[inv[i]], d) for (i, d) in zfat
+               if i in inv and inv[i] in sn}
+        txt = SH.render(SH.tables_of(fl, q, out, fat=fat))
+        r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
+                           capture_output=True)
+        if r.returncode == 0 and txt != r.stdout:
+            g = txt.decode('utf-8', 'replace').splitlines()
+            w = r.stdout.decode('utf-8', 'replace').splitlines()
+            d = next((k for k in range(max(len(g), len(w)))
+                      if k >= len(g) or k >= len(w) or g[k] != w[k]), 0)
+            return 'diff', (f"show 行 {d}: "
+                            f"{(g[d] if d < len(g) else '')[:26]!r} ≠ "
+                            f"{(w[d] if d < len(w) else '')[:26]!r}")
+        return 'ok', f"{ms:.0f} ms  層 {ns}  字面 {len(txt)} バイト ✓"
     return 'ok', f"{ms:.0f} ms  層 {ns}  刈った形 {len(cut)}"
 
 
