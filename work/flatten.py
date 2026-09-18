@@ -173,6 +173,41 @@ def has_op(expr):
     return re.search(r'[+\-*/%]', strip_brackets(expr)) is not None
 
 
+def outside(s):
+    """括弧（`[` も `(`）の中を `@` に潰す —— 深さ0 だけを見るため"""
+    out = []; i = 0
+    while i < len(s):
+        if s[i] in '[(':
+            d = 0; j = i
+            while j < len(s):
+                if s[j] in '[(': d += 1
+                elif s[j] in '])':
+                    d -= 1
+                    if d == 0: break
+                j += 1
+            if j >= len(s): break
+            out.append('@' * (j - i + 1)); i = j + 1
+        else:
+            out.append(s[i]); i += 1
+    return ''.join(out)
+
+
+def split_terms(val):
+    """深さ0 の `+` `-` で項に割る。[(符号, 項)] を返す（符号は '' か '+' か '-'）。"""
+    o = outside(val)
+    cuts = [i for i, ch in enumerate(o) if ch in '+-']
+    out = []; last = 0; sign = ''
+    for i in cuts:
+        out.append((sign, val[last:i].strip())); sign = val[i]; last = i + 1
+    out.append((sign, val[last:].strip()))
+    return out
+
+
+def has_mul(term):
+    return re.search(r'[*/%]', outside(term)) is not None
+
+
+
 # ══ 広さを借りる ══════════════════════════════════════════════════
 def bound_for(var, body, dec):
     """輪の変数 v の広さを、同じ規則の中で `X[… v …]` と引いている場から借りる。
@@ -273,7 +308,7 @@ def flatten(src, prefix='zh', ctx='', wlimit=1, vlimit=2):
     lines, rules = logical_rules(src)
     dec = decls((ctx + '\n' + src) if ctx else src)
     H = Hoist(dec, prefix)
-    nw = nv = ng = 0
+    nw = nv = ng = nmul = 0
     refused = []
     for start, span, body in rules:
         h = split_head(body)
@@ -314,6 +349,26 @@ def flatten(src, prefix='zh', ctx='', wlimit=1, vlimit=2):
             refused.append((start+1, 'v', body[:110])); continue
         if newval != val: nv += 1
 
+        # ── ②' 足してから掛ける形。**焼いた符号は左から畳む** ──────
+        # `a + b * c` は焼くと `(a+b)*c`、解釈実行は `a+(b*c)`。生成器は
+        # 正しく断る（黙って違う答えを出すよりよい）。最初の項の掛け算は
+        # どちらの読み方でも同じなので、**二つ目から先の掛ける項だけ**を引く。
+        terms = split_terms(newval)
+        if len(terms) > 1 and any(has_mul(t) for _, t in terms[1:]):
+            out2 = []
+            for k, (sg, t) in enumerate(terms):
+                if k >= 1 and has_mul(t):
+                    rd = H.pull(t, vs, loops, body, start)
+                    if rd is None:
+                        refused.append((start+1, 'm', body[:110])); out2 = None; break
+                    t = rd
+                out2.append((sg, t))
+            if out2 is None: continue
+            newval = ' '.join((sg + ' ' + t).strip() for sg, t in out2)
+            changed = True; nm2 = True
+        else:
+            nm2 = False
+
         # ── ③ ガード: 読みは二段まで、辺に式は置けない ──────────
         newcls = []; gfix = False
         for c in cls:
@@ -348,6 +403,7 @@ def flatten(src, prefix='zh', ctx='', wlimit=1, vlimit=2):
             newcls.append(ng2)
         if newcls is None: continue
         if gfix: ng += 1
+        if nm2: nmul += 1
 
         if not changed: continue
         # **`>= 0` を付けるのは書き座標に引いたものだけ。** 値やガードに
@@ -363,7 +419,7 @@ def flatten(src, prefix='zh', ctx='', wlimit=1, vlimit=2):
     for i, l in enumerate(lines):
         if i in ins: out.extend(ins[i])
         if l is not None: out.append(l)
-    return '\n'.join(out), dict(w=nw, v=nv, g=ng, fields=H.n, refused=refused)
+    return '\n'.join(out), dict(w=nw, v=nv, g=ng, m=nmul, fields=H.n, refused=refused)
 
 
 if __name__ == '__main__':
@@ -378,8 +434,8 @@ if __name__ == '__main__':
     if '-w' in sys.argv:
         open(p, 'w', encoding='utf-8').write(new)
         print('書いた:', p)
-    print('書き座標 %d / 値 %d / ガード %d 本を平らに、場 %d 枚'
-          % (st['w'], st['v'], st['g'], st['fields']))
+    print('書き座標 %d / 値 %d / ガード %d / 掛ける項 %d 本を平らに、場 %d 枚'
+          % (st['w'], st['v'], st['g'], st['m'], st['fields']))
     if st['refused']:
         print('引けなかった %d 本:' % len(st['refused']))
         for ln, k, b in st['refused'][:20]:
