@@ -4568,8 +4568,21 @@ zamwu[f] <- true for (f, d, lo, w) in ext if d == 32 if f <= 1021
 field zamwd : max bound 1024            # 口が無いときの法（自分の箱の広さ）
 #   **構成する場所がある場に限る。** そうしないと、いままで畳んでいなかった
 #   場まで畳みはじめて、通っていた本の答えが変わる。
-zamwd[f] <- zfsz0[f] for (f) in 0 .. znf2m[0] if not zamwu[f] if zfsz0[f] >= 1
-      if zcsn[f] >= 1
+#
+#   **広さは数えられるが、法は測るものである。** 参照実装は「一巡目に触れた
+#   番地の集合が衝突しない最小の 2 の冪」を取る（flat.py）—— それは *走らせて
+#   から* でないと分からない。前段にできるのは **詰め込み率を決めること**
+#   だけである: 升の数の 4 倍以上の、最小の 2 の冪（最低 8）。これは測った値
+#   ではなく設計の定数であり、外したときは衝突して ⊤ が **声に出る**。
+#   （本当に測るには pass を座標にするしかない —— A.3 の残り。）
+field zp2 : max bound 48                # 2 の冪
+zp2[0] <- 1
+zp2[k] <- zp2[k-1] * 2 for (k) in 1 .. 40
+field zamwk : min bound 1024            # 法の指数（最小の k）
+zamwk[f] <- k for (f) in 0 .. znf2m[0] for (k) in 3 .. 40 if zcsn[f] >= 1
+      if zp2[k] >= zcsn[f] * 4
+zamwd[f] <- zp2[zamwk[f]] for (f) in 0 .. znf2m[0] if not zamwu[f]
+      if zcsn[f] >= 1 if zamwk[f] >= 3
 zamw[f] <- zamwd[f] for (f) in 0 .. znf2m[0] if zamwd[f] >= 1
 
 # ── 口が無いとき、**合成の場の広さは前段が数えられる** ────────────────
@@ -4578,7 +4591,7 @@ zamw[f] <- zamwd[f] for (f) in 0 .. znf2m[0] if zamwd[f] >= 1
 #   広さで畳まれるので必ず中に入る。狭ければ衝突するが、衝突は ⊤ で声に出る。
 field zcsn : sum bound 1024             # 場 f に構成される升の数（上限）
 zcsn[zsyf[r]] <- zsszr[r] for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
-zfsz0[f] <- zcsn[f] for (f) in 0 .. znf2m[0] if not zexu[f, 0] if zcsn[f] >= 1
+zfsz0[f] <- zamwd[f] for (f) in 0 .. znf2m[0] if not zexu[f, 0] if zamwd[f] >= 1
 zflo0[f] <- 0 for (f) in 0 .. znf2m[0] if not zexu[f, 0] if zcsn[f] >= 1
 
 # ── 値の位置の構成も、番地を **箱の広さで畳む** ──────────────────────
