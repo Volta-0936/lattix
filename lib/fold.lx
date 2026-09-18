@@ -77,9 +77,9 @@ rroo[rsn[o]] <- o              for (o) in 0 .. nocz[0]
       if okk[o] == 2 if isrec[osn[o]]
 
 # ── ループ。**通し番号は `for` に沿った鎖** ─────────────────────────
-field isgl : or bound 262144            # 規則の for 節の `for`
+field isgl : or bound 524288            # 規則の for 節の `for`
 isgl[t] <- true                     for (t,zc) in ch if kwfor[t] if isrec[snum[t]]
-field glno : max bound 262144           # ループの通し番号
+field glno : max bound 524288           # ループの通し番号
 glno[t] <- 0                        for (t,zc) in ch
 glno[t] <- glno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgl[t-1]
 glno[t] <- glno[t-1]                for (t,zc) in ch if t >= 1 if not isgl[t-1]
@@ -119,10 +119,10 @@ gadd2[gcl[t]] <- gadd[snum[t], cnum[t]]  for (t,zc) in ch if isrec[snum[t]]
 field ggb : max bound 65536            # 節 c の最初のガードの通し番号
 ggb[c] <- 0                         for (c) in 0 .. nclz[0]
 ggb[c] <- ggb[c-1] + gadd2[c-1]     for (c) in 1 .. nclz[0]
-field isgc : or bound 262144            # 規則のガードを持つ節の頭
+field isgc : or bound 524288            # 規則のガードを持つ節の頭
 isgc[t] <- true                     for (t,zc) in ch if cbrk[t] if isrec[snum[t]]
       if gadd[snum[t], cnum[t]] >= 1
-field isgc2 : or bound 262144           # 二本足す節（比較）
+field isgc2 : or bound 524288           # 二本足す節（比較）
 isgc2[t] <- true                    for (t,zc) in ch if cbrk[t] if isrec[snum[t]]
       if gadd[snum[t], cnum[t]] == 2
 field ngg : max bound 1
@@ -176,9 +176,9 @@ gdoo[gbo[o] + 1] <- o          for (o) in 0 .. nocz[0]
 # 規則ごとの (規則, 番号) で持つと場が 2次元になり、位置の場を引くのに
 # 二段の添字が要る —— 焼ける読みは一段の添字までである。項はトークンの
 # 順で数えれば **同じ規則の項が必ず隣り合う**ので、鎖はこれで足りる。
-field isgt : or bound 262144            # 規則の中の項のトークン
+field isgt : or bound 524288            # 規則の中の項のトークン
 isgt[t] <- true                     for (t,zc) in ch if istm[t] if isrec[snum[t]]
-field gtno : max bound 262144           # 項の通し番号
+field gtno : max bound 524288           # 項の通し番号
 gtno[t] <- 0                        for (t,zc) in ch
 gtno[t] <- gtno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgt[t-1]
 gtno[t] <- gtno[t-1]                for (t,zc) in ch if t >= 1 if not isgt[t-1]
@@ -311,10 +311,10 @@ inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgt[
 #   7 足した後に掛ける形 / 8 焼けない形（項・ガード・座標・ループ・規則・種）
 # **`lnum` は文字位置の索引、`t` はトークン番号。** 取り違えると
 # 「別の行」が出る（黙って間違う）—— トークンの始まる位置を一度置く。
-field tlin : min bound 262144                     # トークン t の書かれた行
+field tlin : min bound 524288                     # トークン t の書かれた行
 tlin[t] <- lnum[tstart[t]]           for (t,zc) in ch
 # `rlin[rno[snum[t]]]` は **三段の読み**で書けない —— 名前を一つ置く。
-field snr : max bound 262144                      # トークン t の文の規則番号
+field snr : max bound 524288                      # トークン t の文の規則番号
 snr[t] <- rno[snum[t]]               for (t,zc) in ch if isrec[snum[t]]
 field rlin : min bound 2048                       # 規則 r の書かれた行
 rlin[snr[t]] <- tlin[t]              for (t,zc) in ch if isrec[snum[t]]
@@ -353,7 +353,7 @@ outw[z] <- 1                         for (z) in 0 .. 0 for (z) in 0 .. 0 if rndf
 
 # **三段の読みは頭に書けない。** —— `ggb[gcl[t]]` は「場を引いた場」であって、
 # 焼ける座標は一段の添字までである。名前を一つ置けば、ただの二段の読みになる。
-field gbt : max bound 262144           # トークン t の節の最初のガード番号
+field gbt : max bound 524288           # トークン t の節の最初のガード番号
 gbt[t] <- ggb[gcl[t]]               for (t,zc) in ch
 field rsn : max bound 8192             # 出現 o の属する規則の番号
 rsn[o] <- rno[osn[o]]               for (o) in 0 .. nocz[0]

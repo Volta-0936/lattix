@@ -739,6 +739,15 @@ encb[182,0] <- 72                    # 48 C7 C2 04 00 00 00    mov rdx, 4
 encb[182,1] <- 199
 encb[182,2] <- 194
 encb[182,3] <- 4
+encb[183,0] <- 72
+encb[183,1] <- 1
+encb[183,2] <- 131
+encb[184,0] <- 72
+encb[184,1] <- 41
+encb[184,2] <- 131
+encb[185,0] <- 72
+encb[185,1] <- 139
+encb[185,2] <- 131
 encb[175,0] <- 66                    # 42 0F B6 84 SIB d32  movzx eax,byte [rbx+r9*1+d32]
 encb[175,1] <- 15
 encb[175,2] <- 182
@@ -945,6 +954,13 @@ shp[179] <- 24708                    # 長さ6・穴2・imm32（SIB 無し）
 shp[180] <- 32768                    # 長さ8・穴なし（枠は骨に焼く）
 shp[181] <- 28672                    # 長さ7・穴なし
 shp[182] <- 28672                    # 長さ7・穴なし
+# **和の升**（`[rbx-16]`）—— 群ごとに値を作って、ここへ足す。
+# 場の下には `gap` が 512 バイト余らせてあり、使っているのは `[rbx-8]`
+# （表の終わり）だけである。register は一つも空いていない（rbp すら fd）ので、
+# 一時は升に置く。升なら **⊥ で次の行へ飛んでも壊れない**（stack は漏れる）。
+shp[183] <- 28868                    # 長さ7・穴3・imm32   add [rbx+d32], rax
+shp[184] <- 28868                    # 長さ7・穴3・imm32   sub [rbx+d32], rax
+shp[185] <- 28868                    # 長さ7・穴3・imm32   mov rax, [rbx+d32]
 # **argv を読む十六命令。** 焼いた実行ファイルは `./foo data.bin` と書ける ——
 # 引数が無ければこれまで通り stdin。開けなければ **終了コード 8 で言う**
 # （黙って stdin に落ちない）。fd は rbp に置く（唯一空いていた register）。
@@ -1034,7 +1050,7 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 182
+nfm[0] <- 185
 field shln : max bound 208           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
 field shho : max bound 208           # 穴の位置
@@ -1478,21 +1494,61 @@ ctot[cso[gc]] <- coff[gc] + clen[gc]       for (gc) in 0 .. ngcz[0] if csd[gc] >
       if isin[cso[gc]]
 
 # ── 項も表である。長さも位置も **項番号に沿った前置きの鎖**（七度目）────
-field tmlen : max bound 4096
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 5
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 6
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 12
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13
-tmlen[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14
-tmlen[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
-tmlen[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
-tmlen[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+# ── 項は **群** に分かれる。掛け算は群の中に閉じる ────────────────
+# 焼いた符号は長いあいだ `rax` を累算器にした **左からの畳み**だった ——
+# `a + b * c` が `(a+b)*c` になり、解釈実行（`a+(b*c)`）と食い違うので、
+# 生成器は「足してから掛ける」形を **断って**いた。断るのは正しかったが、
+# 断られる形は `run.lx` の評価器の芯そのものだった（`mu * pa[…] + mo * pa[…]`）。
+#
+# 群（積の連なり）の **中**では左畳みは正しい。直すのは群の境目だけである:
+#
+#   群0 を rax に作る  →  `mov [和], rax`
+#   群k を rax に作る  →  `add [和], rax`（群の符号が `-` なら `sub`）
+#   最後に            →  `mov rax, [和]`
+#
+# だから「最初の項か」で mov / add を選んでいた所は **「群の先頭か」** になる。
+# 引く項（種5/9/11/13）は「引く命令」ではなく **群の符号** になった。
+field tmldr : or bound 4096                    # 群の先頭（掛ける項でない）
+tmldr[gt] <- true               for (gt) in 0 .. ngtz[0] if not tmul[gt]
+field tmgn : max bound 4096                    # 群の番号（規則の中。鎖）
+tmgn[gt] <- 0                   for (gt) in 0 .. ngtz[0] if tmi[gt] == 0
+tmgn[gt] <- tmgn[gt-1]          for (gt) in 0 .. ngtz[0] if tmi[gt] > 0 if tmul[gt]
+tmgn[gt] <- tmgn[gt-1] + 1      for (gt) in 0 .. ngtz[0] if tmi[gt] > 0 if not tmul[gt]
+field tmng : max bound 4096                    # 規則の群の数 - 1
+tmng[tmr[gt]] <- tmgn[gt]       for (gt) in 0 .. ngtz[0]
+field tmend : or bound 4096                    # 群の終わり（次が先頭か、規則の最後）
+tmend[gt] <- true               for (gt) in 0 .. ngtz[0] if tmi[gt+1] == 0
+tmend[gt] <- true               for (gt) in 0 .. ngtz[0] if not tmul[gt+1]
+field tgneg : or bound 4096                    # この群は引く（先頭から鎖で運ぶ）
+tgneg[gt] <- true               for (gt) in 0 .. ngtz[0] if tmldr[gt] if tmk[gt] == 5
+tgneg[gt] <- true               for (gt) in 0 .. ngtz[0] if tmldr[gt] if tmk[gt] == 9
+tgneg[gt] <- true               for (gt) in 0 .. ngtz[0] if tmldr[gt] if tmk[gt] == 11
+tgneg[gt] <- true               for (gt) in 0 .. ngtz[0] if tmldr[gt] if tmk[gt] == 13
+tgneg[gt] <- tgneg[gt-1]        for (gt) in 0 .. ngtz[0] if tmi[gt] > 0 if tmul[gt]
+# 群が一つなら升は要らない（いままでと同じ符号が出る）
+field tmx : max bound 4096                     # 項のあとに足す命令の数
+tmx[gt] <- 0                    for (gt) in 0 .. ngtz[0]
+tmx[gt] <- 1                    for (gt) in 0 .. ngtz[0] if tmend[gt] if tmng[tmr[gt]] >= 1
+tmx[gt] <- 2                    for (gt) in 0 .. ngtz[0] if tmend[gt] if tmng[tmr[gt]] >= 1
+      if tmgn[gt] == tmng[tmr[gt]]
+
+field tml0 : max bound 4096                    # 項そのものの長さ
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 5
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 6
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 12
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14
+tml0[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
+tml0[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
+tml0[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+field tmlen : max bound 4096                   # 項ぜんぶ（升の出し入れを含む）
+tmlen[gt] <- tml0[gt] + tmx[gt]   for (gt) in 0 .. ngtz[0]
 field toff : max bound 4096
 toff[gt] <- 0                  for (gt) in 0 .. ngtz[0]
 toff[gt] <- toff[gt-1] + tmlen[gt-1]   for (gt) in 0 .. ngtz[0] if tmi[gt] > 0
@@ -2014,17 +2070,15 @@ form[ccp[gc] - 1] <- 99   for (gc) in 0 .. ngcz[0] if csd[gc] > 0      # mov r9,
 form[bb[r]] <- 90   for (r) in 0 .. nrlz[0]      # xor r11,r11（階数の最大。**ガードより前**）
 
 # 種1: 定数
-form[tpos[gt]] <- 2   for (gt) in 0 .. ngtz[0] if tmk[gt] == 1 if tmi[gt] == 0
-form[tpos[gt]] <- 84  for (gt) in 0 .. ngtz[0] if tmk[gt] == 1 if tmi[gt] > 0
+form[tpos[gt]] <- 2   for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
 imm[tpos[gt]]  <- tmv[gt] + bias[0]  for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
 
 # 種2: 表の列
-form[tpos[gt]] <- 10  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2 if tmi[gt] == 0
-form[tpos[gt]] <- 14  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2 if tmi[gt] > 0
+form[tpos[gt]] <- 10  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2
 imm[tpos[gt]]  <- tmc1[gt] * 8 + bias[0]  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2
 
 # 種5: 定数を **引く**（`pre[i-1] - 1`）。最初の項が引き算になることは無い
-form[tpos[gt]] <- 128  for (gt) in 0 .. ngtz[0] if tmk[gt] == 5      # sub rax, 定数
+form[tpos[gt]] <- 2    for (gt) in 0 .. ngtz[0] if tmk[gt] == 5      # mov rax, 定数（引くのは群の符号）
 imm[tpos[gt]]  <- tmv[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 5
 # 種6: 掛ける定数。**数を読むのに要る** —— `n[i-1] * 10 + d` が桁を積む形である
 form[tpos[gt]] <- 137  for (gt) in 0 .. ngtz[0] if tmk[gt] == 6      # imul rax, 定数
@@ -2051,22 +2105,19 @@ field ispw : or bound 4096                     # その定数は二のべきか
 ispw[gt] <- true  for (gt) in 0 .. ngtz[0] for (k) in 0 .. 36 if pw[k] == tmv[gt]
 
 # 種4: 計数器そのものが値（`aid[j] <- i`）—— 座標が値になる
-form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] == 0 if tmc1[gt] == 0
-form[tpos[gt]] <- 110  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] > 0 if tmc1[gt] == 0
-form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] == 0 if tmc1[gt] == 1
-form[tpos[gt]] <- 112  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] > 0 if tmc1[gt] == 1
-form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] == 0 if tmc1[gt] == 2
-form[tpos[gt]] <- 114  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmi[gt] > 0 if tmc1[gt] == 2
+form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 0
+form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 1
+form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 2
 
 # 種11/12: 表の列を **引く / 掛ける**（行は rcx。ずれは 8*列）
-form[tpos[gt]] <- 147  for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
+form[tpos[gt]] <- 10   for (gt) in 0 .. ngtz[0] if tmk[gt] == 11    # mov rax,[列]（引くのは群の符号）
 imm[tpos[gt]]  <- tmc18[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
 form[tpos[gt]] <- 148  for (gt) in 0 .. ngtz[0] if tmk[gt] == 12
 imm[tpos[gt]]  <- tmc18[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 12
 # 種13/14: 区間の計数器を **引く / 掛ける**（0番=rcx / 1番=r13 / 2番=r14）
-form[tpos[gt]] <- 149  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 0
-form[tpos[gt]] <- 151  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 1
-form[tpos[gt]] <- 153  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 2
+form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 0
+form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 1
+form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 2
 form[tpos[gt]] <- 150  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 0
 form[tpos[gt]] <- 152  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 1
 form[tpos[gt]] <- 154  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 2
@@ -2088,9 +2139,8 @@ form[tc[gt] + 1] <- 66  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 1]  <- fbot[tmf[gt]]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 2] <- 13  for (gt) in 0 .. ngtz[0] if isrd[gt]
 jt[tc[gt] + 2]   <- av[tmr[gt]]   for (gt) in 0 .. ngtz[0] if isrd[gt]
-form[tc[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if tmi[gt] == 0
-form[tc[gt] + 3] <- 86  for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if tmi[gt] > 0
-form[tc[gt] + 3] <- 141 for (gt) in 0 .. ngtz[0] if tmk[gt] == 9   # sub rax, rsi
+form[tc[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
+form[tc[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 9   # mov rax,rsi（引くのは群の符号）
 # **掛けられるのに掛けられないのは分類の穴だった。** 場と場の積は
 # 二次元の畳みの掛け数（`fw[f,0] * fw[f,1]`）に要る —— 命令は一つ。
 form[tc[gt] + 3] <- 146 for (gt) in 0 .. ngtz[0] if tmk[gt] == 10  # imul rax, rsi
@@ -2100,6 +2150,23 @@ scb[tc[gt] + 4]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 5] <- 89  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 5]  <- koff[tmf[gt]] + bias[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 scb[tc[gt] + 5]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
+
+# ── 群の境目。**和は升に置く**（register は一つも空いていない）──────
+# 群0 は升に置き、以降は升に足す（引く）。最後に升から rax へ戻す。
+# 位置は項そのものの終わり `tpos + tml0` である。
+field tmxp : max bound 4096                    # 升の出し入れの位置
+tmxp[gt] <- tpos[gt] + tml0[gt]   for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1
+field sump : max bound 1                       # 和の升（場の下、`gap` の余白）
+sump[z] <- bias[0] - 16   for (z) in 0 .. 0
+form[tmxp[gt]] <- 51   for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1 if tmgn[gt] == 0
+imm[tmxp[gt]]  <- sump[0]   for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1 if tmgn[gt] == 0
+form[tmxp[gt]] <- 183  for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1 if tmgn[gt] >= 1
+      if not tgneg[gt]
+form[tmxp[gt]] <- 184  for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1 if tmgn[gt] >= 1
+      if tgneg[gt]
+imm[tmxp[gt]]  <- sump[0]   for (gt) in 0 .. ngtz[0] if tmx[gt] >= 1 if tmgn[gt] >= 1
+form[tmxp[gt] + 1] <- 185  for (gt) in 0 .. ngtz[0] if tmx[gt] == 2
+imm[tmxp[gt] + 1]  <- sump[0]   for (gt) in 0 .. ngtz[0] if tmx[gt] == 2
 
 # ── join。**束が替えるのはここだけ**（項も座標も束によらない）──────────
 # min / max: 違いは飛びの向きだけ（jge / jle）
@@ -2575,7 +2642,7 @@ noks[z] <- cos[sd]                  for (sd) in 0 .. nsdz[0] for (z) in 0 .. 0
 # 項・ガード・ループ・座標も同じ —— **種が出ていなければ焼けない**。
 # （既定値と max が「無い」を隠すので、数えるのは *出た数* の方である）
 field okt : or bound 4096
-okt[gt] <- true                     for (gt) in 0 .. ngtz[0] if tmlen[gt] >= 1
+okt[gt] <- true                     for (gt) in 0 .. ngtz[0] if tml0[gt] >= 1
 # 番兵の行（表を空にできないのでホストが置く空の一行）は数に入れる
 okt[gt] <- true                     for (gt) in 0 .. ngtz[0] if tmk[gt] == 0
 field cot : max bound 4096
@@ -2657,15 +2724,11 @@ badk[z] <- rlin[gdr[gg]] * 16 + 8   for (gg) in 0 .. nggz[0] for (z) in 0 .. 0 i
 badk[z] <- rlin[cdr[gc]] * 16 + 8   for (gc) in 0 .. ngcz[0] for (z) in 0 .. 0 if not okc[gc]
 badk[z] <- rlin[lpr[gl]] * 16 + 8   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0 if not okl[gl]
 badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if not okr[r]
-# **掛け算は直前の項にしか掛からない。** 焼いた符号は左から畳むので
+# **掛け算は直前の項にしか掛からない。** 焼いた符号は左から畳んでいたので
 # `1 + 2 * 3` は 9、解釈実行は 7 —— 同じ言葉が二つの答えを持っていた。
-# 黙って違う答えを出すくらいなら **焼かない**（終了コード 7）。
-# 食い違うのは「足した後に掛ける」形だけである（`a * 2 + b` も
-# `a / 256 % 256` も、どちらの読み方でも同じ）。
-bad[z] <- true                      for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0
-      if tmi[gt] >= 2 if tmul[gt] if not tmul[gt-1]
-badk[z] <- rlin[tmr[gt]] * 16 + 7   for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0
-      if tmi[gt] >= 2 if tmul[gt] if not tmul[gt-1]
+# 黙って違う答えを出すくらいならと **焼かないことにしていた**（理由7）。
+# いまは項が **群**に分かれ、和は升に溜まるので、どちらも 7 を出す。
+# 断りは要らなくなった —— 直したので消す（残すと嘘になる）。
 
 # **導けたものが一つも無いときは、番地の鎖も出ない**（`off` すら ⊥）。
 # だから出口を後ろに置くだけでは足りない —— **前置きの三命令をそのまま

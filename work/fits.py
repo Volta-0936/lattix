@@ -11,7 +11,9 @@
     書き座標の読みの段数     測ったのは 5 段まで
     値・ガードの読みの段数   測ったのは 6 段まで
     ガードの辺の式           置けない（`if k <= tlen[t] - 1` は断られる）
-    足してから掛ける形       `a + b * c` は焼くと `(a+b)*c`（断られる）
+
+「足してから掛ける形」は **もう外ではない** —— 項が群に分かれ、和は場の下の
+升に溜まるので、`a + b * c` は解釈実行と同じ 7 を出す。数えるのはやめた。
 
 使い方:  python3 work/fits.py front.lx run.lx …
 """
@@ -84,7 +86,7 @@ def parts(body):
 
 def check(path):
     src = open(path, encoding='utf-8').read()
-    hit = {'W': [], 'V': [], 'G': [], 'E': [], 'M': []}
+    hit = {'W': [], 'V': [], 'G': [], 'E': []}
     for ln, rule in logical_rules(src):
         if '<-' not in rule: continue
         head, body = rule.split('<-', 1)
@@ -99,19 +101,13 @@ def check(path):
             if not c.startswith('if'): continue
             if depth(c) > VMAX: hit['G'].append((ln, rule))
             if re.search(r'[+\-*/%]', outside(c[2:])): hit['E'].append((ln, c.strip()))
-        # 足してから掛ける（焼いた符号は左から畳む）
-        o = outside(val); add = False
-        for ch in o:
-            if ch in '+-': add = True
-            elif ch in '*/%' and add: hit['M'].append((ln, rule)); break
     name = path.split('/')[-1]
     tot = sum(len(v) for v in hit.values())
     print('%-24s %s' % (name, '断片の中' if tot == 0 else '外に %d 箇所' % tot))
     for k, why in (('W', '書き座標が %d 段より深い' % WMAX),
                    ('V', '値が %d 段より深い' % VMAX),
                    ('G', 'ガードが %d 段より深い' % VMAX),
-                   ('E', 'ガードの辺が式'),
-                   ('M', '足してから掛ける')):
+                   ('E', 'ガードの辺が式')):
         if hit[k]:
             print('   %-22s %4d 本   例 %d: %s' % (why, len(hit[k]), hit[k][0][0],
                                                   str(hit[k][0][1])[:70]))

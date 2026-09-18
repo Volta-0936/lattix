@@ -205,12 +205,18 @@ abcdefghijklmnopq[i] <- 1 for (i,c) in ch
 # **宣言した上限は、そこまで本当に入らなければ嘘である。**
 # 源 262,144 バイトを (位置, 文字) の表に開くと 16 バイト × 262,144 = 4MB 要る。
 # 地上に 3.6MB しか無かったとき、228KB を超える源は **黙って壊れていた**
-# （出力 23 バイト、終了コード 0）。260KB の源が通ることを試験に置く。
-case("260KB の源（宣言の内側）", """table ch = (0,32)
+# （出力 23 バイト、終了コード 0）。
+#
+# **読める量（`rcap` = 524,288）と、位置で引ける量（文字の面）は一つの数である。**
+# 長いあいだ面だけが 262,144 で、`rcap` の半分しか無かった。`lattix.lx` が
+# 261,918 バイトまで育った日、**自分の源を読めなくなる 226 バイト手前**に居た。
+# 面を `rcap` に合わせた（memsz 631 → 1,097 MB、焼きは 2.02 → 2.15 秒）。
+# この組が、その二つが同じであることを測る —— 数えて言う（気づき35・44）。
+case("520KB の源（宣言の内側）", """table ch = (0,32)
 field big : or bound 64
 big[i] <- true for (i,c) in ch if c >= 97
 """ + "\n".join("# %d ------------------------------------------------------" % i
-                for i in range(4200)) + "\n", data=b"abc")
+                for i in range(8400)) + "\n", data=b"abc")
 # **入れ子は三重まで**（計数器は rcx / r13 / r14 の三本）。四重目は
 # 黙って壊れた符号になっていた —— いまは焼かずに言う。
 case("入れ子 三重（通る）", """table ch = (0,32)
@@ -423,12 +429,41 @@ field f : or bound 16
 f[i] <- true   for (i,j,w) in edges if i + 1 == n[0]
 """, rows=[(0,1,1)], exit=7, why=(5,8))
 # **足した後に掛ける形は焼かない。** 焼いた符号は左から畳み（`(1+2)*3 = 9`）、
-# 解釈実行は掛け算を先にする（`1+2*3 = 7`）—— 同じ言葉が二つの答えを
-# 持っていた。黙って違う答えを出すくらいなら言う（終了コード 7）。
-case("足してから掛ける（焼けない）", """table edges = (0,0,0)
+# **足してから掛ける形は焼ける。** 長いあいだ「焼けない」の例だった ——
+# 焼いた符号が `rax` を累算器にした左畳みで、`1 + 2 * 3` が 9 になり、
+# 解釈実行の 7 と食い違ったからである。黙って違う答えを出すよりはと
+# 断っていた（理由7）。いまは項が **群** に分かれ、和は場の下の升に
+# 溜まるので、どちらも 7 を出す。断りは消した。
+case("足してから掛ける（通る）", """table edges = (0,0,0)
 field a : max bound 16
 a[i] <- j + w * 3   for (i,j,w) in edges
-""", rows=[(0,1,2)], exit=7, why=(3,7))
+""", rows=[(0,1,2)])
+P = """table ch = (0,32)
+field a : max bound 16
+a[i] <- 2 + i   for (i) in 0 .. 3
+field b : max bound 16
+b[i] <- 3 + i   for (i) in 0 .. 3
+field c : max bound 16
+c[i] <- 5 - i   for (i) in 0 .. 3
+"""
+case("群 a + b * c", P + """field v : max bound 16
+v[i] <- a[i] + b[i] * c[i]   for (i) in 0 .. 3
+""", data=b"ab")
+case("群 a * b + c * a", P + """field v : max bound 16
+v[i] <- a[i] * b[i] + c[i] * a[i]   for (i) in 0 .. 3
+""", data=b"ab")
+case("群 a - b * c（群の符号）", P + """field v : max bound 16
+v[i] <- a[i] - b[i] * c[i]   for (i) in 0 .. 3
+""", data=b"ab")
+case("群 a + b * 4 + c", P + """field v : max bound 16
+v[i] <- a[i] + b[i] * 4 + c[i]   for (i) in 0 .. 3
+""", data=b"ab")
+case("群 a + i * 2（計数器）", P + """field v : max bound 16
+v[i] <- a[i] + i * 2   for (i) in 0 .. 3
+""", data=b"ab")
+case("群 a + b / 2（割る）", P + """field v : max bound 16
+v[i] <- a[i] + b[i] / 2   for (i) in 0 .. 3
+""", data=b"ab")
 case("変数で割る（焼けない）", """table edges = (0,0,0)
 field q : max bound 16
 q[i] <- j / w   for (i,j,w) in edges
