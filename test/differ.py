@@ -117,6 +117,11 @@ for k,c in enumerate(combos):
         bad.append((src,'焼けなかった')); continue
     exe=os.path.join(tmp,f"s{k}.out"); open(exe,'wb').write(r.stdout); os.chmod(exe,0o755)
     r2=subprocess.run([exe], input=data, capture_output=True)
+    # **終了コード 6 は嘘ではない。** 「宣言した広さがこの入力に足りない」と
+    # 言っている（解釈実行は宣言の広さを見ないので答えを出す）。限界を
+    # 名指しで言うのは断りであって、食い違いではない。
+    if r2.returncode==6:
+        refused+=1; continue
     if r2.returncode==7:
         refused+=1
         if not re.search(rb'reason (\d): (.{16})\n', r2.stderr):

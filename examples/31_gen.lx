@@ -1132,7 +1132,7 @@ iword[z] <- true                     for (z) in 0 .. 0 for (z) in 0 .. 0 if inpw
 # 生バイトの置き場。**詰め直しの置き場も同じ広さで足りていなければならない**
 # —— `out` の升数が rcap + 65536 を超えると、詰め直しが地図の外へ出る。
 field rcap : max bound 1                    # 生バイトの置き場
-rcap[0] <- 524288
+rcap[0] <- 589824
 field rcap2 : max bound 1
 rcap2[0] <- rcap[0] * 2   for (z) in 0 .. 0
 # ── 地上（表）の広さは **読み口から出る**。ここは長く定数だった ——
@@ -1479,6 +1479,34 @@ clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cd
 clen[gc] <- ctot[cdcc[gc]] + 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 # 内側のスロット: 次元0 は載せるだけ、次元1 以降は **畳んで足す**（二命令）
 clen[gc] <- 2   for (gc) in 0 .. ngcz[0] if isin[cso[gc]] if csd[gc] >= 1
+
+# ══ 座標の濾し ════════════════════════════════════════════════════
+# **座標は読むまえに広さで濾す。** この検査は長いあいだ `cdhf == 1`
+# （ずれがあるとき）にしか出なかった —— 検査が「座標」という **概念**では
+# なく「ずれ」という **機能**に紐づいていたからである（気づき34 の裏面:
+# 一つの判断を機能の側に置くと、その機能を通らない道から漏れる）。漏れは
+# 全部の源にあり、`a[big[i]]` で big が広さを超えると **隣の場の升を読んで
+# その数を答えにしていた**（解釈実行は ⊥）。鎖にすると読んだごみが次の
+# 座標になって segfault する。`test/meta.py` が見つけた。
+#
+# 濾すのは **座標を作り終えたスロット**だけ —— 内側の所有者の次元1 以降は
+# 桁を上げて足す途中なので出さない。内側でも **次元0 は完成している**ので
+# 出す（そこを外すと `f0[f1[f1[i]]]` の真ん中の輪が素通りする）。
+field cchk : or bound 8192                     # このスロットは濾しを出す
+cchk[gc] <- true  for (gc) in 0 .. ngcz[0] if csd[gc] == 0
+cchk[gc] <- true  for (gc) in 0 .. ngcz[0] if not isin[cso[gc]]
+cchk[gc] <- true  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
+# **長さは足すだけ。引かない。** 上の値を書き換えると、内側の次元1 のように
+# 「源の長さ 1・畳みの長さ 2」で max が要る所が壊れる —— 源の側を 3 に
+# 上げたら max が 3 を選び、**一命令の穴**が空いて番地の鎖が切れた（segfault）。
+# `cdhf == 1` の 4 と 7 には濾しが既に入っているので足さない。
+clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] == 0 if cchk[gc]
+clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0 if cchk[gc]
+clen[gc] <- 6   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
+      if cchk[gc]
+clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+      if cchk[gc]
+clen[gc] <- ctot[cdcc[gc]] + 5   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5 if cchk[gc]
 field coff : max bound 8192                    # 所有者の中での次元 d の始まり
 coff[gc] <- 0                 for (gc) in 0 .. ngcz[0]
 coff[gc] <- coff[gc-1] + clen[gc-1] + 2   for (gc) in 0 .. ngcz[0] if csd[gc] > 0
@@ -1995,6 +2023,14 @@ form[cdpos[gc] + 1] <- 173  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
 imm[cdpos[gc] + 1]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0]
       if isin[cso[gc]] if csd[gc] >= 1 if cdsr[gc] == 4
 
+# ── 否定のガードの下では、⊥ は **撃つ** ────────────────────────────
+# `if not g[f[i]]` で `f[i]` が ⊥ のとき、読めるものは無いので `g[⊥]` は ⊥、
+# `not ⊥` は真である —— つまり **この行は撃つ**。焼いた側は座標の ⊥ 検査と
+# 濾しを一律に「次の行へ」（`av`）にしていたので、**撃たなかった**。
+# 解釈実行と食い違う（撒いて出た。手で書いた試験では一度も出ていない）。
+# 飛び先はガードの終わり —— 長さは一つも変わらない。
+# 鎖の内側へも継ぐ（`not g[f[h[i]]]` の内側の ⊥ も同じ扱い）
+
 # ── 源5: 内側の所有者が座標を作り終えた所で読む ──────────────────
 field inrd : max bound 8192                    # 読みの命令の位置
 inrd[gc] <- cdpos[gc] + ctot[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
@@ -2025,7 +2061,7 @@ imm[cdpos[gc] + 1]  <- cdof[gc] + bias[0]  for (gc) in 0 .. ngcz[0] if cdsr[gc] 
 form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # cmp r9, 内側の広さ
 imm[cdpos[gc] + 2]  <- fw[cdcf[gc],0] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-jt[cdpos[gc] + 3]   <- av[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 form[cdpos[gc] + 4] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # mov r9,[F_cf]
 imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
@@ -2041,10 +2077,21 @@ field cend : max bound 8192
 cend[gc] <- cdpos[gc] + clen[gc]   for (gc) in 0 .. ngcz[0]
 form[cend[gc] - 3] <- 71   for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
 imm[cend[gc] - 3]  <- cdof[gc] + bias[0]  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
-form[cend[gc] - 2] <- 50   for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
-imm[cend[gc] - 2]  <- fw[oflg[gc], csd[gc]] + bias[0]  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
-form[cend[gc] - 1] <- 73   for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
-jt[cend[gc] - 1]   <- av[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
+form[cend[gc] - 2] <- 50   for (gc) in 0 .. ngcz[0] if cchk[gc]
+imm[cend[gc] - 2]  <- fw[oflg[gc], csd[gc]] + bias[0]  for (gc) in 0 .. ngcz[0] if cchk[gc]
+form[cend[gc] - 1] <- 73   for (gc) in 0 .. ngcz[0] if cchk[gc]
+# **はみ出したときにどこへ飛ぶかは、座標が読みか書きかで違う。**
+#   読みの座標 … そこに値は無い（⊥）。次の行へ。解釈実行と同じである。
+#   書きの座標 … **宣言が嘘だった**。場の番号を言って止まる（`stub` が
+#                 r15 に場を入れて出口へ飛ぶ。終了コード 6）。
+# 解釈実行は宣言の広さを見ずに書くので、書きの側で黙るのが一番悪い。
+field iswro : or bound 8192                    # 書き先の座標を持つ所有者
+iswro[rroo[r]] <- true   for (r) in 0 .. nrlz[0] if rroo[r] >= 0
+jt[cend[gc] - 1]   <- av[cdr[gc]]    for (gc) in 0 .. ngcz[0] if cchk[gc]
+      if not iswro[cso[gc]]
+      if not iswro[cso[gc]]
+jt[cend[gc] - 1]   <- stub[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cchk[gc]
+      if iswro[cso[gc]]
 
 # 次元をまたぐ畳み: r12 に溜めて、掛けて足す（次元は何本でも並ぶ）。
 # **内側の所有者はここを通らない** —— 内側は外側の畳みの最中に評価されるので、
@@ -2829,11 +2876,11 @@ msg[60] <- 10
 
 # ── 実体化 ──────────────────────────────────────────────────────
 field total : max bound 1
-total[0] <- 524288
+total[0] <- 655360
 field tmax : max bound 1                      # total の一つ手前（区間の上端に書ける形）
 tmax[0] <- total[0] - 1   for (z) in 0 .. 0
 
-field out : max bound 524288
+field out : max bound 655360
 out[i] <- 0                         for (i) in 0 .. tmax[0]
 # コード面は 32 枚（131072 バイト）と **定数で宣言する**。末尾を定数キーで
 # 留めると、データを実行時に移しても密配列サイズが縮まない（runtime.py 用）。
@@ -2842,7 +2889,7 @@ out[i] <- 0                         for (i) in 0 .. tmax[0]
 # 131072 でも足りなくなった —— 形の導出が断片に入った日に、三度目。
 # **踏んだことは黙って起きる**ので、今度は言うようにした ——
 # 符号の長さを ELF ヘッダの空き（8..11 バイト目）に書く。読む側が確かめられる。
-out[524287] <- 0
+out[655359] <- 0
 out[8]  <- codelen[0] % 256   for (z) in 0 .. 0
 out[9]  <- codelen[0] / 256 % 256   for (z) in 0 .. 0
 out[10] <- codelen[0] / 65536 % 256   for (z) in 0 .. 0
@@ -2908,30 +2955,30 @@ out[107] <- msz[0] / 16777216 % 256   for (z) in 0 .. 0
 # **場の読みと計数器の和**になり、生成器が自分では焼けない形になる。
 # 向きを裏返す —— **バイトの位置を歩いて、どの命令の何バイト目かを鎖で出す**。
 # 番地は座標である（気づき17）を、書く側でも使うということ。
-field bpos : max bound 524288       # 命令 n の最初のバイトの位置
+field bpos : max bound 655360       # 命令 n の最初のバイトの位置
 bpos[n] <- off[n] + 120             for (n) in 0 .. ninz[0]
-field isst : or bound 524288        # そのバイトは命令の頭
+field isst : or bound 655360        # そのバイトは命令の頭
 isst[bpos[n]] <- true               for (n) in 0 .. ninz[0]
-field bmax : max bound 524288       # 符号面の最後のバイトの位置
+field bmax : max bound 655360       # 符号面の最後のバイトの位置
 bmax[0] <- codelen[0] + 119   for (z) in 0 .. 0
-field bown : max bound 524288       # バイト i を持つ命令
+field bown : max bound 655360       # バイト i を持つ命令
 bown[bpos[n]] <- n                  for (n) in 0 .. ninz[0]
 bown[i] <- bown[i-1]                for (i) in 1 .. bmax[0] if not isst[i]
-field bofs : max bound 524288       # 命令の中での位置（鎖）
+field bofs : max bound 655360       # 命令の中での位置（鎖）
 bofs[i] <- 0                        for (i) in 0 .. bmax[0] if isst[i]
 bofs[i] <- bofs[i-1] + 1            for (i) in 1 .. bmax[0] if not isst[i]
-field bfm : max bound 524288        # そのバイトの命令の形
+field bfm : max bound 655360        # そのバイトの命令の形
 bfm[i] <- form[bown[i]]             for (i) in 0 .. bmax[0]
-field bho : max bound 524288        # 穴の始まり
+field bho : max bound 655360        # 穴の始まり
 bho[i] <- shho[bfm[i]]              for (i) in 0 .. bmax[0]
-field bhe : max bound 524288        # 穴の終わり（開区間）
+field bhe : max bound 655360        # 穴の終わり（開区間）
 bhe[i] <- shho[bfm[i]] + 1          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 1
 bhe[i] <- shho[bfm[i]] + 4          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 4
 bhe[i] <- shho[bfm[i]] + 4          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 5
-field ishole : or bound 524288      # 穴の中のバイト
+field ishole : or bound 655360      # 穴の中のバイト
 ishole[i] <- true                   for (i) in 0 .. bmax[0]
       if bofs[i] >= bho[i] if bofs[i] < bhe[i]
-field bhj : max bound 524288        # 穴の中での位置（鎖）
+field bhj : max bound 655360        # 穴の中での位置（鎖）
 bhj[i] <- 0                         for (i) in 0 .. bmax[0] if ishole[i] if isst[i]
 bhj[i] <- 0                         for (i) in 1 .. bmax[0] if ishole[i] if not ishole[i-1]
 bhj[i] <- bhj[i-1] + 1              for (i) in 1 .. bmax[0] if ishole[i] if ishole[i-1]
@@ -2954,7 +3001,7 @@ vb[n,3] <- rel[n] / 16777216 % 256  for (n) in 0 .. ninz[0] if shhk[form[n]] == 
 field scb : min bound 262144        # 命令 n の SIB の倍率ビット
 scb[n] <- fmsc[form[n]]             for (n) in 0 .. ninz[0]
 # 比較のガードを一枚置いて **閉じてから**使う（気づき38）
-field issib : or bound 524288       # そのバイトは SIB
+field issib : or bound 655360       # そのバイトは SIB
 issib[i] <- true                    for (i) in 0 .. bmax[0] if bofs[i] == shsb[bfm[i]]
 
 # 骨（形ごとの定数バイト）と穴（即値・相対・**倍率**）—— 座標はどちらも i だけ

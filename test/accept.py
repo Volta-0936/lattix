@@ -483,32 +483,75 @@ table b = (0,0,0)
 field f : max bound 16
 f[i] <- c   for (i,c) in a
 """, data=b'xy', exit=7, why=(0,6))
-# ══ 既知の穴（`test/meta.py` が見つけた。まだ直っていない）════════════
-# **場の値を座標にして、その値が場の広さを超えると、濾しが無い。**
-# 解釈実行はそこに値が無いと言う（⊥）。焼いた側は **隣の升を読んで、
-# 読めた数を答えにする**。鎖にすると読んだごみが次の座標になり segfault する。
+# ══ 座標の濾し（`test/meta.py` が見つけた穴。直した）════════════════
+# **座標は読むまえに広さで濾す。** 濾しは在ったのに `cdhf == 1`（ずれが
+# あるとき）にしか出なかった —— 検査が「座標」という **概念**ではなく
+# 「ずれ」という **機能**に紐づいていたからである（気づき34 の裏面）。
+# 漏れると解釈実行と食い違う。黙って:
 #
-#   解釈実行   b: ⊥ everywhere
-#   焼いた側   b[0] = 0      ← 隣の升
+#   解釈実行   b: ⊥ everywhere   （100 番の升は a に無い）
+#   焼いた側   b[0] = 0          ← **隣の場の升を読んで、その数を答えにした**
 #
-# 表の列を座標にしたときも同じ（`a[j]` で j が広さを超える）。そちらは
-# 走らせると落ちるので、この表には置けない —— 再現は REPORT.md に書いた。
-#
-# 濾しは在るのだが `cdhf == 1`（ずれがあるとき）にしか出ない —— 検査が
-# 「座標」という概念ではなく「ずれ」という機能に紐づいていた（気づき34 の裏面）。
-# 直しは測った: スロットの終わりに無条件で `cmp r9, 広さ` / `jae` を置けば
-# 三つとも直る。ただし **書き先の座標には既に別の検査があり**（`wcp + 2`。
-# はみ出したら場の番号を言って止まる）、手前に濾しを置くとそれを黙らせる。
-# 書きだけ外そうとすると二次元の書き座標（`r[q[i,k]]`）が壊れた ——
-# そこまでで止めてある。**直せていないものを直したことにはしない。**
-case("座標が広さを超える（既知の穴・読み）", """table ch = (0,32)
+# 鎖にすると読んだごみが次の座標になって segfault した。三つとも置く。
+case("座標が広さを超える（場の値）", """table ch = (0,32)
 field big : max bound 8
 big[i] <- 100   for (i,c) in ch if i <= 2
 field a : max bound 8
 a[i] <- 7   for (i) in 0 .. 7
 field b : max bound 8
 b[i] <- a[big[i]]   for (i,c) in ch if i <= 2
-""", data=b'abc', known=True)
+""", data=b'abc')
+case("座標が広さを超える（表の列）", """table ch = (0,32)
+field a : max bound 8
+a[i] <- 7   for (i) in 0 .. 7
+field b : max bound 8
+b[i] <- a[c]   for (i,c) in ch
+""", data=b'abc')
+# 鎖の途中の輪も濾す（内側の所有者でも **次元0 は座標として完成している**）
+case("鎖の途中がはみ出す", """table ch = (0,32)
+field f0 : max bound 64
+f0[i] <- c % 8   for (i,c) in ch
+field f1 : sum bound 64
+f1[f0[i]] <- f0[i] * 2 + f0[i] * 3   for (i,c) in ch   if f0[i] >= 2
+field f2 : count bound 64
+f2[i] <- f0[f1[f1[i]]]   for (i,c) in ch   if f1[f1[i]] >= 1
+""", data=b'lattix meta test 42')
+
+# ══ 既知の穴: 否定のガードの下の ⊥（`differ` が撒いて出した）════════
+# `if not g[f[i]]` で `f[i]` が ⊥ のとき、読めるものが無いので `g[⊥]` は ⊥、
+# `not ⊥` は真 —— **この行は撃つ**（解釈実行はそうする）。焼いた側は座標の
+# ⊥ 検査と濾しを一律に「次の行へ」にしているので **撃たない**。
+# 出るのは「値が違う」ではなく「升が足りない」side なので、隣を読んで
+# もっともらしい数を返す嘘よりは軽い。だが食い違いには違いない。
+#
+# 直し方は測った: 飛び先を `av` ではなく **ガードの終わり**
+# （`gpos[gg] + glen[gg]`）にする。長さは一つも変わらない。ただし入れると
+# 「途中で切れている（言う）」が断らなくなった —— 断りの数え（`nokX`）に
+# 何が効いたのかまだ掴めていないので、**入れていない**。
+case("否定の下の ⊥（既知の穴）", """table ch = (0,32)
+field f0 : sum bound 16
+f0[i] <- 5   for (i,c) in ch   if c >= 97
+field g0 : or bound 16
+g0[i] <- true   for (i,c) in ch if c >= 100
+field f1 : count bound 256
+f1[i] <- i   for (i) in 1 .. 6   if not g0[f0[i]]
+""", data=b'hello Ldx', known=True)
+
+# ══ 既知の穴: count の読み × min（`test/meta.py` が撒いて出した）════
+# `f2[f0[i]] <- f1[i]`（f1 は count、f2 は min、書き座標が読み）で、
+# f2 に **どこから来たのか説明できない 1** が入る（正しくは 2）。
+# `f2[i] <- f1[i]` と書けば正しい。`f2` を max にしても正しい。
+# **今日の変更より前から在る**（HEAD の焼き手も同じ答えを出す）。
+# 順序を替えると勝つ寄与が変わるので `meta.py` の「順序」の法則が破れる。
+case("count の読み × min（既知の穴）", """table ch = (0,32)
+field f0 : max bound 64
+f0[i] <- c % 8   for (i,c) in ch
+field f1 : count bound 64
+f1[f0[i]] <- 1   for (i,c) in ch
+field f2 : min bound 64
+f2[f0[i]] <- f1[i]   for (i,c) in ch
+""", data=b'aabbcc', known=True)
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
