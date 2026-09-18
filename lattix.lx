@@ -965,6 +965,17 @@ ixsr[j] <- 1 for (j,zc) in ch if not isocc[j] if not isnum[j]
       if lkd[snum[j], vlpz[j]] >= 1
 ixsr[j] <- 2 for (j,zc) in ch if isocc[j] if lkd[snum[j], vlpz[j+2]] == 0
 ixsr[j] <- 3 for (j,zc) in ch if isocc[j] if lkd[snum[j], vlpz[j+2]] >= 1
+# **添字が読みのときは源5（鎖）。** `a[b[i]]` の `b` の添字は変数だから
+# 源2/3 で済む —— 一段の間接を一つの形に畳んだものである。`a[b[h[i]]]` の
+# `b` の添字は **読み**なので `vlpz` が ⊥ になり、どちらの規則も撃たず、
+# 源が出ないまま座標が消えていた（三段目が落ちる。気づき29 はこれを
+# 「中間の場に置け」で回避していた）。
+#
+# 回避する必要は無かった。**鎖の仕掛けは既に在る** —— 源5「内側の所有者が
+# 座標を作り終えた所で読む」がそれで、`f[g[i,j]]` のために書かれていた。
+# 内側が二次元でなくても、内側が **自分の座標を組み立てる** なら同じ形で済む。
+# 深さは一段ずつ内側に開くだけなので、これで N 段まで届く（四段まで測った）。
+ixsr[j] <- 5 for (j,zc) in ch if isocc[j] if isocc[j+2]
 field ixcc : max bound 262144           # 列 / ループ番号 / 定数
 ixcc[j] <- tval[j]  for (j,zc) in ch if isnum[j]
 ixcc[j] <- vcolz[j] for (j,zc) in ch if not isocc[j] if not isnum[j]
@@ -975,6 +986,9 @@ ixcc[j] <- vcolz[j+2] for (j,zc) in ch if isocc[j]
       if lkd[snum[j], vlpz[j+2]] == 0
 ixcc[j] <- vlpz[j+2]  for (j,zc) in ch if isocc[j]
       if lkd[snum[j], vlpz[j+2]] >= 1
+# 源5 の `cdcc` は列でも計数器でもなく **内側の出現**である
+# （31_gen の `cb[cdcc[gc]] <- cdpos[gc]` が所有者番号として読む）
+ixcc[j] <- oseq[j] for (j,zc) in ch if isocc[j] if isocc[j+2]
 field ixcf : max bound 262144           # 場（源2/3）
 ixcf[j] <- ofl[oseq[j]] - 1 for (j,zc) in ch if isocc[j]
 

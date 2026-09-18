@@ -222,10 +222,13 @@ field a : max bound 16
 a[k] <- 1   for (k) in 0 .. 1 for (m) in 0 .. 1 for (n) in 0 .. 1 for (p) in 0 .. 1
 """, data=b"ab", exit=7, why=(3,2))
 # ══ 断片の際（測った）════════════════════════════════════════════
-# **狭さは覚えていられない。** 「入れ子は一段まで」と書いてあったが、
-# 一段なのは **書き座標** だけで、値とガードは二段まで入る。三つの場所で
-# 三つとも違う —— だから三つとも置く。下の `Z` は共通の前置き（7 行）で、
-# どの組も 8 行目に場、9 行目に規則が来る（`why` の行はそこ）。
+# **狭さは覚えていられない。** 「入れ子は一段まで」と書いてあった。測ったら
+# 一段なのは **書き座標** だけで、値とガードは二段まで入った。さらに調べたら
+# 二段なのも生成器の都合ですらなく、**座標の源に「読み」が無かった**だけで、
+# 鎖（源5）を開いたら三段も四段も通った。いまの際は
+# 「書き座標は三段まで測った / 値・ガードは四段まで測った」である ——
+# 上限を数字で書かず、**測った所まで**を試験に置く（気づき33・44）。
+# 下の `Z` は共通の前置き（7 行）で、どの組も 8 行目に場、9 行目に規則が来る。
 Z = """table ch = (0,32)
 field a : max bound 16
 a[i] <- 1 for (i,c) in ch
@@ -237,22 +240,62 @@ p[i] <- 0 for (i,c) in ch
 case("値の読み 二段（通る）", Z + """field v : max bound 16
 v[i] <- a[b[i]] for (i,c) in ch
 """, data=b"ab")
-case("値の読み 三段（焼けない）", Z + """field v : max bound 16
+case("値の読み 三段（通る）", Z + """field v : max bound 16
 v[i] <- a[b[p[i]]] for (i,c) in ch
-""", data=b"ab", exit=7, why=(9, 8))
+""", data=b"ab")
 case("ガードの読み 二段（通る）", Z + """field v : or bound 16
 v[i] <- true for (i,c) in ch if a[b[i]] >= 1
 """, data=b"ab")
-case("ガードの読み 三段（焼けない）", Z + """field v : or bound 16
+case("ガードの読み 三段（通る）", Z + """field v : or bound 16
 v[i] <- true for (i,c) in ch if a[b[p[i]]] >= 1
-""", data=b"ab", exit=7, why=(9, 8))
+""", data=b"ab")
 # **書き座標だけは一段である。** 値と同じ二段が書けると思っていた。
 case("書き座標の読み 一段（通る）", Z + """field v : or bound 16
 v[a[i]] <- true for (i,c) in ch if a[i] >= 0
 """, data=b"ab")
-case("書き座標の読み 二段（焼けない）", Z + """field v : or bound 16
+case("書き座標の読み 二段（通る）", Z + """field v : or bound 16
 v[a[b[i]]] <- true for (i,c) in ch if a[b[i]] >= 0
-""", data=b"ab", exit=7, why=(9, 8))
+""", data=b"ab")
+case("値の読み 四段（通る）", Z + """field q : max bound 16
+q[i] <- 0 for (i,c) in ch
+field v : max bound 16
+v[i] <- a[b[p[q[i]]]] for (i,c) in ch
+""", data=b"ab")
+case("書き座標の読み 三段（通る）", Z + """field v : or bound 16
+v[a[b[p[i]]]] <- true for (i,c) in ch if a[b[p[i]]] >= 0
+""", data=b"ab")
+# **どこまで測ったかを置く。** 鎖は一段ずつ内側に開くだけなので原理的な
+# 上限は無いが、上限は **超えたときを試すまで上限ではない**（気づき44）——
+# 源が実際に使う深さ（front.lx は書き座標 5 / 値 6）まで測って置く。
+D5 = """table ch = (0,32)
+field a : max bound 16
+a[i] <- c   for (i,c) in ch
+field b : max bound 16
+b[i] <- 3 - i   for (i) in 0 .. 3
+field p : max bound 16
+p[i] <- 3 - i   for (i) in 0 .. 3
+field q : max bound 16
+q[i] <- 3 - i   for (i) in 0 .. 3
+field r : max bound 16
+r[i] <- 3 - i   for (i) in 0 .. 3
+field t : max bound 16
+t[i] <- 3 - i   for (i) in 0 .. 3
+"""
+case("値の読み 五段（通る）", D5 + """field v : max bound 16
+v[i] <- a[b[p[q[r[i]]]]]   for (i) in 0 .. 3
+""", data=b"wxyz")
+case("値の読み 六段（通る）", D5 + """field v : max bound 16
+v[i] <- a[b[p[q[r[t[i]]]]]]   for (i) in 0 .. 3
+""", data=b"wxyz")
+case("書き座標 五段（通る）", D5 + """field v : or bound 16
+v[b[p[q[r[i]]]]] <- true   for (i) in 0 .. 3 if b[p[q[r[i]]]] >= 0
+""", data=b"wxyz")
+# 二次元の座標の中でも鎖は開く（次元0 が三段、次元1 は定数）
+case("二次元の中 三段（通る）", D5 + """field g : max bound 8 8
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+field v : max bound 16
+v[i] <- g[b[p[i]], 1]   for (i) in 0 .. 3
+""", data=b"wxyz")
 # **辺は式ではない。** ここは長いあいだ **黙って壊れた符号**を出していた ——
 # 場の番号のつもりで足し算の結果を読み、走らせると segfault した。
 # 数え上げでは漏れる（左の手前・右の後ろ・前置き・否定の四通りある）ので、
@@ -390,12 +433,16 @@ case("変数で割る（焼けない）", """table edges = (0,0,0)
 field q : max bound 16
 q[i] <- j / w   for (i,j,w) in edges
 """, rows=[(0,4,2)], exit=7, why=(3,8))
-case("三段の読み（焼けない）", """table edges = (0,0,0)
+# **三段は焼ける。** 長いあいだ「焼けない」の例だった —— 座標の源が
+# 「列・計数器・場の値・定数」の四つだと思い込んでいて、添字が **読み** の
+# ときに源が出ず、黙って座標が消えていたからである。鎖（源5）は
+# `f[g[i,j]]` のために既に在ったので、条件を広げるだけで N 段まで届いた。
+case("三段の読み（通る）", """table edges = (0,0,0)
 field a : max bound 16
 a[i] <- j   for (i,j,w) in edges
 field c : max bound 16
 c[i] <- a[a[a[i]]]   for (i,j,w) in edges
-""", rows=[(0,1,1),(1,2,1)], exit=7, why=(5,8))
+""", rows=[(0,1,1),(1,2,1)])
 case("表が二つ（焼けない）", """table a = (0,0)
 table b = (0,0,0)
 field f : max bound 16
