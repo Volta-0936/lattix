@@ -59,9 +59,9 @@ r3 = subprocess.run([L1], input=A.encode(), capture_output=True)
 exe = os.path.join(tmp, 'a.out')
 open(exe, 'wb').write(r3.stdout); os.chmod(exe, os.stat(exe).st_mode | stat.S_IEXEC)
 r4 = subprocess.run([exe], input=b'lattix 12 34\n', capture_output=True)
-import struct
-cells = [struct.unpack_from('<q', r4.stdout, i * 8)[0] for i in range(6)] \
-        if len(r4.stdout) >= 48 else []
+# **升の幅は束が言う**（31_gen の `fwb`）—— `A` の `big` は `or` なので
+# 一升 1 バイト。8 バイトで読むと隣の升まで一つの数として読んでしまう。
+cells = list(r4.stdout[:6]) if len(r4.stdout) >= 6 else []
 works = r3.stdout[:4] == b'\x7fELF' and cells == [1] * 6
 print(f"  {'小さい .lx も焼ける':<28}{'✓' if works else '✗'}  "
       f"（{len(r3.stdout)} バイトの実行ファイル、答え {cells[:6]}）")

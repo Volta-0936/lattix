@@ -406,11 +406,14 @@ def widths(src):
     for ln in src.split('\n'):
         for m in re.finditer(r'(\w+)\[([^\]]*)\]', ln.split('#')[0]):
             if m.group(1) in bnd: ar[m.group(1)]=max(ar[m.group(1)], 1+m.group(2).count(','))
+    # **升の幅は束が言う**（31_gen の `fwb` と同じ規則）—— `or` は 0 か 1 しか
+    # 取らないので一升 1 バイト。
     off={}; o=0
     for f in order:
         b=bnd[f]; w0=b[0]; w1=b[1] if len(b)>1 else w0
         cells=w0*w1 if ar[f]==2 else w0
-        off[f]=(o,cells,w1 if ar[f]==2 else 1); o+=cells*8
+        wb=1 if lat[f]=='or' else 8
+        off[f]=(o,cells,w1 if ar[f]==2 else 1,wb); o+=cells*wb
     return order, lat, off, o
 
 BOT={'min':2147483647,'max':-2147483647,'or':0,'flat':2147483647,'sum':0,'count':0}
@@ -456,9 +459,9 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
         print(f"  {name:<26}升の並びが合わない（{len(plane)} != {tot}）"); bad.append((name,'置き場')); continue
     got={}
     for f in order:
-        o,cells,w1=off[f]; bot=BOT[lat[f]]
+        o,cells,w1,wb=off[f]; bot=BOT[lat[f]]
         for i in range(cells):
-            v=struct.unpack_from('<q',plane,o+8*i)[0]
+            v=struct.unpack_from('<q' if wb==8 else '<B',plane,o+wb*i)[0]
             if v!=bot:
                 key=(i//w1,i%w1) if w1>1 else (i,)
                 got[(f,)+key]=v

@@ -138,20 +138,25 @@ def gen(flds, seeds, rules, edges, tmp, tag, guards=(), terms=(), coords=(),
         return len(blob), r.stdout, None, ""
 
     ncell = sum(w1 * (w2 if a == 2 else 1) for _f, _l, a, w1, w2 in flds)
-    F = struct.unpack(f'<{ncell}q', r.stdout[:8*ncell])
+    # **升の幅は束が言う**（31_gen の `fwb`）—— `or` は一升 1 バイト。
     K = struct.unpack(f'<{ncell}i', _wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
     store, rank = {}, {}
     off = 0
+    bo = 0
     for f, l, a, w1, w2 in flds:
         cells = w1 * (w2 if a == 2 else 1)
+        wb = 1 if l == 3 else 8
+        F = struct.unpack(f'<{cells}{"B" if wb == 1 else "q"}',
+                          r.stdout[bo:bo + wb * cells])
         key = ((lambda k: (k,)) if a == 1
                else (lambda k, w=w2: (k // w, k % w)))
         dec = ((lambda v: True) if l == 3
                else (lambda v: L.TOP if v == TOPV else v))
-        store[f] = {key(k): dec(F[off+k]) for k in range(cells)
-                    if F[off+k] != BOT[l]}
+        store[f] = {key(k): dec(F[k]) for k in range(cells)
+                    if F[k] != BOT[l]}
         rank[f] = {key(k): K[off+k] for k in range(cells) if K[off+k]}
         off += cells
+        bo += wb * cells
     return len(blob), store, rank, ""
 
 

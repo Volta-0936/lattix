@@ -1446,7 +1446,7 @@ lpbc8[gl] <- lpbc[gl] * 8           for (gl) in 0 .. nglz[0]
 # ── 命令の骨。**表ではなく種で置く** —— 焼いた実行ファイルが読める表は
 # 標準入力の一つだけなので、生成器の定数は種でなければならない。
 # encb (形, 位置) → バイト。穴の位置には何も置かない（下で埋める）。
-field encb : max bound 176 12
+field encb : max bound 192 12
 encb[1,0] <- 72
 encb[1,1] <- 199
 encb[1,2] <- 195
@@ -1921,6 +1921,31 @@ encb[167,2] <- 198
 # それは上限ではなく、まだ超えていないだけだった（気づき44、三度目）。
 # 実際の四バイトは `total` の隣で書く（`mad` —— 下の「大きさは出来上がって
 # から決まる」の段）。ここに数字を残さないことが要点である。
+# ── **バイト升の形**（`or` の場のための五つ）──────────────────────
+# 倍率はもう穴なので、SIB は index と base だけを持つ。変わるのは
+# **命令の大きさ**（オペランド幅）で、これは opcode と REX が決める ——
+# x86 では読みだけ形が変わる（`mov r64,m64` は 8B、`movzx r32,m8` は 0F B6）。
+# だから倍率と違って、幅ごとに形が要る。**五つで足りた**。
+encb[175,0] <- 66                    # 42 0F B6 84 SIB d32  movzx eax,byte [rbx+r9*1+d32]
+encb[175,1] <- 15
+encb[175,2] <- 182
+encb[175,3] <- 132
+encb[175,4] <- 11
+encb[176,0] <- 66                    # 42 0F B6 B4 SIB d32  movzx esi,byte [rbx+r9*1+d32]
+encb[176,1] <- 15
+encb[176,2] <- 182
+encb[176,3] <- 180
+encb[176,4] <- 11
+encb[177,0] <- 128                   # 80 BC SIB d32 01     cmp byte [rbx+rdx*1+d32],1
+encb[177,1] <- 188
+encb[177,2] <- 19
+encb[177,7] <- 1
+encb[178,0] <- 198                   # C6 84 SIB d32 01     mov byte [rbx+rdx*1+d32],1
+encb[178,1] <- 132
+encb[178,2] <- 19
+encb[178,7] <- 1
+encb[179,0] <- 136                   # 88 83 d32            mov [rbx+d32],al
+encb[179,1] <- 131
 encb[174,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, はみ出しの知らせ
 encb[174,1] <- 199
 encb[174,2] <- 198
@@ -1952,7 +1977,7 @@ encb[173,2] <- 193
 
 # 形の寸法を一つの数に畳む: 長さ*4096 + 穴の位置*64 + 穴の種
 # （二のべきで割れば戻る —— 種を三本並べるより一本の方が短い）
-field shp : max bound 176
+field shp : max bound 192
 shp[1] <- 28868
 shp[2] <- 28868
 shp[3] <- 28868
@@ -2099,6 +2124,11 @@ shp[166] <- 20480
 shp[167] <- 28672                    # 長さ7・穴なし
 shp[168] <- 28672                     # 長さ1・穴0・imm8（生のバイト）
 shp[174] <- 28672                    # 長さ7・穴なし（はみ出しの知らせの番地）
+shp[175] <- 37188                    # 長さ9・穴5・imm32（SIB は 4）
+shp[176] <- 37188
+shp[177] <- 32964                    # 長さ8・穴3・imm32（SIB は 2）
+shp[178] <- 32964
+shp[179] <- 24708                    # 長さ6・穴2・imm32（SIB 無し）
 # **argv を読む十六命令。** 焼いた実行ファイルは `./foo data.bin` と書ける ——
 # 引数が無ければこれまで通り stdin。開けなければ **終了コード 8 で言う**
 # （黙って stdin に落ちない）。fd は rbp に置く（唯一空いていた register）。
@@ -2188,13 +2218,40 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 174
-field shln : max bound 176           # 命令の長さ
+nfm[0] <- 179
+field shln : max bound 192           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
-field shho : max bound 176           # 穴の位置
+field shho : max bound 192           # 穴の位置
 shho[f] <- shp[f] / 64 % 64         for (f) in 0 .. nfm[0]
-field shhk : max bound 176           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
+field shhk : max bound 192           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
 shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
+
+# ── **倍率も穴である** ───────────────────────────────────────────
+# 形の表は長いあいだ「命令 × 升の幅」の組を一行ずつ持っていた ——
+# `mov rax,[rbx+rdx*8+d32]` と `mov rax,[rbx+rdx*4+d32]` は別の形で、
+# 幅を一つ足すたびに表が倍になる。だがこれは **現象**であって基ではない:
+# x86 の SIB バイトは上二ビットに倍率を持っており、**倍率は最初から
+# 命令の中の穴**だった。表がそれを定数で埋めていただけである。
+#
+# 番地の d32 を穴にしたのと同じことを倍率にもする。すると形は一つで
+# 四つの幅（×1/×2/×4/×8）を差せるようになり、**幅を足しても表は増えない**。
+#
+# SIB を持つかは表が言う —— modrm の下三ビットが 4 なら次のバイトが SIB
+# である（x86 の決まり）。位置は必ず穴の一つ手前。数えたら 17 形あった。
+field mrm : max bound 192            # 形 f の modrm（穴の二つ手前）
+mrm[f] <- encb[f, shho[f] - 2]      for (f) in 0 .. nfm[0] if shhk[f] == 4 if shho[f] >= 2
+field mrmr : max bound 192           # modrm の rm（下三ビット）
+mrmr[f] <- mrm[f] % 8               for (f) in 0 .. nfm[0]
+field hassib : or bound 192          # 形 f は SIB を持つ
+hassib[f] <- true                   for (f) in 0 .. nfm[0] if mrmr[f] == 4
+field shsb : min bound 192           # SIB のバイト位置（63 = 持たない）
+shsb[f] <- 63                       for (f) in 0 .. nfm[0]
+shsb[f] <- shho[f] - 1              for (f) in 0 .. nfm[0] if hassib[f]
+# **表は書き換えない。** 倍率を抜いた SIB も、いまの倍率も、表から出る。
+field sibb : max bound 192           # 倍率を抜いた SIB（index と base だけ）
+sibb[f] <- encb[f, shsb[f]] % 64    for (f) in 0 .. nfm[0] if hassib[f]
+field fmsc : max bound 192           # 形がいま持っている倍率ビット（既定）
+fmsc[f] <- encb[f, shsb[f]] - sibb[f]   for (f) in 0 .. nfm[0] if hassib[f]
 # 長さと、穴の位置・幅。kind 4 = imm32/d32 / 1 = imm8 / 5 = rel32
 # ── 配置 ─────────────────────────────────────────────────────────
 #   コード 0x400078  データ 0x401000  場 F 0x402000+foff[f]  階数 K はその後ろ
@@ -2269,8 +2326,68 @@ fsz[f] <- fw[f, 0] * fw[f, 1]       for (f) in 0 .. nflz[0] if fdar[f] == 2
 
 # **項の列は左からの畳み込みである。** `a + K * b` は括弧と同じで、
 # 名前を付けていない中間値でしかない —— 付ければただの項の列になる。
+# ── **升の幅は束が言う。** ─────────────────────────────────────────
+# 幅 8 は「値と同じにしておけば座標の作り方が一つで済む」都合であって、
+# 束の性質ではない。`or` の升は 0 か 1 しか取らない —— 8 バイトは
+# 8 ビットでも多い。束ごとに幅を出し、番地も倍率もそこから出す。
+# （まずは全部 8 のまま配管を通し、生む機械語がバイト一致することを見る。）
+field wbits : max bound 16                    # 升の幅 → SIB の倍率ビット
+wbits[1] <- 0
+wbits[2] <- 64
+wbits[4] <- 128
+wbits[8] <- 192
+field fwb : max bound 1024                    # 場 f の升の幅（バイト）——**束が言う**
+fwb[f] <- 8                         for (f) in 0 .. nflz[0] if fdlat[f] == 1
+fwb[f] <- 8                         for (f) in 0 .. nflz[0] if fdlat[f] == 2
+fwb[f] <- 1                         for (f) in 0 .. nflz[0] if fdlat[f] == 3
+fwb[f] <- 8                         for (f) in 0 .. nflz[0] if fdlat[f] == 6
+fwb[f] <- 8                         for (f) in 0 .. nflz[0] if fdlat[f] == 8
+fwb[f] <- 8                         for (f) in 0 .. nflz[0] if fdlat[f] == 9
+# **狭めないのではなく、断る。** 幅を使用地点で上書きすると、答えの
+# 形（場の吐き出し）が生成器の内部都合で変わり、読む側が `wide8` を
+# 知らないと解けない —— **同じ判断が二箇所**になる。幅は束だけが言う。
+# 束と合わない使われ方は、黙って広げずに **理由8 で断る**。
+badk[z] <- rlin[lpr[gl]] * 16 + 8   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0
+      if lpk[gl] == 2 if fdlat[lpbf[gl]] == 3
+badk[z] <- rlin[cdr[gc]] * 16 + 8   for (gc) in 0 .. ngcz[0] for (z) in 0 .. 0
+      if cdsr[gc] == 5 if fdlat[cdcf[gc]] == 3
+badk[z] <- rlin[cdr[gc]] * 16 + 8   for (gc) in 0 .. ngcz[0] for (z) in 0 .. 0
+      if cdsr[gc] >= 2 if cdsr[gc] <= 3 if fdlat[cdcf[gc]] == 3
+# **育っていく場を座標に使ってはいけない**（気づき24 / 気づき38）。
+# 比較のガードを一枚置いて閉じてから引く。
+field fwbz : max bound 1024                   # 閉じた幅（座標に使えるのはこちら）
+fwbz[f] <- fwb[f]                   for (f) in 0 .. nflz[0] if fwb[f] >= 1
+field fscb : max bound 1024                   # 場 f を差すときの倍率ビット
+fscb[f] <- wbits[fwbz[f]]           for (f) in 0 .. nflz[0]
 field fsz8 : max bound 1024                   # 升目の数（バイト）
-fsz8[f] <- fsz[f] * 8               for (f) in 0 .. nflz[0]
+fsz8[f] <- fsz[f] * fwbz[f]         for (f) in 0 .. nflz[0]
+
+# ── 幅 → 形。**場所は「この場の升を読め」としか言わない。** ────────
+field fmrd : max bound 16                     # 幅 → rax に読む
+fmrd[1] <- 175
+fmrd[8] <- 40
+field fmrs : max bound 16                     # 幅 → rsi に読む
+fmrs[1] <- 176
+fmrs[8] <- 81
+field fmc1 : max bound 16                     # 幅 → 升は 1 か
+fmc1[1] <- 177
+fmc1[8] <- 43
+field fms1 : max bound 16                     # 幅 → 升に 1 を入れる
+fms1[1] <- 178
+fms1[8] <- 44
+field fmsw : max bound 16                     # 幅 → 種の書き込み
+fmsw[1] <- 179
+fmsw[8] <- 51
+field frd : max bound 1024                    # 場 f を rax に読む形
+frd[f] <- fmrd[fwbz[f]]             for (f) in 0 .. nflz[0]
+field frs : max bound 1024                    # 場 f を rsi に読む形
+frs[f] <- fmrs[fwbz[f]]             for (f) in 0 .. nflz[0]
+field fc1 : max bound 1024                    # 場 f の升は 1 か
+fc1[f] <- fmc1[fwbz[f]]             for (f) in 0 .. nflz[0]
+field fs1 : max bound 1024                    # 場 f の升に 1 を入れる
+fs1[f] <- fms1[fwbz[f]]             for (f) in 0 .. nflz[0]
+field fsw : max bound 1024                    # 場 f への種の書き込み
+fsw[f] <- fmsw[fwbz[f]]             for (f) in 0 .. nflz[0]
 field foff : max bound 1024                   # 場 f の先頭（F の先頭からのずれ）
 foff[0] <- 0
 foff[f] <- foff[f-1] + fsz8[f-1]    for (f) in 0 .. nflz[0] if f > 0
@@ -2285,10 +2402,23 @@ ftot[z] <- foff[f] + fsz8[f]         for (f) in 0 .. nflz[0] for (z) in 0 .. 0
 #    x86 の SIB は倍率 1/2/4/8 を持っているので、倍率を 8 から 4 にし、
 #    REX.W を落として 32 ビットで読み書きするだけでよい ——
 #    **命令の長さは一バイトも変わらない**（形の表も番地の鎖も動かない）。
+field kwb : max bound 1                     # **階数の升の幅（バイト）——一箇所**
+kwb[0] <- 4
+# 倍率ビットは輪の外で一度だけ引く。輪の中で `wbits[kwb[0]]` と書くと
+# 座標が輪の変数に依らない読みになり、断片は寸法を出せない（理由8）——
+# **引いてから配る**。
+field kscb : max bound 1                    # 階数を差すときの倍率ビット
+kscb[z] <- kscb[0]   for (z) in 0 .. 0
+# ずれは `foff / 2` と書いていた。これは **値も階数も幅が一律**だから
+# 成り立っていた式で、束ごとに幅が変われば成り立たない。階数は階数の
+# 鎖を持つ —— 幅は `kwb` の一箇所から出る。
+field ksz : max bound 1024                  # 場 f の階数の大きさ（バイト）
+ksz[f] <- fsz[f] * kwb[0]           for (f) in 0 .. nflz[0]
 field koff : max bound 1024                 # 場 f の階数の先頭（K の先頭からのずれ）
-koff[f] <- foff[f] / 2              for (f) in 0 .. nflz[0]
+koff[0] <- 0
+koff[f] <- koff[f-1] + ksz[f-1]     for (f) in 0 .. nflz[0] if f > 0
 field ktot : max bound 1                    # 階数ぜんぶの大きさ
-ktot[0] <- ftot[0] / 2   for (z) in 0 .. 0
+ktot[z] <- koff[f] + ksz[f]         for (f) in 0 .. nflz[0] for (z) in 0 .. 0
 field ftot2 : max bound 1                   # 場の置き場（値 F と 階数 K）
 ftot2[0] <- ftot[0] + ktot[0]   for (z) in 0 .. 0
 field kbase : max bound 1
@@ -2716,6 +2846,7 @@ form[fzp[f] + 1] <- 3                  for (f) in 0 .. nflz[0] if not nofill[f] 
 imm[fzp[f] + 1]  <- 0 + bias[0]                  for (f) in 0 .. nflz[0] if not nofill[f]
 form[fzp[f] + 2] <- 47                 for (f) in 0 .. nflz[0] if not nofill[f]   # mov [rbx+rcx*8+foff],rax
 imm[fzp[f] + 2]  <- foff[f] + bias[0]            for (f) in 0 .. nflz[0] if not nofill[f]
+scb[fzp[f] + 2]  <- fscb[f] for (f) in 0 .. nflz[0] if not nofill[f]
 form[fzp[f] + 3] <- 5                  for (f) in 0 .. nflz[0] if not nofill[f]   # add rcx, 1
 imm[fzp[f] + 3]  <- 1 + bias[0]                  for (f) in 0 .. nflz[0] if not nofill[f]
 form[fzp[f] + 4] <- 20                 for (f) in 0 .. nflz[0] if not nofill[f]   # cmp rcx, 升目の数
@@ -2729,17 +2860,20 @@ jt[fzp[f] + 5]   <- fzp[f] + 2            for (f) in 0 .. nflz[0] if not nofill[
 field sdp : max bound 4096
 field s3 : max bound 4096
 s3[s] <- s * 3                      for (s) in 0 .. nsdz[0]
+field sdwb : max bound 4096                 # 種 s が書く場の升の幅
+sdwb[s] <- fwbz[sdf[s]]             for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 field sdc8 : max bound 4096
-sdc8[s] <- sdc[s] * 8               for (s) in 0 .. nsdz[0]
+sdc8[s] <- sdc[s] * sdwb[s]         for (s) in 0 .. nsdz[0]
 field sdc4 : max bound 4096                 # 階数の側は升 4 バイト
 sdc4[s] <- sdc[s] * 4               for (s) in 0 .. nsdz[0]
 sdp[s] <- sb0[0] + s3[s]            for (s) in 0 .. nsdz[0]
 form[sdp[s]]     <- 2          for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 imm[sdp[s]]      <- sdv[s] + bias[0]          for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
-form[sdp[s] + 1] <- 51         for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
+form[sdp[s] + 1] <- fsw[sdf[s]]   for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 imm[sdp[s] + 1]  <- foff[sdf[s]] + sdc8[s] + bias[0]   for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 form[sdp[s] + 2] <- 52         for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 imm[sdp[s] + 2]  <- koff[sdf[s]] + sdc4[s] + bias[0]   for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
+scb[sdp[s] + 2]  <- kscb[0]   for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 
 # ── 層の頭と尻尾 ─────────────────────────────────────────────────
 form[hd[r]] <- 9                    for (r) in 0 .. nrlz[0] if fst[r] == 1     # xor r8,r8
@@ -2800,8 +2934,9 @@ form[gpos[gg] + 3] <- 116  for (gg) in 0 .. nggz[0] if gdk[gg] == 6      # jg ->
 jt[gpos[gg] + 3]   <- av[gdr[gg]]    for (gg) in 0 .. nggz[0] if gdk[gg] == 6
 
 # 種7/8: `if f[C] >= 値` / `if f[C] <= 値`（⊥ なら次の行へ）
-form[gc[gg]] <- 40      for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
 form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
 imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
 form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
@@ -2814,8 +2949,9 @@ form[gc[gg] + 4] <- 116 for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 
 # 種10/11: `if f[C] == 値` / `!= 値`（場と **定数** の比較。場同士ではない）
-form[gc[gg]] <- 40      for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
 form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
 imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
 form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
@@ -2830,8 +2966,9 @@ jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 11
 # 種9: `if f[C]`（肯定の読みをガードとして使う）。**階数もここで継ぐ** ——
 # 値の式の中の読みは項、if 節の中の読みはガードである（or では値が消えるので
 # 長いあいだ同じに見えていた。max で初めて分かれた）
-form[gc[gg]] <- 40      for (gg) in 0 .. nggz[0] if gdk[gg] == 9
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] == 9
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
@@ -2841,12 +2978,15 @@ form[gc[gg] + 4] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg] + 5] <- 88  for (gg) in 0 .. nggz[0] if gdk[gg] == 9      # cmp r11d,[K]
 imm[gc[gg] + 5]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
+scb[gc[gg] + 5]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg] + 6] <- 89  for (gg) in 0 .. nggz[0] if gdk[gg] == 9      # cmovl r11d,[K]
 imm[gc[gg] + 6]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
+scb[gc[gg] + 6]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 
 # 種2: `if not f[C]`。**真なら飛ぶ**（成層が健全性を持つ）
-form[gc[gg]] <- 40      for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 form[gc[gg] + 1] <- 26  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 form[gc[gg] + 2] <- 22  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
@@ -2854,8 +2994,9 @@ jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 # 種3: 比較の左辺 → rsi。**辺は場の読みとは限らない**（ok が種を言う）——
 #   ok 0 場の読み / 1 表の列 / 2 区間の計数器 / 3 定数
 # 以前は両辺とも場の読みしか書けず、`if k > arrow[snum[k]]` が **黙って落ちた**。
-form[gc[gg]] <- 81      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
+form[gc[gg]] <- frs[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 form[gc[gg] + 1] <- 66  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
@@ -2863,8 +3004,10 @@ jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gd
 # **比較の辺も読みである。** 階数を継がないと証明書が通らない（不変条件6）
 form[gc[gg] + 3] <- 88  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 imm[gc[gg] + 3]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
+scb[gc[gg] + 3]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 form[gc[gg] + 4] <- 89  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 imm[gc[gg] + 4]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
+scb[gc[gg] + 4]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 form[gc[gg]] <- 133     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 1
 imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 1
 form[gc[gg]] <- 134     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 0
@@ -2878,16 +3021,19 @@ imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 3
 #   `cmp rsi,rax` は **左 - 右**（形67 は 48 39 C6 = cmp rsi,rax）。
 #   飛ぶのは「成り立たないとき」なので条件は裏返る —— >= なら jl で飛ぶ。
 #   ここを一度取り違えて、答えが綺麗に反転した（`c >= 97` が小さい方を拾った）。
-form[gc[gg]] <- 40      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 form[gc[gg] + 3] <- 88  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 imm[gc[gg] + 3]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+scb[gc[gg] + 3]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 form[gc[gg] + 4] <- 89  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 imm[gc[gg] + 4]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+scb[gc[gg] + 4]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 form[gc[gg]] <- 10      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 1
 imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 1
 form[gc[gg]] <- 109     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 0
@@ -2966,6 +3112,7 @@ field inrd : max bound 8192                    # 読みの命令の位置
 inrd[gc] <- cdpos[gc] + ctot[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[inrd[gc]] <- 100   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 imm[inrd[gc]]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+scb[inrd[gc]]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[inrd[gc] + 1] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 imm[inrd[gc] + 1]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[inrd[gc] + 2] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
@@ -2978,6 +3125,7 @@ form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] ==
 # ずれが無いか後置なら、読みは先頭の次に来る
 form[cdpos[gc] + 1] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1  # mov r9,[F_cf]
 imm[cdpos[gc] + 1]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
+scb[cdpos[gc] + 1]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
 form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1  # cmp r9, ⊥
 imm[cdpos[gc] + 2]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
 form[cdpos[gc] + 3] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
@@ -2992,6 +3140,7 @@ form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc
 jt[cdpos[gc] + 3]   <- av[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 form[cdpos[gc] + 4] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # mov r9,[F_cf]
 imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 form[cdpos[gc] + 5] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # cmp r9, ⊥
 imm[cdpos[gc] + 5]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 form[cdpos[gc] + 6] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
@@ -3100,8 +3249,9 @@ isrd[gt] <- true                    for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 field tc : max bound 4096                      # 項 t の中身の位置（座標のあと）
 tc[gt] <- tpos[gt] + ctot[tmoo[gt]]   for (gt) in 0 .. ngtz[0] if isrd[gt]
 
-form[tc[gt]] <- 81      for (gt) in 0 .. ngtz[0] if isrd[gt]
+form[tc[gt]] <- frs[tmf[gt]]   for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt]]  <- foff[tmf[gt]] + bias[0] for (gt) in 0 .. ngtz[0] if isrd[gt]
+scb[tc[gt]]  <- fscb[tmf[gt]] for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 1] <- 66  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 1]  <- fbot[tmf[gt]]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 2] <- 13  for (gt) in 0 .. ngtz[0] if isrd[gt]
@@ -3114,30 +3264,37 @@ form[tc[gt] + 3] <- 141 for (gt) in 0 .. ngtz[0] if tmk[gt] == 9   # sub rax, rs
 form[tc[gt] + 3] <- 146 for (gt) in 0 .. ngtz[0] if tmk[gt] == 10  # imul rax, rsi
 form[tc[gt] + 4] <- 88  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 4]  <- koff[tmf[gt]] + bias[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
+scb[tc[gt] + 4]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 5] <- 89  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 5]  <- koff[tmf[gt]] + bias[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
+scb[tc[gt] + 5]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 
 # ── join。**束が替えるのはここだけ**（項も座標も束によらない）──────────
 # min / max: 違いは飛びの向きだけ（jge / jle）
 form[jb[r]] <- 41      for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
+scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 form[jb[r] + 1] <- 17  for (r) in 0 .. nrlz[0] if rrlt[r] == 1
 form[jb[r] + 1] <- 48  for (r) in 0 .. nrlz[0] if rrlt[r] == 2
 jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 form[jb[r] + 2] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 imm[jb[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
+scb[jb[r] + 2]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 
 # or: 既に真なら次へ
-form[jb[r]] <- 43      for (r) in 0 .. nrlz[0] if rrlt[r] == 3
+form[jb[r]] <- fc1[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
+scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 form[jb[r] + 1] <- 13  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
-form[jb[r] + 2] <- 44  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
+form[jb[r] + 2] <- fs1[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 imm[jb[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
+scb[jb[r] + 2]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 
 # flat: ⊥→入れる / 同じ→何もしない / ⊤→何もしない / 違う→⊤
 form[jb[r]] <- 65      for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 1] <- 66  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 1]  <- fbot[rrwf[r]]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 2] <- 13  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
@@ -3153,6 +3310,7 @@ form[jb[r] + 7] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 7]  <- ftop[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 8] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 8]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+scb[jb[r] + 8]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 
 # sum / count: 印が冪等を持つ（行は一度しか数えない）。count は値を 1 に直す
 form[jb[r]] <- 68      for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
@@ -3169,6 +3327,7 @@ field jlp : max bound 4096
 jlp[r] <- jb[r] + rrlt[r] - 5      for (r) in 0 .. nrlz[0]
 form[jlp[r]] <- 70  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 imm[jlp[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
+scb[jlp[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 
 # ── 階数。読みの階数の最大 + 1（集約は 1。印が数えるので深さを持たない）───
 
@@ -3178,8 +3337,10 @@ jpos[r] <- jb[r] + jlen[r]         for (r) in 0 .. nrlz[0]
 form[jpos[r] - 2] <- 91  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # add r11,1
 form[jpos[r] - 1] <- 92  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # mov [K+rdx*4],r11d
 imm[jpos[r] - 1]  <- koff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 8
+scb[jpos[r] - 1]  <- kscb[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 8
 form[jpos[r] - 1] <- 64  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 imm[jpos[r] - 1]  <- koff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
+scb[jpos[r] - 1]  <- kscb[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 
 # ── 書き座標。crd が r9 に作り、rdx へ移す（束によらない）───────────
 # そして **宣言した広さを超えたら言う**（黙って他人の場を踏まない）——
@@ -3399,6 +3560,7 @@ form[ebz[z] + 1] <- 37   for (z) in 0 .. 0 if outw[0] == 1   # mov rdx, PBUF
 imm[ebz[z] + 1]  <- pbuf[0] + bias[0]   for (z) in 0 .. 0 if outw[0] == 1
 form[ebz[z] + 2] <- 125  for (z) in 0 .. 0 if outw[0] == 1   # mov rax,[rbx+rcx*8+foff]
 imm[ebz[z] + 2]  <- foff[ofz[z]] + bias[0] for (z) in 0 .. 0 if outw[0] == 1
+scb[ebz[z] + 2]  <- fscb[ofz[z]] for (z) in 0 .. 0 if outw[0] == 1
 form[ebz[z] + 3] <- 12   for (z) in 0 .. 0 if outw[0] == 1   # cmp rax, ⊥
 imm[ebz[z] + 3]  <- fbot[ofz[z]]   for (z) in 0 .. 0 if outw[0] == 1
 form[ebz[z] + 4] <- 13   for (z) in 0 .. 0 if outw[0] == 1   # je -> 次の升へ
@@ -3865,9 +4027,20 @@ vb[n,1] <- rel[n] / 256 % 256       for (n) in 0 .. ninz[0] if shhk[form[n]] == 
 vb[n,2] <- rel[n] / 65536 % 256     for (n) in 0 .. ninz[0] if shhk[form[n]] == 5
 vb[n,3] <- rel[n] / 16777216 % 256  for (n) in 0 .. ninz[0] if shhk[form[n]] == 5
 
-# 骨（形ごとの定数バイト）と穴（即値・相対）—— **座標はどちらも i だけ**
-out[i] <- encb[bfm[i], bofs[i]]     for (i) in 0 .. bmax[0] if not ishole[i]
+# ── 倍率の穴（書く側）────────────────────────────────────────────
+# 既定は **形がいま持っている倍率**（`fmsc`）。束が幅を言う場は下で差し替える。
+# `min` なので、差し替えは必ず既定以下でなければならない —— ×8 が 192 で
+# いちばん大きいから、×4(128)・×2(64)・×1(0) はどれも通る。
+field scb : min bound 262144        # 命令 n の SIB の倍率ビット
+scb[n] <- fmsc[form[n]]             for (n) in 0 .. ninz[0]
+# 比較のガードを一枚置いて **閉じてから**使う（気づき38）
+field issib : or bound 524288       # そのバイトは SIB
+issib[i] <- true                    for (i) in 0 .. bmax[0] if bofs[i] == shsb[bfm[i]]
+
+# 骨（形ごとの定数バイト）と穴（即値・相対・**倍率**）—— 座標はどちらも i だけ
+out[i] <- encb[bfm[i], bofs[i]]     for (i) in 0 .. bmax[0] if not ishole[i] if not issib[i]
 out[i] <- vb[bown[i], bhj[i]]       for (i) in 0 .. bmax[0] if ishole[i]
+out[i] <- sibb[bfm[i]] + scb[bown[i]]   for (i) in 0 .. bmax[0] if issib[i]
 
 # ── 知らせの文字は **ファイル末尾の余白** へ ────────────────────────
 # 命令の後ろに置くと、配置が壊れているときにこそ届かない。

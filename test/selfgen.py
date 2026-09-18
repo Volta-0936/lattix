@@ -344,20 +344,27 @@ def _readback(flds, rules, blob, exe, data, trow):
                           for rn in sorted(byrow) for c in range(ncols))
     r, _wit = _run_with_witness(exe, indata)
     ncell = sum(w * (w2 if a == 2 else 1) for _f, _l, a, w, w2 in flds)
-    # **升の数だけ Python の整数を作らない。** 8バイトの並びのまま持つ ——
+    # **升の幅は束が言う**（31_gen の `fwb` と同じ規則）—— `or` は 0 か 1 しか
+    # 取らないので一升 1 バイト。階数は束によらず 4 バイト。
+    nbytes = sum((w * (w2 if a == 2 else 1)) * (1 if l == 3 else 8)
+                 for _f, l, a, w, w2 in flds)
+    # **升の数だけ Python の整数を作らない。** バイトの並びのまま持つ ——
     # 86万升で 500MB 使って落ちた（答えではなく、答えの受け取り方が重かった）。
-    assert len(r.stdout) >= 8 * ncell, (
-        f"場が足りない: {len(r.stdout)} < {8*ncell}（終了コード {r.returncode}）")
-    F = array.array('q'); F.frombytes(r.stdout[:8*ncell])
+    assert len(r.stdout) >= nbytes, (
+        f"場が足りない: {len(r.stdout)} < {nbytes}（終了コード {r.returncode}）")
     K = array.array('i'); K.frombytes(_wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
-    store, rank, off = {}, {}, 0
+    store, rank, off, bo = {}, {}, 0, 0
     for f, l, a, w, w2 in flds:
         cells = w * (w2 if a == 2 else 1)
+        wb = 1 if l == 3 else 8
+        F = array.array('B' if wb == 1 else 'q')
+        F.frombytes(r.stdout[bo:bo + wb * cells])
         key = (lambda k: (k,)) if a == 1 else (lambda k, ww=w2: (k // ww, k % ww))
         dec = ((lambda v: True) if l == 3
                else (lambda v: L.TOP if v == TOPV else v))
-        store[f] = {key(k): dec(F[off+k]) for k in range(cells) if F[off+k] != BOT[l]}
+        store[f] = {key(k): dec(F[k]) for k in range(cells) if F[k] != BOT[l]}
         rank[f] = {key(k): K[off+k] for k in range(cells) if K[off+k]}
+        bo += wb * cells
         off += cells
     return flds, rules, len(blob), store, rank
 
