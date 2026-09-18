@@ -542,8 +542,32 @@ def fold3(src, say=lambda *a: None):
                   decl, src, flags=re.M)
 
 
+
+#   断片（31_gen）が持つ束は六つ —— min / max / or / flat / sum / count。
+#   持たないのは `and` / `fourv` / `set` / `bag` の四つで、一枚の本ではその面が
+#   **一つずつ**しか無い（`va` / `v4` / `vs` / `vb`）。その束を使わない本では
+#   面は死んでいるので、落としても答えは変わらない —— 使う本は焼けない、と
+#   **声に出して**断る側に回る（黙って違う答えを出すよりよい）。
+TRIM = ('va', 'v4', 'vs', 'vb')
+
+
+def trim(src, say=lambda *a: None):
+    """断片に無い束の面を落とす。"""
+    rx = re.compile(r'\b(' + '|'.join(TRIM) + r')\[')
+    out, n = [], 0
+    for ln in src.splitlines():
+        m = re.match(r'field\s+(\w+)', ln)
+        if m and m.group(1) in TRIM:
+            n += 1; continue
+        if rx.search(ln):
+            n += 1; continue
+        out.append(ln)
+    say(f"  断片の外の束を落とした: {n} 行（{' / '.join(TRIM)}）")
+    return "\n".join(out)
+
+
 def build(book, prints=True, points=False, say=lambda *a: None,
-          ns=None, show=False, fold=False):
+          ns=None, show=False, fold=False, six=False, oneport=False):
     """all.lx を組む —— 表は `ch` 一枚だけ。"""
     import front as F
     data = open(book, 'rb').read()
@@ -555,6 +579,17 @@ def build(book, prints=True, points=False, say=lambda *a: None,
     src = re.sub(r"table ch = .*?\n",
                  "table ch = " + ", ".join(f"({i},{c})" for i, c in rows) + "\n",
                  F.SRC, count=1)
+    if oneport:
+        # **焼いた実行ファイルが読める表は、標準入力の一つだけ**である。
+        # 口（orc / ext）は番兵一行のまま残っていたので落とす —— 口が要る本は
+        # そもそも一枚で走らないので、落として困る本は無い。
+        keep, n = [], 0
+        for ln in src.splitlines():
+            if re.match(r'table (orc|ext) ', ln) or re.search(r'\bin (orc|ext)\b', ln):
+                n += 1; continue
+            keep.append(ln)
+        src = "\n".join(keep)
+        say(f"  口の表を落とした: {n} 行（読む表は `ch` 一枚になった）")
     run = open(os.path.join(ROOT, 'run.lx'), encoding='utf-8').read()
     eng = fieldize(_cut(run, points=points))
     if ns is not None:
@@ -573,6 +608,8 @@ def build(book, prints=True, points=False, say=lambda *a: None,
         eng = eng + "\n" + _ren(showbridge((ns or 48) - 1)) + "\n" + sh
     head = src + "\n" + bridge() + "\n"
     eng, cut = prune(head, eng, say)
+    if six:
+        eng = trim(eng, say)
     if fold:
         eng = fold3(eng, say)
     return head + eng + "\n", cut
