@@ -471,8 +471,79 @@ def showbridge(last):
     return "\n".join(T) + "\n"
 
 
+
+def _args(txt, i):
+    """`f[` の直後 i から、深さ 0 のコンマで割った引数と `]` の位置を返す。"""
+    d, out, st = 1, [], i
+    while i < len(txt):
+        c = txt[i]
+        if c == '[':
+            d += 1
+        elif c == ']':
+            d -= 1
+            if d == 0:
+                out.append(txt[st:i]); return out, i
+        elif c == ',' and d == 1:
+            out.append(txt[st:i]); st = i + 1
+        i += 1
+    return None, None
+
+
+def fold3(src, say=lambda *a: None):
+    """**三次元以上の場を二次元に畳む。**
+
+    焼く物（31_gen）は二次元までしか座標を持たない。だが三次元の場は
+    「後ろの軸の広さ」を掛けて足せば二次元になる —— 座標の意味は変わらず、
+    **升の数も変わらない**（積は同じ）。宣言した広さを読んで畳むので、
+    上限を新しく書くことはしない。
+
+    `f[a, b, c]`（bound A B C）→ `f[a, (b) * C + (c)]`（bound A (B*C)）。
+    """
+    bnd = {}
+    #   宣言の後ろには註が付く（見せる物は手書きである）—— `$` で留めると
+    #   `field dgt : max bound 65536 64 41   # …` が当たらない。
+    for m in re.finditer(r'^field\s+(\w+)\s*:\s*(\w+)\s+bound\s+([0-9]+(?:\s+[0-9]+)*)',
+                         src, re.M):
+        b = m.group(3).split()
+        if len(b) >= 3:
+            bnd[m.group(1)] = [int(x) for x in b]
+    if not bnd:
+        return src
+    for f, b in sorted(bnd.items()):
+        say(f"  畳んだ: {f} {len(b)} 次 → 2 次（{' × '.join(map(str, b[1:]))}）")
+    out, i = [], 0
+    rx = re.compile(r'\b(' + '|'.join(sorted(bnd, key=len, reverse=True)) + r')\[')
+    while True:
+        m = rx.search(src, i)
+        if not m:
+            out.append(src[i:]); break
+        f = m.group(1)
+        args, end = _args(src, m.end())
+        if args is None or len(args) != len(bnd[f]):
+            out.append(src[i:m.end()]); i = m.end(); continue
+        w = bnd[f][1:]
+        acc = f"({args[1].strip()})"
+        for k in range(2, len(args)):
+            acc = f"({acc} * {w[k-1]} + ({args[k].strip()}))"
+        out.append(src[i:m.start()])
+        out.append(f"{f}[{args[0].strip()}, {acc}]")
+        i = end + 1
+    src = "".join(out)
+    # 宣言も畳む（**升の数は変わらない** —— 積が同じだから）
+    def decl(m):
+        b = [int(x) for x in m.group(3).split()]
+        if len(b) < 3:
+            return m.group(0)
+        n = 1
+        for x in b[1:]:
+            n *= x
+        return f"field {m.group(1)} : {m.group(2)} bound {b[0]} {n}"
+    return re.sub(r'^field\s+(\w+)\s*:\s*(\w+)\s+bound\s+([0-9]+(?:\s+[0-9]+)*)',
+                  decl, src, flags=re.M)
+
+
 def build(book, prints=True, points=False, say=lambda *a: None,
-          ns=None, show=False):
+          ns=None, show=False, fold=False):
     """all.lx を組む —— 表は `ch` 一枚だけ。"""
     import front as F
     data = open(book, 'rb').read()
@@ -502,6 +573,8 @@ def build(book, prints=True, points=False, say=lambda *a: None,
         eng = eng + "\n" + _ren(showbridge((ns or 48) - 1)) + "\n" + sh
     head = src + "\n" + bridge() + "\n"
     eng, cut = prune(head, eng, say)
+    if fold:
+        eng = fold3(eng, say)
     return head + eng + "\n", cut
 
 
