@@ -325,10 +325,23 @@ def prune(head, eng, say=print):
 #   ⊥ ではどちらも立たないので、これが「在る」の正しい測り方である。
 SHOWPAT = {
     'prn': ("for (i, f) in prn", "for (i) in 0 .. znpz[0]", {'f': 'zprn[i]'}),
+    # `pv` は疎（値のある升だけ）。場では **宣言した升を全部なめて**、
+    # 「値がある」は `has` が言う。見せる物は同じ表を二つの綴りで読んで
+    # いるので（`(f,c,v)` と `(fg,g,vg)`）、二本とも置き換える。
+    'pv': ("for (f, c, v) in pv",
+           "for (f) in 0 .. zNF[0] for (pc) in 0 .. fvz[f] if has[fbase[f] + pc]",
+           {'c': '(fbase[f] + pc)', 'v': 'val[fbase[f] + pc]'}),
+    'pv2': ("for (fg, g, vg) in pv",
+            "for (fg) in 0 .. zNF[0] for (pc) in 0 .. fvz[fg] if has[fbase[fg] + pc]",
+            {'g': '(fbase[fg] + pc)', 'vg': 'val[fbase[fg] + pc]'}),
 }
 #   この段（第一の刈り）が見ない物 —— 原子・構成子・集合。
 #   これらを使う本はまだ一枚にできない（front 側の綴りの表がまだ要る）。
-SHOWCUT = ('fld', 'fnm', 'atm', 'pv', 'ab', 'fat', 'ps', 'ctr', 'cac')
+#   **集合（ps）だけは、まだ場にできない。** 面に置かれた集合から元を
+#   取り出す言葉が Lattix に無いからである（作れるが、数えられない）。
+#   機械は arena に整列して置くので番号で引けるが、それは面の外の構造で
+#   あって、規則からは見えない。ここは言語の穴として数えておく。
+SHOWCUT = ('fld', 'fnm', 'atm', 'ab', 'fat', 'ps', 'ctr', 'cac')
 #   前段と綴りがぶつかる三つ（`farr` / `nch` / `neg`）。**名前は座標である**
 #   ので、同じ綴りは同じ場になってしまう —— 見せる物の側を改名する。
 SHOWREN = {'farr': 'Sfarr', 'nch': 'Snch', 'neg': 'Sneg'}
@@ -395,10 +408,10 @@ def showbridge(last):
     A = T.append
     NF = "for (f) in 0 .. zNF[0]"
     A("# ══ 見せる物の表を **場**で言う ════════════════════════════════")
-    A("field zNF : max bound 1                 # 場の数 − 1（宣言の数 − 1）")
-    A("zNF[z] <- ndcz[0] - 1 for (z) in 0 .. 0")
-    A("field zfu : or bound 1024               # 場 f は在る")
-    A(f"zfu[f] <- true {NF} if din[f + 1]")
+    A("field zNF : max bound 1                 # 場の数 − 1（合成の場も込み）")
+    A("zNF[z] <- znf2[0] - 1 for (z) in 0 .. 0")
+    A("field zfu : or bound 1024               # 場 f は在る（束がある）")
+    A(f"zfu[f] <- true {NF} if zlatf[f] >= 1")
     A(f"flat_[f] <- zlatf[f]    {NF} if zfu[f]")
     A("# 次数は記述のもの（添字なしの場は 0 次）")
     A(f"farr[f] <- zfna[f]      {NF} if zfu[f] if not zfna0[f]")
@@ -422,6 +435,22 @@ def showbridge(last):
     A("fnc[dcof[i] - 1, cpos[i]] <- c for (i,c) in ch if isdcl[tnum[i]]")
     A("      if cpos[i] <= 31")
     A("atb[z] <- zatb[0] for (z) in 0 .. 0")
+    A("# 合成の場（構成子の引数場）の名前は前段がもう綴っている（zach）")
+    A(f"fnl[f] <- p + 1   {NF} for (p) in 0 .. 23 if zach[f, p] >= 1")
+    A(f"fnc[f, p] <- zach[f, p]   {NF} for (p) in 0 .. 23 if zach[f, p] >= 1")
+    A("# ── 原子の綴り。番号は `zatct - zatb`（順位）である ──────────────")
+    A("atl[zatct[tnum[i]] - zatb[0]] <- cpos[i] for (i,c) in ch")
+    A("      if zatct[tnum[i]] >= zatb[0] if cpos[i] >= 1")
+    A("atc[zatct[tnum[i]] - zatb[0], cpos[i] - 1] <- c for (i,c) in ch")
+    A("      if zatct[tnum[i]] >= zatb[0] if cpos[i] >= 1 if cpos[i] <= 32")
+    A("# ── 構成子の名前と引数場 ──────────────────────────────────────")
+    A("nctz[z] <- zncdm[0] for (z) in 0 .. 0")
+    A("ctnl[c] <- p + 1 for (c) in 0 .. zncdm[0] for (p) in 0 .. 31")
+    A("      if tch[zcdt[c], p] >= 1")
+    A("ctnc[c, p] <- tch[zcdt[c], p] for (c) in 0 .. zncdm[0] for (p) in 0 .. 31")
+    A("ctar[c] <- zcar[c] for (c) in 0 .. zncdm[0]")
+    A("ctaf[c, k] <- zafn[c, k] for (c) in 0 .. zncdm[0] for (k) in 0 .. 7")
+    A("ctf0[c] <- zafn[c, 0] for (c) in 0 .. zncdm[0]")
     A("fatm[f, d] <- zfat[f, d] for (f) in 0 .. zNF[0] for (d) in 0 .. 3")
     A("")
     A("# ── 答えは機械の面から。**在ることは `>= 0` と `<= 0` の二本で言う** ──")

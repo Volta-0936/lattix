@@ -4556,3 +4556,35 @@ field zprn : max bound 256              # print i → 場（見せる物の prn�
 zprn[zpc[s] - 1] <- zpf[s] for (s) in 0 .. nstz[0] if zisp[s] if zpf[s] >= 0
 field znpz : max bound 1                # print の数 − 1
 znpz[z] <- zpc[s] - 1 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if zisp[s]
+
+# ── 内容番地の法を、口が無いときは **自分の箱の広さ**で取る ──────────
+#   `zamw` は口（ext の次元 32）からしか来ていなかった。口が無いと畳まないので、
+#   番地は 2^56 に散らばったまま書かれ、**自分の箱の外へ出て隣を踏む**
+#   （z_twoctor / z_accread / z_atomarg で `pa` が 507 升中 504 升 ⊤ になった）。
+#   箱の広さで畳めば必ず箱の中に入る。狭すぎれば衝突するが、衝突は ⊤ で
+#   **声に出る** —— 黙って隣を踏むより、そちらが正しい（気づき44）。
+field zamwu : or bound 1024             # 口が法を言った
+zamwu[f] <- true for (f, d, lo, w) in ext if d == 32 if f <= 1021
+field zamwd : max bound 1024            # 口が無いときの法（自分の箱の広さ）
+#   **構成する場所がある場に限る。** そうしないと、いままで畳んでいなかった
+#   場まで畳みはじめて、通っていた本の答えが変わる。
+zamwd[f] <- zfsz0[f] for (f) in 0 .. znf2m[0] if not zamwu[f] if zfsz0[f] >= 1
+      if zcsn[f] >= 1
+zamw[f] <- zamwd[f] for (f) in 0 .. znf2m[0] if zamwd[f] >= 1
+
+# ── 口が無いとき、**合成の場の広さは前段が数えられる** ────────────────
+#   内容番地は「構成する場所 × その点の数」より多くはならない。上限を数字で
+#   書くのではなく **数える**（気づき35）。これで箱が立ち、番地はその箱の
+#   広さで畳まれるので必ず中に入る。狭ければ衝突するが、衝突は ⊤ で声に出る。
+field zcsn : sum bound 1024             # 場 f に構成される升の数（上限）
+zcsn[zsyf[r]] <- zsszr[r] for (r) in 0 .. znr2m[0] if zissy[r] if zsyf[r] >= 1
+zfsz0[f] <- zcsn[f] for (f) in 0 .. znf2m[0] if not zexu[f, 0] if zcsn[f] >= 1
+zflo0[f] <- 0 for (f) in 0 .. znf2m[0] if not zexu[f, 0] if zcsn[f] >= 1
+
+# ── 値の位置の構成も、番地を **箱の広さで畳む** ──────────────────────
+#   合成規則（zissy）の枠 24 には法が入っていたが、値の位置の構成（zcrr）の
+#   枠 24 には入っていなかった。畳まないと番地は 2^56 のまま場に書かれ、
+#   見せる物が `vnd[番地]` を引けない（`p[0] = 59870496655506589` と出た）。
+zfpmo[r, 24] <- zamw[zafn[zuc[zcru[r]], 0]] for (r) in 0 .. znr2m[0]
+      if zcrr[r] if zcru[r] >= 0 if zuc[zcru[r]] >= 0
+      if zafn[zuc[zcru[r]], 0] >= 1 if zamw[zafn[zuc[zcru[r]], 0]] >= 1
