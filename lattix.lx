@@ -1406,7 +1406,7 @@ ngtz[0] <- ngt[0] - 1   for (z) in 0 .. 0
 field ngcz : max bound 1                      # ngc の一つ手前（区間の上端に書ける形）
 ngcz[0] <- ngc[0] - 1   for (z) in 0 .. 0
 
-field lpbc8 : max bound 2048                   # 上端の座標（バイト）
+field lpbc8 : max bound 4096                   # 上端の座標（バイト）
 lpbc8[gl] <- lpbc[gl] * 8           for (gl) in 0 .. nglz[0]
 
 # ── 命令の骨（データ駆動アセンブラ）──────────────────────────────
@@ -2252,17 +2252,17 @@ field rbuf : max bound 1                    # 生バイトの置き場（場と�
 rbuf[0] <- fbase[0] + ftot2[0] + ft2[0]   for (z) in 0 .. 0
 
 # 集約の「一度だけ撃つ印」。規則ごとに表と同じ広さ。**規則番号に沿った鎖。**
-field fsz2 : max bound 2048                    # この規則の印の場の大きさ
+field fsz2 : max bound 4096                    # この規則の印の場の大きさ
 fsz2[r] <- 0                        for (r) in 0 .. nrlz[0] if rrlt[r] < 8
 fsz2[r] <- dcap[0]                   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-field foff2 : max bound 2048
+field foff2 : max bound 4096
 foff2[0] <- 0
 foff2[r] <- foff2[r-1] + fsz2[r-1]  for (r) in 0 .. nrlz[0] if r > 0
 field ft2 : max bound 1
 ft2[z] <- foff2[r] + fsz2[r]         for (r) in 0 .. nrlz[0] for (z) in 0 .. 0
 ft2[0] <- 0
 # 印の場の rcx からの変位: FIRED = 0x402000 + 2*ftot + foff2、rcx は 0x401000 起点
-field fdsp : max bound 2048
+field fdsp : max bound 4096
 fdsp[r] <- fbase[0] - dbase[0] + ftot2[0] + foff2[r]   for (r) in 0 .. nrlz[0]
 
 
@@ -2354,18 +2354,18 @@ goff[gg] <- goff[gg-1] + glen[gg-1]   for (gg) in 0 .. nggz[0] if gdi[gg] > 0
 
 field gpos : max bound 4096                    # ガード gg の命令の位置（**一次元**）
 gpos[gg] <- bb[gdr[gg]] + goff[gg] for (gg) in 0 .. nggz[0]
-field gof : max bound 2048                     # 前置き全体（ガードが無ければ 0）
+field gof : max bound 4096                     # 前置き全体（ガードが無ければ 0）
 gof[r] <- 0               for (r) in 0 .. nrlz[0]
 gof[gdr[gg]] <- goff[gg] + glen[gg]   for (gg) in 0 .. nggz[0]
 
-field wof : max bound 2048
+field wof : max bound 4096
 wof[r] <- ctot[rroo[r]] + 2   for (r) in 0 .. nrlz[0]
 
 # ── ループも表である。**入れ子も行になる** ────────────────────────────
 # lop (規則, 番号, 種, 下端, 上端, 表の次数)  種 0 = 表の行 / 1 = 区間
 #   番号 0 が外側（rcx）、1 が内側（r13）。対を並べるのに要る ——
 #   Lattix の記号表は「引く」のではなく「比べる」から、対を数える手段が要った。
-field gnl : max bound 2048                      # 規則のループの数
+field gnl : max bound 4096                      # 規則のループの数
 gnl[lpr[gl]] <- lpi[gl] + 1                      for (gl) in 0 .. nglz[0]
 # ══ 融合 —— **同じ反復空間の規則は一つのループで回す** ═══════════════
 # 分かれた鎖が遅かった。`cnum[t] <- cnum[t-1]` は三本の規則に割れていて、
@@ -2377,21 +2377,21 @@ gnl[lpr[gl]] <- lpi[gl] + 1                      for (gl) in 0 .. nglz[0]
 #   群 = 隣り合う / 同じ層 / 一重の表ループ / 同じ列数
 #   [検査（群ぜんぶの読み）][ループの頭][本体1][本体2]…[本体k][進め]
 #
-field l0k : max bound 2048                     # 段0 のループの種
+field l0k : max bound 4096                     # 段0 のループの種
 l0k[lpr[gl]] <- lpk[gl]             for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-field l0a : max bound 2048                     # 段0 の列数（表なら行の幅）
+field l0a : max bound 4096                     # 段0 の列数（表なら行の幅）
 l0a[lpr[gl]] <- lpar[gl]            for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-field l0lo : max bound 2048                    # 段0 の下端（区間）
+field l0lo : max bound 4096                    # 段0 の下端（区間）
 l0lo[lpr[gl]] <- lplo[gl]           for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-field l0hi : max bound 2048                    # 段0 の上端（定数のとき）
+field l0hi : max bound 4096                    # 段0 の上端（定数のとき）
 l0hi[lpr[gl]] <- lphi[gl]           for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-field l0bf : max bound 2048                    # 段0 の上端の場（種2 のとき）
+field l0bf : max bound 4096                    # 段0 の上端の場（種2 のとき）
 l0bf[lpr[gl]] <- lpbf[gl]           for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-field l0bc : max bound 2048                    # その座標
+field l0bc : max bound 4096                    # その座標
 l0bc[lpr[gl]] <- lpbc[gl]           for (gl) in 0 .. nglz[0] if lpi[gl] == 0
 # **同じ反復空間か** —— 種・列数・下端・上端・上端の場と座標が全部同じなら、
 # 二つの規則は同じ行を同じ順に歩く。表でも区間でも同じ判定でよい。
-field nofus : or bound 2048                    # 規則 r は群の先頭（前と融合しない）
+field nofus : or bound 4096                    # 規則 r は群の先頭（前と融合しない）
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r == 0
 nofus[r+1] <- true                  for (r) in 0 .. nrlz[0] if r == nrlz[0]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if gnl[r] != 1
@@ -2408,20 +2408,20 @@ nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0bc[r] 
 # `for (k) in 1 .. 0` が本体を一度実行していた（解釈実行は実行しない）。
 # 頭で一度比べれば済む —— ループごとに二命令、入口で一度だけ。
 # 上端が ⊥ の場でも正しく回らなくなる（⊥ は下端より小さい）。
-field gnlh : max bound 2048                    # ループの頭（一段につき三命令）
+field gnlh : max bound 4096                    # ループの頭（一段につき三命令）
 gnlh[r] <- gnl[r] * 3               for (r) in 0 .. nrlz[0]
-field gnl4 : max bound 2048                    # ループの前置き（頭は群の先頭 / 進めは群の末尾）
+field gnl4 : max bound 4096                    # ループの前置き（頭は群の先頭 / 進めは群の末尾）
 gnl4[r] <- 0                        for (r) in 0 .. nrlz[0]
 gnl4[r] <- gnlh[r] * 2              for (r) in 0 .. nrlz[0] if nofus[r] if nofus[r+1]
 gnl4[r] <- gnlh[r]                  for (r) in 0 .. nrlz[0] if nofus[r] if not nofus[r+1]
 gnl4[r] <- gnlh[r]                  for (r) in 0 .. nrlz[0] if not nofus[r] if nofus[r+1]
-field gnl3 : max bound 2048                    # 進めの分だけ（群の末尾にだけ在る）
+field gnl3 : max bound 4096                    # 進めの分だけ（群の末尾にだけ在る）
 gnl3[r] <- 0                        for (r) in 0 .. nrlz[0]
 gnl3[r] <- gnl[r] * 3               for (r) in 0 .. nrlz[0] if nofus[r+1]
-field lrng : or bound 2048                     # 番号 l のループは区間か
+field lrng : or bound 4096                     # 番号 l のループは区間か
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-field lrows : or bound 2048
+field lrows : or bound 4096
 lrows[gl] <- true                  for (gl) in 0 .. nglz[0] if lpk[gl] == 0
 
 # ── 座標も表である。**次元が行になる** —— 2次元の上限も消えた ────────
@@ -2491,7 +2491,7 @@ tmlen[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 field toff : max bound 4096
 toff[gt] <- 0                  for (gt) in 0 .. ngtz[0]
 toff[gt] <- toff[gt-1] + tmlen[gt-1]   for (gt) in 0 .. ngtz[0] if tmi[gt] > 0
-field tof : max bound 2048                     # 項ぜんぶ（＋階数の初期化 1 命令）
+field tof : max bound 4096                     # 項ぜんぶ（＋階数の初期化 1 命令）
 tof[r] <- 1                     for (r) in 0 .. nrlz[0]
 tof[tmr[gt]] <- toff[gt] + tmlen[gt] + 1   for (gt) in 0 .. ngtz[0]
 field tmc18 : max bound 4096                   # 列のずれ（バイト）
@@ -2501,34 +2501,34 @@ field tpos : max bound 4096                    # 項 gt の命令の位置（**�
 # 名前を一つ付ければ `form[tpos[gt] + k]` になり、**二段の読み＋定数のずれ**
 # になる（自分を焼くには、自分が焼ける形で書く）。
 tpos[gt] <- tb[tmr[gt]] + toff[gt]  for (gt) in 0 .. ngtz[0]
-field tb : max bound 2048                      # 最初の項の位置
+field tb : max bound 4096                      # 最初の項の位置
 tb[r] <- bb[r] + 1 + gof[r]     for (r) in 0 .. nrlz[0]
 
 # 書き座標の位置。**束の族で分かれない** —— 項が値の差を吸収した
-field wpos : max bound 2048
+field wpos : max bound 4096
 wpos[r] <- bb[r] + gof[r] + tof[r]   for (r) in 0 .. nrlz[0]
-field jlen : max bound 2048                    # join の長さ（束が決める唯一の数）
+field jlen : max bound 4096                    # join の長さ（束が決める唯一の数）
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 jlen[r] <- 11   for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] == 8
 jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 9
-field jb : max bound 2048                      # join の位置
+field jb : max bound 4096                      # join の位置
 jb[r] <- wpos[r] + 1 + wof[r]   for (r) in 0 .. nrlz[0]
 
-field blen : max bound 2048
+field blen : max bound 4096
 blen[r] <- 3 + gnl4[r] + gof[r] + tof[r] + wof[r] + jlen[r]   for (r) in 0 .. nrlz[0]
 
 # ── 層。**規則の並びが層の昇順である**ことは呼ぶ側の契約 ─────────────
-field stf : max bound 2048
+field stf : max bound 4096
 stf[r] <- rrst[r]         for (r) in 0 .. nrlz[0]
-field fst : max bound 2048                     # この規則が層の先頭か
+field fst : max bound 4096                     # この規則が層の先頭か
 fst[r] <- 0          for (r) in 0 .. nrlz[0]
 fst[r] <- 1          for (r) in 0 .. nrlz[0] if r == 0
 fst[r] <- 1          for (r) in 0 .. nrlz[0] if r > 0 if stf[r-1] < rrst[r]
-field lst : max bound 2048                     # この規則が層の末尾か
+field lst : max bound 4096                     # この規則が層の末尾か
 lst[r] <- 0          for (r) in 0 .. nrlz[0]
-field lst2 : max bound 2048                    # 層の切れ目（尻尾で三命令）
+field lst2 : max bound 4096                    # 層の切れ目（尻尾で三命令）
 lst2[r] <- lst[r] * 3               for (r) in 0 .. nrlz[0]
 # **ガードの辺は「計数器」か「場の読み」か「定数」である。** `r + 1` は
 # そのどれでもない —— 足し算は辺ではない（焼くと `r` だけを見て黙って外れる）。
@@ -2537,33 +2537,33 @@ lst[r] <- 1          for (r) in 0 .. nrlz[0] if r == nrlz[0]
 lst[r] <- 1          for (r) in 0 .. nrlz[0] if r < nrlz[0] if stf[r+1] > rrst[r]
 
 # 本体の位置。層の頭（1 命令）と尻尾（2 命令）が挟まる
-field bp : max bound 2048                      # 規則 r の持ち場の頭
+field bp : max bound 4096                      # 規則 r の持ち場の頭
 bp[0] <- sbase[0] + 1   for (z) in 0 .. 0
 bp[r] <- bp[r-1] + ckl[r-1] + blen[r-1] + lst2[r-1] + fst[r]   for (r) in 0 .. nrlz[0] if r > 0
-field ckp : max bound 2048                     # **群の**検査の枠の頭（中の規則も同じ所を指す）
+field ckp : max bound 4096                     # **群の**検査の枠の頭（中の規則も同じ所を指す）
 ckp[r] <- bp[r]                     for (r) in 0 .. nrlz[0] if nofus[r]
 ckp[r] <- ckp[r-1]                  for (r) in 0 .. nrlz[0] if r > 0 if not nofus[r]
-field ckl : max bound 2048                     # 検査の枠の長さ（群の先頭だけが持つ）
-field rb : max bound 2048
+field ckl : max bound 4096                     # 検査の枠の長さ（群の先頭だけが持つ）
+field rb : max bound 4096
 rb[r] <- bp[r] + ckl[r]   for (r) in 0 .. nrlz[0]
-field lhead : max bound 2048                   # 群の先頭のループの頭（飛び戻り先）
+field lhead : max bound 4096                   # 群の先頭のループの頭（飛び戻り先）
 lhead[r] <- rb[r]                   for (r) in 0 .. nrlz[0] if nofus[r]
 lhead[r] <- lhead[r-1]              for (r) in 0 .. nrlz[0] if r > 0 if not nofus[r]
 
-field hd : max bound 2048                      # この規則の層の頭（xor の位置）
+field hd : max bound 4096                      # この規則の層の頭（xor の位置）
 hd[r] <- bp[r] - 1   for (r) in 0 .. nrlz[0] if fst[r] == 1
 hd[r] <- hd[r-1]     for (r) in 0 .. nrlz[0] if fst[r] == 0
 
-field av : max bound 2048                      # 「次の行へ」の位置
+field av : max bound 4096                      # 「次の行へ」の位置
 
 # 規則の本体の終わり
-field rend : max bound 2048
+field rend : max bound 4096
 rend[r] <- rb[r] + blen[r]         for (r) in 0 .. nrlz[0]
 av[r] <- rend[r] - gnl3[r]   for (r) in 0 .. nrlz[0]
-field bb : max bound 2048                      # 本体の始まり（ループの頭のあと）
+field bb : max bound 4096                      # 本体の始まり（ループの頭のあと）
 bb[r] <- rb[r] + gnlh[r]             for (r) in 0 .. nrlz[0] if nofus[r]
 bb[r] <- rb[r]                       for (r) in 0 .. nrlz[0] if not nofus[r]
-field gend : max bound 2048                    # 群の終わり（飛ばすときの行き先）
+field gend : max bound 4096                    # 群の終わり（飛ばすときの行き先）
 gend[r] <- rend[r]                   for (r) in 0 .. nrlz[0] if nofus[r+1]
 gend[r] <- gend[r+1]                 for (r) in 0 .. nrlz[0] if not nofus[r+1]
 
@@ -2704,7 +2704,7 @@ jt[rend[r] + 2]   <- hd[r]  for (r) in 0 .. nrlz[0] if lst[r] == 1
 # ── ループの頭。**番号 0 が rcx、1 が r13**（入れ子は行が言う）───────
 
 # ループの頭の位置（**読み二つの和は座標にできない**ので名前を付ける）
-field lhp : max bound 2048
+field lhp : max bound 4096
 lhp[gl] <- lhead[lpr[gl]] + lpi3[gl] - 3   for (gl) in 0 .. nglz[0]
 # 頭の検査（空なら一度も回らない）。飛び先は **一つ外のループの進め**、
 # いちばん外なら群の終わり —— どちらも `群の終わり - 3*段` で出る。
@@ -3118,7 +3118,7 @@ form[jb[r] + 3] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 imm[jb[r] + 3]  <- 1 + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 
 # 集約の束ごとの位置
-field jlp : max bound 2048
+field jlp : max bound 4096
 jlp[r] <- jb[r] + rrlt[r] - 5      for (r) in 0 .. nrlz[0]
 form[jlp[r]] <- 70  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 imm[jlp[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
@@ -3126,7 +3126,7 @@ imm[jlp[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 # ── 階数。読みの階数の最大 + 1（集約は 1。印が数えるので深さを持たない）───
 
 # 階数を書く所（飛びの後ろ）
-field jpos : max bound 2048
+field jpos : max bound 4096
 jpos[r] <- jb[r] + jlen[r]         for (r) in 0 .. nrlz[0]
 form[jpos[r] - 2] <- 91  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # add r11,1
 form[jpos[r] - 1] <- 92  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # mov [K+rdx*8],r11
@@ -3139,7 +3139,7 @@ imm[jpos[r] - 1]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r]
 # 有限の資源は宣言し、超えたら止まる。終了コード 6。
 
 # 書き座標のあと
-field wcp : max bound 2048
+field wcp : max bound 4096
 wcp[r] <- wpos[r] + ctot[rroo[r]]  for (r) in 0 .. nrlz[0]
 form[wcp[r]] <- 95   for (r) in 0 .. nrlz[0]      # mov rdx,r9
 form[wcp[r] + 1] <- 74   for (r) in 0 .. nrlz[0]  # cmp rdx, 升数
@@ -3155,8 +3155,8 @@ form[av[r] - 1] <- 161   for (r) in 0 .. nrlz[0]
 imm[av[r] - 1]  <- rrwf[r] * 8 + bias[0] - gpz[0]   for (r) in 0 .. nrlz[0]
 
 # ── 進める。**内側から外側へ**。前進もループ番号に沿った鎖である ────
-field ap : max bound 2048                      # ループ l の前進の位置
-field lpi3 : max bound 2048                    # 内側からの進めの位置
+field ap : max bound 4096                      # ループ l の前進の位置
+field lpi3 : max bound 4096                    # 内側からの進めの位置
 lpi3[gl] <- lpi[gl] * 3 + 3         for (gl) in 0 .. nglz[0]
 ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # add rcx, 8*次数
@@ -3219,7 +3219,7 @@ field tcn : max bound 4096                     # 規則の中で何番目の読�
 tcn[gt] <- 0                        for (gt) in 0 .. ngtz[0]
 tcn[gt] <- tcn[gt-1]                for (gt) in 0 .. ngtz[0] if gt > 0 if tmr[gt-1] == tmr[gt]
 tcn[gt] <- tcn[gt-1] + 2            for (gt) in 0 .. ngtz[0] if gt > 0 if tmr[gt-1] == tmr[gt] if isrd[gt-1]
-field ntm : max bound 2048                     # 規則 r が項で読む場の数（二倍）
+field ntm : max bound 4096                     # 規則 r が項で読む場の数（二倍）
 ntm[r] <- 0                         for (r) in 0 .. nrlz[0]
 ntm[tmr[gt]] <- tcn[gt] + 2         for (gt) in 0 .. ngtz[0] if isrd[gt]
 
@@ -3233,7 +3233,7 @@ field ggn : max bound 4096
 ggn[gg] <- 0                        for (gg) in 0 .. nggz[0]
 ggn[gg] <- ggn[gg-1]                for (gg) in 0 .. nggz[0] if gg > 0 if gdr[gg-1] == gdr[gg]
 ggn[gg] <- ggn[gg-1] + 2            for (gg) in 0 .. nggz[0] if gg > 0 if gdr[gg-1] == gdr[gg] if gisr[gg-1]
-field ngd : max bound 2048
+field ngd : max bound 4096
 ngd[r] <- 0                         for (r) in 0 .. nrlz[0]
 ngd[gdr[gg]] <- ggn[gg] + 2         for (gg) in 0 .. nggz[0] if gisr[gg]
 
@@ -3242,33 +3242,33 @@ field ccn : max bound 8192
 ccn[gc] <- 0                        for (gc) in 0 .. ngcz[0]
 ccn[gc] <- ccn[gc-1]                for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc]
 ccn[gc] <- ccn[gc-1] + 2            for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc] if cdsr[gc-1] >= 2 if cdsr[gc-1] <= 3
-field ncd : max bound 2048
+field ncd : max bound 4096
 ncd[r] <- 0                         for (r) in 0 .. nrlz[0]
 ncd[cdr[gc]] <- ccn[gc] + 2         for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 
 # ループの上端の読み（種 2 = 上端が場）。**回る回数は宣言ではなく実測**
-field lcn : max bound 2048
+field lcn : max bound 4096
 lcn[gl] <- 0                        for (gl) in 0 .. nglz[0]
 lcn[gl] <- lcn[gl-1]                for (gl) in 0 .. nglz[0] if gl > 0 if lpr[gl-1] == lpr[gl]
 lcn[gl] <- lcn[gl-1] + 2            for (gl) in 0 .. nglz[0] if gl > 0 if lpr[gl-1] == lpr[gl] if lpk[gl-1] == 2
-field nlp : max bound 2048
+field nlp : max bound 4096
 nlp[r] <- 0                         for (r) in 0 .. nrlz[0]
 nlp[lpr[gl]] <- lcn[gl] + 2         for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 
 # ── 枠の大きさと位置 ─────────────────────────────────────────────
 # 群ぜんぶの読みの数（後ろ向きの鎖。群は短いので数周で閉じる）
-field gcnt : max bound 2048
+field gcnt : max bound 4096
 gcnt[r] <- ntm[r] + ngd[r] + ncd[r] + nlp[r]   for (r) in 0 .. nrlz[0]
 gcnt[r] <- ntm[r] + ngd[r] + ncd[r] + nlp[r] + gcnt[r+1]   for (r) in 0 .. nrlz[0] if not nofus[r+1]
 # 群の中での規則 r の検査の始まり（前向きの鎖）
-field roff : max bound 2048
+field roff : max bound 4096
 roff[r] <- 0                        for (r) in 0 .. nrlz[0]
 roff[r] <- roff[r-1] + ntm[r-1] + ngd[r-1] + ncd[r-1] + nlp[r-1]   for (r) in 0 .. nrlz[0] if r > 0 if not nofus[r]
 # 一つも読まない群は「表」の枠（EP は 0 のまま）を一つ見る —— 初回だけ通る
 ckl[r] <- 0                         for (r) in 0 .. nrlz[0]
 ckl[r] <- gcnt[r] + 3               for (r) in 0 .. nrlz[0] if nofus[r]
 ckl[r] <- 5                         for (r) in 0 .. nrlz[0] if nofus[r] if gcnt[r] == 0
-field ckj : max bound 2048                     # 飛ばす jmp の位置（群の先頭が持つ）
+field ckj : max bound 4096                     # 飛ばす jmp の位置（群の先頭が持つ）
 ckj[r] <- gcnt[r] + ckp[r] + 1      for (r) in 0 .. nrlz[0] if nofus[r]
 ckj[r] <- ckp[r] + 3                for (r) in 0 .. nrlz[0] if nofus[r] if gcnt[r] == 0
 ckj[r] <- ckj[r-1]                  for (r) in 0 .. nrlz[0] if r > 0 if not nofus[r]
@@ -3312,7 +3312,7 @@ jt[cck[gc] + 1]   <- ckj[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0]
       if cdsr[gc] >= 2 if cdsr[gc] <= 3
 
 # ループの上端の読み
-field lck : max bound 2048
+field lck : max bound 4096
 lck[gl] <- lcn[gl] + ntm[lpr[gl]] + ngd[lpr[gl]] + ncd[lpr[gl]] + ckp[lpr[gl]] + roff[lpr[gl]] + 1   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lck[gl]] <- 160                 for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 imm[lck[gl]]  <- lpbf[gl] * 8 + bias[0] - gpz[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
@@ -3474,9 +3474,9 @@ rel[n] <- off[jt[n]] - off[n] - ilen[n]   for (n) in 0 .. ninz[0]
 
 # ── 導けたか（**数えて比べる**）────────────────────────────────
 # 数え方は集約ではなく **前置きの鎖**（区間の集約は runtime.py がまだ焼けない）。
-field okr : or bound 2048                   # 寸法の出た規則
+field okr : or bound 4096                   # 寸法の出た規則
 okr[r] <- true                      for (r) in 0 .. nrlz[0] if blen[r] >= 1
-field cok : max bound 2048                  # ここまでに寸法の出た規則の数
+field cok : max bound 4096                  # ここまでに寸法の出た規則の数
 cok[0] <- 0
 cok[z] <- 1                         for (z) in 0 .. 0 if okr[0]
 cok[r] <- cok[r-1]                  for (r) in 1 .. nrlz[0] if not okr[r]
@@ -3524,9 +3524,9 @@ coc[gc] <- coc[gc-1]                for (gc) in 1 .. ngcz[0] if not okc[gc]
 coc[gc] <- coc[gc-1] + 1            for (gc) in 1 .. ngcz[0] if okc[gc]
 field nokc : max bound 1
 nokc[z] <- coc[gc]                  for (gc) in 0 .. ngcz[0] for (z) in 0 .. 0
-field okl : or bound 2048
+field okl : or bound 4096
 okl[gl] <- true                     for (gl) in 0 .. nglz[0] if lpk[gl] >= 0
-field col : max bound 2048
+field col : max bound 4096
 col[0] <- 0
 col[z] <- 1                         for (z) in 0 .. 0 if okl[0]
 col[gl] <- col[gl-1]                for (gl) in 1 .. nglz[0] if not okl[gl]
@@ -3977,3 +3977,37 @@ out[mbz[z] + 32] <- dgt[k] + 48      for (k) in 0 .. 0 for (z) in 0 .. 0 if bad[
 out[mbz[z] + 41] <- brz[0] + 48      for (z) in 0 .. 0 if bad[0]
 
 render out
+
+
+# ══ 箱を超えたら言う —— `run.lx` の `zov` と同じ判断 ══════════════════
+#   ここには見張りが無かった。場が 1024 を、規則が 2048 を、符号が 131,072
+#   バイトを超えると、**黙って隣を踏み**、ELF の頭 23 バイトだけが出た
+#   （終了コードは 0）。「黙って空を返す」は、この企画がいちばん嫌う壊れ方
+#   である（気づき44: 上限は、超えたときを試すまで上限ではない）。
+#
+#   **上限は一箇所で言う**（気づき33）。下の `cap*` は宣言の `bound` と
+#   揃えてある —— 片方だけ動かせば、この見張りが先に声を出す。
+#   理由 0 は「箱が足りない」。行は 0（どの行のせいでもない、寸法の話）。
+field capf : max bound 1            # 場ごとの箱（fbot / fsz / foff … の bound）
+capf[0] <- 1024
+#   **見張りは、最初の問いで自分を捕まえた。** `lattix.lx` は規則 2,406 本で、
+#   規則ごとの箱は `bound 2048` だった —— 配っている焼き手が、自分の箱を
+#   358 規則ぶん超えて走っていた（g4d はバイト一致していたので、踏んだ先が
+#   たまたま無害だっただけである）。**黙って起きていた。** 箱を 4096 にした。
+field capr : max bound 1            # 規則ごとの箱（okr … の bound）
+capr[0] <- 4096
+#   **見張る箱は、推測せずに読む。** 所有者の配列は `bound 8192` なのに
+#   場の箱（1024）と比べて、正しい本まで断った —— 見張りが狼を呼んだ。
+#   下の三つは、それぞれの配列の宣言を読んで揃えてある。
+field capw : max bound 1            # 所有者ごとの箱（oflg / isin / coff / cb / ofld）
+capw[0] <- 8192
+badk[z] <- 0   for (z) in 0 .. 0 if nfl[0] > capf[0]
+badk[z] <- 0   for (z) in 0 .. 0 if now[0] > capw[0]
+badk[z] <- 0   for (z) in 0 .. 0 if nrl[0] > capr[0]
+
+#   **符号の長さだけは、ここでは言えない。** 断りは命令を書く（`form[0..7]`）
+#   ので、`codelen` を見て断ると 符号 → 長さ → 断り → 符号 の輪になる ——
+#   処理系が正しく棄却した。だから長さは **ELF の頭（8..10 バイト目）に書いて
+#   読む側に確かめさせる**（この面はそのために既に在る）。
+#   符号面は 131,072 バイト。一枚の本は **7,864,638 バイト**を要求した ——
+#   60 倍である（2026-09-18 実測）。

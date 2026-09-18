@@ -566,8 +566,30 @@ def trim(src, say=lambda *a: None):
     return "\n".join(out)
 
 
+
+def cells(src, nc, say=lambda *a: None):
+    """**面の箱を、要るだけにする。**
+
+    `run.lx` は面を `bound 48 437671048959211563` と宣言している —— 内容番地が
+    座標だからで、これは *測った* 値である（コーパス全体の上限）。だが一枚の
+    本では **番地は法で畳んである**（`zamw`）ので、升の番号は前段の置き場の
+    大きさで収まる。密配列で焼くには、この箱を要るだけに詰めるしかない
+    （4.4×10^17 升は敷けない —— 焼いた物は segfault した）。
+    """
+    n = 0
+    out = []
+    for ln in src.splitlines():
+        m = re.match(r'(field v\w+ : \w+ bound )(\d+) (\d+)$', ln)
+        if m and int(m.group(3)) > nc:
+            ln = f"{m.group(1)}{m.group(2)} {nc}"; n += 1
+        out.append(ln)
+    say(f"  面の箱を {nc} 升にした（{n} 面）")
+    return "\n".join(out)
+
+
 def build(book, prints=True, points=False, say=lambda *a: None,
-          ns=None, show=False, fold=False, six=False, oneport=False):
+          ns=None, show=False, fold=False, six=False, oneport=False,
+          nc=None):
     """all.lx を組む —— 表は `ch` 一枚だけ。"""
     import front as F
     data = open(book, 'rb').read()
@@ -608,6 +630,8 @@ def build(book, prints=True, points=False, say=lambda *a: None,
         eng = eng + "\n" + _ren(showbridge((ns or 48) - 1)) + "\n" + sh
     head = src + "\n" + bridge() + "\n"
     eng, cut = prune(head, eng, say)
+    if nc:
+        eng = cells(eng, nc, say)
     if six:
         eng = trim(eng, say)
     if fold:
