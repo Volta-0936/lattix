@@ -14,7 +14,11 @@
    層の上限は本ごとに測って渡す（`fl.strata()` は観測であって経路ではない）。
    渡す層が足りなければ面が空になる —— 静かに間違えるのではなく見えて違う。
 
-   使い方:  python3 test/one.py [本…]
+   `LATTIX_SHOW=1` を付けると **見せる物まで一枚に入れて**、出たバイト列を
+   `python3 lattix.py f.lx` の標準出力と直に比べる（源のバイトから字面まで、
+   Lattix 一枚。Python は審判だけ）。
+
+   使い方:  python3 test/one.py [本…]     /  LATTIX_SHOW=1 python3 test/one.py
 """
 import os, sys, io, time, signal, glob
 
@@ -39,14 +43,43 @@ def one(path):
     if fl.nofam:
         return 'skip', f"参照が家にしない: {fl.nofam[0][0][:28]}"
     ns = min(48, fl.strata() + 2)
-    src, cut = OB.build(path, ns=ns)
+    show = os.environ.get('LATTIX_SHOW') == '1' and bool(q.prints)
+    src, cut = OB.build(path, ns=ns, show=show)
     p = L.parse(src); L.check(p); L.stratify(p); L.io_rounds(p); L.certify(p)
+    buf = io.BytesIO()
+
+    class W:                                     # `render` の行き先
+        buffer = buf
+
+        def write(self, s):
+            buf.write(s.encode())
+
+        def flush(self):
+            pass
+
     t0 = time.time()
-    st, _, _ = L.run(p, out=io.StringIO())
+    st, _, _ = L.run(p, out=W() if show else io.StringIO())
     ms = (time.time() - t0) * 1000
     alarm = {k: v for k, v in st.get('zov', {}).items() if v}
     if alarm:
         return 'diff', f"zov {sorted(alarm)}"
+    if show:
+        # **一枚の本が出した字面を、参照実装の標準出力と比べる。**
+        # ここに Python は結線としても居ない —— 比べているだけである。
+        import subprocess
+        got = buf.getvalue()
+        r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
+                           capture_output=True)
+        if r.returncode != 0:
+            return 'skip', "参照実装が断る本"
+        if got != r.stdout:
+            g = got.decode('utf-8', 'replace').splitlines()
+            w = r.stdout.decode('utf-8', 'replace').splitlines()
+            d = next((k for k in range(max(len(g), len(w)))
+                      if k >= len(g) or k >= len(w) or g[k] != w[k]), 0)
+            return 'diff', (f"行 {d}: {(g[d] if d < len(g) else '')[:24]!r} ≠ "
+                            f"{(w[d] if d < len(w) else '')[:24]!r}")
+        return 'ok', f"{ms:.0f} ms  層 {ns}  字面 {len(got)} バイト ✓"
     out = {}
     for lt in fl.shapes()[2]:
         pl = PLANE[lt][0]
@@ -61,34 +94,6 @@ def one(path):
     for f in (q.prints or list(q.fields)):
         if dict(ref.get(f, {})) != out.get(f, {}):
             return 'diff', f"{f}（刈った形 {len(cut)}）"
-    if os.environ.get('LATTIX_SHOW') == '1' and q.prints:
-        # **三段目 —— 一枚の本が出した面を、そのまま字面にする。**
-        # show.lx はまだ表で食っている（場にするには前段が `print` の文を
-        # 読めるようにする必要がある —— 33_self は `print` の語を知っているが
-        # 誰も使っていない）。ここで測るのは「一枚の本の面が、参照実装の
-        # 標準出力をバイトまで作れるだけ揃っているか」である。
-        import show as SH, subprocess
-        import front as F
-        inv = {i: f for f, i in F.frontnum(fl)[0].items()}
-        sn = {f: i for i, f in enumerate(q.fields)}
-        # **原子の型も一枚の本の中から出す**（front.lx の zfat）。番号は前段の
-        # もの（宣言 → _size → 引数場）なので、見せる物の番号へ **名前で**
-        # 渡し直す —— 番号はラベルであって名前ではない（五度目）。
-        zfat = sorted(k for k, v in st.get('zfat', {}).items() if v)
-        fat = {(sn[inv[i]], d) for (i, d) in zfat
-               if i in inv and inv[i] in sn}
-        txt = SH.render(SH.tables_of(fl, q, out, fat=fat))
-        r = subprocess.run([sys.executable, os.path.join(ROOT, 'lattix.py'), path],
-                           capture_output=True)
-        if r.returncode == 0 and txt != r.stdout:
-            g = txt.decode('utf-8', 'replace').splitlines()
-            w = r.stdout.decode('utf-8', 'replace').splitlines()
-            d = next((k for k in range(max(len(g), len(w)))
-                      if k >= len(g) or k >= len(w) or g[k] != w[k]), 0)
-            return 'diff', (f"show 行 {d}: "
-                            f"{(g[d] if d < len(g) else '')[:26]!r} ≠ "
-                            f"{(w[d] if d < len(w) else '')[:26]!r}")
-        return 'ok', f"{ms:.0f} ms  層 {ns}  字面 {len(txt)} バイト ✓"
     return 'ok', f"{ms:.0f} ms  層 {ns}  刈った形 {len(cut)}"
 
 

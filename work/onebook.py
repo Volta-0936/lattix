@@ -312,7 +312,136 @@ def prune(head, eng, say=print):
     raise SystemExit("刈っても閉じない —— 数え上げの根拠が破れている")
 
 
-def build(book, prints=True, points=False, say=lambda *a: None, ns=None):
+
+# ══ 見せる物（show.lx）を一枚に入れる ══════════════════════════════
+#   show.lx が食う表は十枚あるが、**中身はもう前段が持っている** ——
+#   置き場（fld）は zlatf / zfna / zfb / zflo* / zfsz* / zfs*、名前（fnm）は
+#   文字の流れ、print の並び（prn）は zprn、原子の基（ab）は zatb、
+#   原子の型（fat）は zfat。答え（pv）だけが **機械の面**から来る。
+#
+#   `pv` は疎（値のある升だけ）だが場は密なので、**宣言した升を全部なめる**
+#   （`for (f) for (c) in 0 .. fvz[f]`）。そして「升に値があるか」は
+#   `not` では測れない（0 も偽）——**`>= 0` と `<= 0` の二本**で言う。
+#   ⊥ ではどちらも立たないので、これが「在る」の正しい測り方である。
+SHOWPAT = {
+    'prn': ("for (i, f) in prn", "for (i) in 0 .. znpz[0]", {'f': 'zprn[i]'}),
+}
+#   この段（第一の刈り）が見ない物 —— 原子・構成子・集合。
+#   これらを使う本はまだ一枚にできない（front 側の綴りの表がまだ要る）。
+SHOWCUT = ('fld', 'fnm', 'atm', 'pv', 'ab', 'fat', 'ps', 'ctr', 'cac')
+#   前段と綴りがぶつかる三つ（`farr` / `nch` / `neg`）。**名前は座標である**
+#   ので、同じ綴りは同じ場になってしまう —— 見せる物の側を改名する。
+SHOWREN = {'farr': 'Sfarr', 'nch': 'Snch', 'neg': 'Sneg'}
+#   数の面（束の番号 → 面の綴り）。集合 7 / bag 10 / fourv 6 は第一の刈りの外。
+NUMLAT = [(1, 'vn'), (2, 'vx'), (5, 'vf'), (8, 'vm'), (9, 'vc')]
+BOOLLAT = [(3, 'vo'), (4, 'va')]
+
+
+def _consts(src):
+    """show.lx の中の **字面の表**（topc / emp）を種の場に直す。
+    プログラムに依らない定数なので、表である理由が無い。"""
+    out, rules = src, []
+    for nm in ('topc', 'emp'):
+        m = re.search(rf"^table {nm} = (.*)$", out, re.M)
+        if not m:
+            continue
+        rows = re.findall(r"\((\d+),(\d+)\)", m.group(1))
+        rules.append(f"field z{nm} : max bound {len(rows) + 1}")
+        rules += [f"z{nm}[{k}] <- {c}" for k, c in rows]
+        out = out.replace(m.group(0), "")
+        out = out.replace(f"for (k, c) in {nm}",
+                          f"for (k) in 0 .. {len(rows) - 1}")
+        out = re.sub(rf"<- c (for \(t\) in 0 \.\. nitz\[0\] for \(k\) in 0 \.\. {len(rows)-1})",
+                     rf"<- z{nm}[k] \1", out)
+    return "\n".join(rules) + "\n" + out
+
+
+def _ren(src):
+    """前段とぶつかる綴りを改名する。"""
+    rx = re.compile(r'\b(' + '|'.join(SHOWREN) + r')\b')
+    return rx.sub(lambda m: SHOWREN[m.group(1)], src)
+
+
+def _logical(src):
+    """**規則は行ではない。** 続きの行（空白で始まる行）は前の規則の一部で
+    ある。行で切ると規則が割れる —— `isset` の `for (…) in pv` だけ落として
+    `if item[t] == c` を残し、`c` が宙に浮いた事故がここから出た。"""
+    out = []
+    for ln in src.splitlines():
+        if out and ln[:1].isspace() and ln.strip():
+            out[-1] += " " + ln.strip()
+        else:
+            out.append(ln)
+    return out
+
+
+def _cutshow(src):
+    """見せる物から、**表を読む規則だけ**を落とす。
+
+    宣言は残す。**書き手の消えた場は、読んでも正しい** —— `if not isnv[t]`
+    は書き手が居なければ真であり、それがこの段の意味そのものである
+    （構成子の値は無い）。書き手が消えたからといって読む規則まで落とすと、
+    `num[t,3] <- ival[t] … if not isnv[t]` が道連れになって **値が一つも
+    出なくなる**（`d[0] = ` だけが出た事故がここから出た）。
+    """
+    return "\n".join(ln for ln in _logical(src)
+                     if not re.match(r'table\s', ln)
+                     and not re.search(r'\bin (' + '|'.join(SHOWCUT) + r')\b', ln))
+
+
+def showbridge(last):
+    """前段の場と機械の面から、見せる物の場を埋める。last = 最後の層。"""
+    T = []
+    A = T.append
+    NF = "for (f) in 0 .. zNF[0]"
+    A("# ══ 見せる物の表を **場**で言う ════════════════════════════════")
+    A("field zNF : max bound 1                 # 場の数 − 1（宣言の数 − 1）")
+    A("zNF[z] <- ndcz[0] - 1 for (z) in 0 .. 0")
+    A("field zfu : or bound 1024               # 場 f は在る")
+    A(f"zfu[f] <- true {NF} if din[f + 1]")
+    A(f"flat_[f] <- zlatf[f]    {NF} if zfu[f]")
+    A("# 次数は記述のもの（添字なしの場は 0 次）")
+    A(f"farr[f] <- zfna[f]      {NF} if zfu[f] if not zfna0[f]")
+    A(f"farr[f] <- 0            {NF} if zfu[f] if zfna0[f]")
+    A(f"fbase[f] <- zfb[f]      {NF} if zfu[f]")
+    for d, (lo, sz) in enumerate((('zflo0', 'zfsz0'), ('zflo1', 'zfsz1'),
+                                  ('zflo2', 'zfsz2'))):
+        A(f"flo[f, {d}] <- {lo}[f]   {NF} if zfu[f] if farr[f] >= {d + 1}")
+        A(f"flo[f, {d}] <- 0         {NF} if zfu[f] if farr[f] <= {d}")
+        A(f"fsz[f, {d}] <- {sz}[f]   {NF} if zfu[f] if farr[f] >= {d + 1}")
+        A(f"fsz[f, {d}] <- 1         {NF} if zfu[f] if farr[f] <= {d}")
+    for d, st in enumerate(('zfs0', 'zfs1')):
+        A(f"fst[f, {d}] <- {st}[f]   {NF} if zfu[f] if farr[f] >= {d + 1}")
+        A(f"fst[f, {d}] <- 1         {NF} if zfu[f] if farr[f] <= {d}")
+    A(f"fst[f, 2] <- 1           {NF} if zfu[f]")
+    A(f"fvol[f] <- fsz[f, 0] * fst[f, 0]   {NF} if zfu[f]")
+    A(f"flast[f] <- fbase[f] + fvol[f] - 1 {NF} if zfu[f]")
+    A(f"fvz[f] <- fvol[f] - 1              {NF} if zfu[f]")
+    A("# 名前の綴りは **文字の流れから**（dch は 16 文字しか持っていない）")
+    A("fnl[dcof[i] - 1] <- cpos[i] + 1 for (i,c) in ch if isdcl[tnum[i]]")
+    A("fnc[dcof[i] - 1, cpos[i]] <- c for (i,c) in ch if isdcl[tnum[i]]")
+    A("      if cpos[i] <= 31")
+    A("atb[z] <- zatb[0] for (z) in 0 .. 0")
+    A("fatm[f, d] <- zfat[f, d] for (f) in 0 .. zNF[0] for (d) in 0 .. 3")
+    A("")
+    A("# ── 答えは機械の面から。**在ることは `>= 0` と `<= 0` の二本で言う** ──")
+    C = f"{NF} for (c) in 0 .. fvz[f] if zfu[f]"
+    for lt, pl in NUMLAT:
+        A(f"val[fbase[f] + c] <- {pl}[{last}, fbase[f] + c]   {C} if flat_[f] == {lt}")
+        A(f"has[fbase[f] + c] <- true   {C} if flat_[f] == {lt}"
+          f" if {pl}[{last}, fbase[f] + c] >= 0")
+        A(f"has[fbase[f] + c] <- true   {C} if flat_[f] == {lt}"
+          f" if {pl}[{last}, fbase[f] + c] <= 0")
+    for lt, pl in BOOLLAT:
+        A(f"val[fbase[f] + c] <- 1      {C} if flat_[f] == {lt}"
+          f" if {pl}[{last}, fbase[f] + c]")
+        A(f"has[fbase[f] + c] <- true   {C} if flat_[f] == {lt}"
+          f" if {pl}[{last}, fbase[f] + c]")
+    return "\n".join(T) + "\n"
+
+
+def build(book, prints=True, points=False, say=lambda *a: None,
+          ns=None, show=False):
     """all.lx を組む —— 表は `ch` 一枚だけ。"""
     import front as F
     data = open(book, 'rb').read()
@@ -333,9 +462,30 @@ def build(book, prints=True, points=False, say=lambda *a: None, ns=None):
         eng = re.sub(r'\b(0|1) \.\. 47\b', lambda m: f"{m.group(1)} .. {ns - 1}", eng)
     if not prints:
         eng = "\n".join(l for l in eng.splitlines() if not l.startswith('print '))
+    if show:
+        # 見せる物を継ぐときは、面を print するのではなく **字面を出す**。
+        eng = "\n".join(l for l in eng.splitlines()
+                        if not l.startswith('print '))
+        sh = open(os.path.join(ROOT, 'show.lx'), encoding='utf-8').read()
+        sh = fieldize2(_cutshow(_ren(_consts(sh))))
+        eng = eng + "\n" + _ren(showbridge((ns or 48) - 1)) + "\n" + sh
     head = src + "\n" + bridge() + "\n"
     eng, cut = prune(head, eng, say)
     return head + eng + "\n", cut
+
+
+def fieldize2(src):
+    """見せる物の `prn` の読みを場の読みへ（run.lx と同じ機械的な置き換え）。"""
+    out = []
+    for ln in src.splitlines():
+        for nm, (pat, loop, cols) in SHOWPAT.items():
+            if pat not in ln:
+                continue
+            ln = ln.replace(pat, loop)
+            rx = re.compile(r'\b(' + '|'.join(cols) + r')\b(?!\s*\[)')
+            ln = rx.sub(lambda m: cols[m.group(1)], ln)
+        out.append(ln)
+    return "\n".join(out)
 
 
 if __name__ == '__main__':
