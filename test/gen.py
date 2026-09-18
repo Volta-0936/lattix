@@ -139,7 +139,7 @@ def gen(flds, seeds, rules, edges, tmp, tag, guards=(), terms=(), coords=(),
 
     ncell = sum(w1 * (w2 if a == 2 else 1) for _f, _l, a, w1, w2 in flds)
     F = struct.unpack(f'<{ncell}q', r.stdout[:8*ncell])
-    K = struct.unpack(f'<{ncell}q', _wit[:8*ncell])   # 証人は fd 3 から
+    K = struct.unpack(f'<{ncell}i', _wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
     store, rank = {}, {}
     off = 0
     for f, l, a, w1, w2 in flds:

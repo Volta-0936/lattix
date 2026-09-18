@@ -349,7 +349,7 @@ def _readback(flds, rules, blob, exe, data, trow):
     assert len(r.stdout) >= 8 * ncell, (
         f"場が足りない: {len(r.stdout)} < {8*ncell}（終了コード {r.returncode}）")
     F = array.array('q'); F.frombytes(r.stdout[:8*ncell])
-    K = array.array('q'); K.frombytes(_wit[:8*ncell])   # 証人は fd 3 から
+    K = array.array('i'); K.frombytes(_wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
     store, rank, off = {}, {}, 0
     for f, l, a, w, w2 in flds:
         cells = w * (w2 if a == 2 else 1)
