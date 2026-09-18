@@ -28,12 +28,18 @@ field sdno : max bound 4096            # 種の番号（0 起点）
 sdno[s] <- sdcnt[s] - 1             for (s) in 0 .. nstz[0] if isseed[s]
 field nsd : max bound 1
 nsd[z] <- sdno[s] + 1                for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
-field sdf : max bound 1024
+# **番号は 4096 まで数えるのに、置き場は 1024 しか無かった。**
+# `sdno` の bound と、その `sdno` で引く三つの場の bound は
+# **同じ一つの判断**である。片方だけ 4096 に上げた日があり、もう片方は
+# 1024 のまま残った —— 1024 本目の種を書いた日に、生成器は黙って
+# 隣を踏み、焼けたプログラムは終了コード 6 で落ちた（知らせは無い）。
+# 気づき34: 同じ判断を二箇所に書くと、片方だけ直る。
+field sdf : max bound 4096
 sdf[sdno[s]] <- sedf[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdc : max bound 1024
+field sdc : max bound 4096
 sdc[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdc[sdno[s]] <- sedc[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdv : max bound 1024
+field sdv : max bound 4096
 sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 

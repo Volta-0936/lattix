@@ -1059,12 +1059,18 @@ field sdno : max bound 4096            # 種の番号（0 起点）
 sdno[s] <- sdcnt[s] - 1             for (s) in 0 .. nstz[0] if isseed[s]
 field nsd : max bound 1
 nsd[z] <- sdno[s] + 1                for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
-field sdf : max bound 1024
+# **番号は 4096 まで数えるのに、置き場は 1024 しか無かった。**
+# `sdno` の bound と、その `sdno` で引く三つの場の bound は
+# **同じ一つの判断**である。片方だけ 4096 に上げた日があり、もう片方は
+# 1024 のまま残った —— 1024 本目の種を書いた日に、生成器は黙って
+# 隣を踏み、焼けたプログラムは終了コード 6 で落ちた（知らせは無い）。
+# 気づき34: 同じ判断を二箇所に書くと、片方だけ直る。
+field sdf : max bound 4096
 sdf[sdno[s]] <- sedf[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdc : max bound 1024
+field sdc : max bound 4096
 sdc[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdc[sdno[s]] <- sedc[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdv : max bound 1024
+field sdv : max bound 4096
 sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 
@@ -1902,12 +1908,21 @@ encb[165,0] <- 184                   # B8 01 00 00 00  mov eax, 1
 encb[165,1] <- 1
 encb[166,0] <- 191                   # BF 02 00 00 00  mov edi, 2
 encb[166,1] <- 2
-encb[167,0] <- 72                    # 48 C7 C6 C0 FF 47 00  mov rsi, 4718528
+encb[167,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, 知らせの番地
 encb[167,1] <- 199
 encb[167,2] <- 198
-encb[167,3] <- 192
-encb[167,4] <- 255
-encb[167,5] <- 71
+# **番地を数字で書いてはいけない。**（気づき33）—— ここには 4718528 と
+# 書いてあった。それは 4194304 + 524288 - 64、つまり `total` の四枚目の写し
+# である。`total` を動かした日、知らせだけが地図の外を指した —— そして
+# 知らせは壊れたときにしか出ないので、**壊れた日に壊れている**。
+# 一箇所（`total`）から導けば、片方だけ直ることはもう起こらない。
+# 四バイト目も置く。三バイトで足りたのは像が 16 MB 未満だったからで、
+# それは上限ではなく、まだ超えていないだけだった（気づき44、三度目）。
+# 実際の四バイトは `total` の隣で書く（`mad` —— 下の「大きさは出来上がって
+# から決まる」の段）。ここに数字を残さないことが要点である。
+encb[174,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, はみ出しの知らせ
+encb[174,1] <- 199
+encb[174,2] <- 198
 encb[168,0] <- 72                    # 48 C7 C2 3D 00 00 00  mov rdx, 61
 encb[168,1] <- 199
 encb[168,2] <- 194
@@ -2082,6 +2097,7 @@ shp[165] <- 20480                    # 長さ5・穴なし（知らせの八命�
 shp[166] <- 20480
 shp[167] <- 28672                    # 長さ7・穴なし
 shp[168] <- 28672                     # 長さ1・穴0・imm8（生のバイト）
+shp[174] <- 28672                    # 長さ7・穴なし（はみ出しの知らせの番地）
 # **argv を読む十六命令。** 焼いた実行ファイルは `./foo data.bin` と書ける ——
 # 引数が無ければこれまで通り stdin。開けなければ **終了コード 8 で言う**
 # （黙って stdin に落ちない）。fd は rbp に置く（唯一空いていた register）。
@@ -2171,7 +2187,7 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 173
+nfm[0] <- 174
 field shln : max bound 176           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
 field shho : max bound 176           # 穴の位置
@@ -2183,13 +2199,16 @@ shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 #   コード 0x400078  データ 0x401000  場 F 0x402000+foff[f]  階数 K はその後ろ
 # 地上データの頭は **像の後ろ**（4194304 + total）。踏むと黙って壊れる。
 field dbase : max bound 1
-dbase[0] <- 4718592
+# **像の後ろ**は像の大きさが決める。4718592 と書いてあったのは
+# 4194304 + 524288 —— `total` の生き写しである。`total` を上げた日、
+# 地上データの頭は像の**中**を指し、プログラムは自分の命令を上書きする。
+dbase[z] <- total[0] + 4194304   for (z) in 0 .. 0
 field fbase : max bound 1
 # **宣言した上限は、そこまで本当に入らなければ嘘である。** 源 262,144 バイトを
 # (位置, 文字) の表に開くと 16 バイト × 262,144 = 4MB 要る。場の置き場が
 # 8MB のときは地上に 3.6MB しか無く、**228KB を超える源が黙って壊れていた**
 # （出力 23 バイト、終了コード 0）。置き場を上げれば宣言が本当になる。
-fbase[0] <- 12582912
+# 場の頭は **地上が要るだけ後ろ**（下の `dgap`。読み口から導く）。
 field dcap : max bound 1                    # 地上データの置き場（バイト）
 # **日程のための二枚**は場の下（rbx から負の変位）に住む ——
 #   EP[f]   場 f が最後に動いた周回（場の数 + 1 枡。最後の枡は「表」の枠）
@@ -2221,6 +2240,18 @@ field rcap : max bound 1                    # 生バイトの置き場
 rcap[0] <- 524288
 field rcap2 : max bound 1
 rcap2[0] <- rcap[0] * 2   for (z) in 0 .. 0
+# ── 地上（表）の広さは **読み口から出る**。ここは長く定数だった ——
+# 12582912 と書いてあり、それは「地上 7.5 MB」を意味していた。源を
+# (位置, 文字) に開くと **一文字 16 バイト**要るので、7.5 MB は
+# 491,520 文字ぶんしかない。読み口は 524,288 バイトあるので、
+# **491,520 を超えた源は地上からはみ出して場を踏む** —— しかも
+# はみ出しの見張りは場への書きしか見ていないので、**segfault で黙って死ぬ**。
+# 二つの数（読める量と、置ける量）は一つの判断である。導く。
+field dneed : max bound 1                   # 表に要るバイト（一文字 16）
+dneed[z] <- rcap[0] * 16   for (z) in 0 .. 0
+field dgap : max bound 1                    # 地上ぜんぶ（表 + 余白 1 MB）
+dgap[z] <- dneed[0] + 1048576   for (z) in 0 .. 0
+fbase[z] <- dbase[0] + dgap[0]   for (z) in 0 .. 0
 field pb : max bound 1                      # 前置きの長さ（⊥ 埋めが始まる所）
 pb[0] <- 29
 pb[z] <- 42                          for (z) in 0 .. 0 for (z) in 0 .. 0 if inpw[0] == 1
@@ -2576,13 +2607,13 @@ field nins : max bound 1
 # 何も導けなくても **三命令ぶんは要る**（出口の三命令が入る場所）
 # 知らせの八命令が 0..7 に入るので、**八命令ぶんは要る**
 nins[z] <- 8                          for (z) in 0 .. 0
-nins[0] <- ebase[0] + pklen[0] + 45   for (z) in 0 .. 0
+nins[0] <- ebase[0] + pklen[0] + 50   for (z) in 0 .. 0
 field ninz : max bound 1                      # nins の一つ手前（区間の上端に書ける形）
 ninz[0] <- nins[0] - 1   for (z) in 0 .. 0
 
-field form : max bound 131072
-field imm : max bound 131072
-field jt : max bound 131072                      # 飛び先（命令番号）。rel は番地から出す
+field form : max bound 262144
+field imm : max bound 262144
+field jt : max bound 262144                      # 飛び先（命令番号）。rel は番地から出す
 
 # ── argv[1] を開く（無ければ stdin）──────────────────────────────
 # **前置きの命令 0..7 は知らせが上書きする**（`form` は max）。だから
@@ -2681,10 +2712,10 @@ jt[fzp[f] + 5]   <- fzp[f] + 2            for (f) in 0 .. nflz[0] if not nofill[
 # 種: 値と、**階数 1**。種は自分より小さい証人を持たない。
 
 # 種 s の三命令の頭
-field sdp : max bound 1024
-field s3 : max bound 1024
+field sdp : max bound 4096
+field s3 : max bound 4096
 s3[s] <- s * 3                      for (s) in 0 .. nsdz[0]
-field sdc8 : max bound 1024
+field sdc8 : max bound 4096
 sdc8[s] <- sdc[s] * 8               for (s) in 0 .. nsdz[0]
 sdp[s] <- sb0[0] + s3[s]            for (s) in 0 .. nsdz[0]
 form[sdp[s]]     <- 2          for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
@@ -3442,11 +3473,22 @@ field ovf : max bound 1                     # はみ出したときの出口
 ovf[0] <- wb[0] + 42   for (z) in 0 .. 0
 field ovz : max bound 1                     # ovf を計数器で引ける形に
 ovz[z] <- ovf[0]                     for (z) in 0 .. 0
-form[ovz[z]]     <- 24   for (z) in 0 .. 0# mov eax, 60
-imm[ovz[z]]      <- 60 + bias[0]   for (z) in 0 .. 0
-form[ovz[z] + 1] <- 38   for (z) in 0 .. 0# mov rdi, 6（**宣言した広さを超えた**）
-imm[ovz[z] + 1]  <- 6 + bias[0]   for (z) in 0 .. 0
-form[ovz[z] + 2] <- 25   for (z) in 0 .. 0
+# **黙って 6 で終わるのをやめる。** ここは長いあいだ三命令だった ——
+# `mov eax,60 / mov rdi,6 / syscall`。数字の 6 だけが残り、何が狭かったのか、
+# 何を直せばいいのかは誰にも分からない。焼けなかったとき（終了コード 7）は
+# 一行出すのに、走って落ちたときは出さない —— **同じ判断が二箇所にあって、
+# 片方だけ実装されていた**（気づき34）。知らせの八命令は即値を持たない形
+# だけで書けるので、前置きの即値とは混ざらない（上の `bad` と同じ手）。
+form[ovz[z]]     <- 165   for (z) in 0 .. 0# mov eax, 1  (sys_write)
+form[ovz[z] + 1] <- 166   for (z) in 0 .. 0# mov edi, 2  (stderr)
+form[ovz[z] + 2] <- 174   for (z) in 0 .. 0# mov rsi, はみ出しの知らせ
+form[ovz[z] + 3] <- 168   for (z) in 0 .. 0# mov rdx, 61
+form[ovz[z] + 4] <- 158   for (z) in 0 .. 0# syscall
+form[ovz[z] + 5] <- 24   for (z) in 0 .. 0# mov eax, 60
+imm[ovz[z] + 5]  <- 60 + bias[0]   for (z) in 0 .. 0
+form[ovz[z] + 6] <- 38   for (z) in 0 .. 0# mov rdi, 6（**宣言した広さを超えた**）
+imm[ovz[z] + 6]  <- 6 + bias[0]   for (z) in 0 .. 0
+form[ovz[z] + 7] <- 25   for (z) in 0 .. 0
 
 
 
@@ -3457,10 +3499,10 @@ imm[wbz[z] + 40]  <- 0 + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 41] <- 25   for (z) in 0 .. 0
 
 # ── 番地。**命令番号に沿った鎖**（逐次実行ではない）────────────────
-field ilen : max bound 131072
+field ilen : max bound 262144
 ilen[n] <- shln[form[n]]            for (n) in 0 .. ninz[0]
 
-field off : max bound 131072
+field off : max bound 262144
 off[0] <- 0
 off[n] <- off[n-1] + ilen[n-1]      for (n) in 1 .. ninz[0]
 
@@ -3468,7 +3510,7 @@ field codelen : max bound 1
 codelen[z] <- off[n] + ilen[n]       for (n) in 0 .. ninz[0] for (z) in 0 .. 0
 
 # 相対飛びは **番地の差**。次の命令の頭からの差である。
-field rel : max bound 131072
+field rel : max bound 262144
 rel[n] <- off[jt[n]] - off[n] - ilen[n]   for (n) in 0 .. ninz[0]
 
 
@@ -3483,9 +3525,12 @@ cok[r] <- cok[r-1]                  for (r) in 1 .. nrlz[0] if not okr[r]
 cok[r] <- cok[r-1] + 1              for (r) in 1 .. nrlz[0] if okr[r]
 field nokr : max bound 1
 nokr[z] <- cok[r]                   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0
-field oks : or bound 1024                   # 場の出た種
+# **上の `cok`（規則）も下の `okt`（項）も 4096 なのに、種だけ 1024 だった。**
+# 同じ段落の、同じ形の、三つ並んだ判断のうち一つだけが古い数のまま残る ——
+# 直したときに目に入らなかったからで、目に入らないことこそが理由である。
+field oks : or bound 4096                   # 場の出た種
 oks[sd] <- true                     for (sd) in 0 .. nsdz[0] if sdf[sd] < nfld[0]
-field cos : max bound 1024
+field cos : max bound 4096
 cos[0] <- 0
 cos[z] <- 1                         for (z) in 0 .. 0 if oks[0]
 cos[sd] <- cos[sd-1]                for (sd) in 1 .. nsdz[0] if not oks[sd]
@@ -3698,11 +3743,12 @@ out[i] <- 0                         for (i) in 0 .. tmax[0]
 # 65536 でも足りなくなった —— 33_self が 110 規則になった日に、また踏んだ。
 # 131072 でも足りなくなった —— 形の導出が断片に入った日に、三度目。
 # **踏んだことは黙って起きる**ので、今度は言うようにした ——
-# 符号の長さを ELF ヘッダの空き（8..10 バイト目）に書く。読む側が確かめられる。
+# 符号の長さを ELF ヘッダの空き（8..11 バイト目）に書く。読む側が確かめられる。
 out[524287] <- 0
 out[8]  <- codelen[0] % 256   for (z) in 0 .. 0
 out[9]  <- codelen[0] / 256 % 256   for (z) in 0 .. 0
 out[10] <- codelen[0] / 65536 % 256   for (z) in 0 .. 0
+out[11] <- codelen[0] / 16777216 % 256   for (z) in 0 .. 0   # 三度同じ穴は掘らない
 # ELF ヘッダ（0 のバイトは既に敷いてあるので、0 でない所だけ置く）
 out[0] <- 127
 out[1] <- 69
@@ -3732,6 +3778,22 @@ out[113] <- 16
 out[96]  <- total[0] % 256   for (z) in 0 .. 0
 out[97]  <- total[0] / 256 % 256   for (z) in 0 .. 0
 out[98]  <- total[0] / 65536 % 256   for (z) in 0 .. 0
+# **同じ書き忘れが、こちら側では直っていなかった。**（下の msz の註を見よ。）
+# p_memsz には四バイト目を足したのに、p_filesz には足さなかった ——
+# 一つの判断が二箇所にあって、痛んだ片方だけを直した跡である。
+# 像が 16 MB ちょうどになった日、total = 2^24 は三バイトで 0 に落ち、
+# filesz = 0 の ELF が出来た。核は何も読み込まず、最初の命令で落ちる。
+# **切り捨ては例外を出さない**ので、焼く側は最後まで正常に見える。
+out[99]  <- total[0] / 16777216 % 256   for (z) in 0 .. 0
+# 知らせ（焼けなかったときの一行）の番地も `total` から出る。
+# `encb[167]` は `mov rsi, 番地` の七バイトで、その四バイトがこれ。
+field mad : max bound 1                     # 知らせの番地（像の末尾 64 バイト）
+mad[z] <- total[0] + 4194304 - 64   for (z) in 0 .. 0
+encb[167,3] <- mad[0] % 256   for (z) in 0 .. 0
+encb[167,4] <- mad[0] / 256 % 256   for (z) in 0 .. 0
+encb[167,5] <- mad[0] / 65536 % 256   for (z) in 0 .. 0
+encb[167,6] <- mad[0] / 16777216 % 256   for (z) in 0 .. 0
+
 field msz : max bound 1                     # p_memsz（場と証人と生バイトの置き場）
 msz[z] <- total[0] + 65536           for (z) in 0 .. 0   # p_memsz は像より小さくできない
 msz[0] <- fbase[0] - 4194304 + ftot2[0] + ft2[0] + rcap2[0] + 65536   for (z) in 0 .. 0
@@ -3776,7 +3838,7 @@ bhj[i] <- 0                         for (i) in 0 .. bmax[0] if ishole[i] if isst
 bhj[i] <- 0                         for (i) in 1 .. bmax[0] if ishole[i] if not ishole[i-1]
 bhj[i] <- bhj[i-1] + 1              for (i) in 1 .. bmax[0] if ishole[i] if ishole[i-1]
       if not isst[i]
-field vb : max bound 131072 4       # 命令 n の穴に入る値の j バイト目
+field vb : max bound 262144 4       # 命令 n の穴に入る値の j バイト目
 vb[n,0] <- imm[n] % 256             for (n) in 0 .. ninz[0] if shhk[form[n]] == 1
 vb[n,0] <- imm[n] % 256             for (n) in 0 .. ninz[0] if shhk[form[n]] == 4
 vb[n,1] <- imm[n] / 256 % 256       for (n) in 0 .. ninz[0] if shhk[form[n]] == 4
@@ -3976,6 +4038,86 @@ out[mbz[z] + 31] <- dgt[k] + 48      for (k) in 1 .. 1 for (z) in 0 .. 0 if bad[
 out[mbz[z] + 32] <- dgt[k] + 48      for (k) in 0 .. 0 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 41] <- brz[0] + 48      for (z) in 0 .. 0 if bad[0]
 
+# ══ はみ出したときの一行（終了コード 6）════════════════════════════
+#   焼けたプログラムが走っている最中に「宣言した広さ」を超えたら、
+#   `ovf` へ飛んでここを書き出す。**知らせは像の中にずっと居る**ので
+#   番地は定数 —— `total` から導く（数字では書かない）。
+#   `bad` の一行は像の末尾 64 バイト、こちらはその手前 64 バイト。
+#   二つは決して同時に出ない（焼けたか焼けなかったかのどちらかである）が、
+#   **場所を分けておけば `max` で混ざる心配をしなくていい**。
+field omsg : max bound 64                   # 決まった文字（61 バイト）
+omsg[0] <- 108          # 'l'
+omsg[1] <- 97          # 'a'
+omsg[2] <- 116          # 't'
+omsg[3] <- 116          # 't'
+omsg[4] <- 105          # 'i'
+omsg[5] <- 120          # 'x'
+omsg[6] <- 58          # ':'
+omsg[7] <- 32
+omsg[8] <- 102          # 'f'
+omsg[9] <- 105          # 'i'
+omsg[10] <- 101          # 'e'
+omsg[11] <- 108          # 'l'
+omsg[12] <- 100          # 'd'
+omsg[13] <- 32
+omsg[14] <- 98          # 'b'
+omsg[15] <- 111          # 'o'
+omsg[16] <- 117          # 'u'
+omsg[17] <- 110          # 'n'
+omsg[18] <- 100          # 'd'
+omsg[19] <- 32
+omsg[20] <- 101          # 'e'
+omsg[21] <- 120          # 'x'
+omsg[22] <- 99          # 'c'
+omsg[23] <- 101          # 'e'
+omsg[24] <- 101          # 'e'
+omsg[25] <- 100          # 'd'
+omsg[26] <- 101          # 'e'
+omsg[27] <- 100          # 'd'
+omsg[28] <- 32
+omsg[29] <- 45          # '-'
+omsg[30] <- 32
+omsg[31] <- 105          # 'i'
+omsg[32] <- 110          # 'n'
+omsg[33] <- 112          # 'p'
+omsg[34] <- 117          # 'u'
+omsg[35] <- 116          # 't'
+omsg[36] <- 32
+omsg[37] <- 116          # 't'
+omsg[38] <- 111          # 'o'
+omsg[39] <- 111          # 'o'
+omsg[40] <- 32
+omsg[41] <- 98          # 'b'
+omsg[42] <- 105          # 'i'
+omsg[43] <- 103          # 'g'
+omsg[44] <- 32
+omsg[45] <- 102          # 'f'
+omsg[46] <- 111          # 'o'
+omsg[47] <- 114          # 'r'
+omsg[48] <- 32
+omsg[49] <- 116          # 't'
+omsg[50] <- 104          # 'h'
+omsg[51] <- 105          # 'i'
+omsg[52] <- 115          # 's'
+omsg[53] <- 32
+omsg[54] <- 46          # '.'
+omsg[55] <- 108          # 'l'
+omsg[56] <- 120          # 'x'
+omsg[57] <- 32
+omsg[58] <- 32
+omsg[59] <- 32
+omsg[60] <- 10          # '\n'
+field omso : max bound 64
+omso[j] <- total[0] - 128 + j        for (j) in 0 .. 60
+out[omso[j]] <- omsg[j]              for (j) in 0 .. 60 if omsg[j] >= 1
+field mad2 : max bound 1                    # はみ出しの知らせの番地
+mad2[z] <- total[0] + 4194304 - 128  for (z) in 0 .. 0
+encb[174,3] <- mad2[0] % 256   for (z) in 0 .. 0
+encb[174,4] <- mad2[0] / 256 % 256   for (z) in 0 .. 0
+encb[174,5] <- mad2[0] / 65536 % 256   for (z) in 0 .. 0
+encb[174,6] <- mad2[0] / 16777216 % 256   for (z) in 0 .. 0
+
+
 render out
 
 
@@ -4004,6 +4146,21 @@ capw[0] <- 8192
 badk[z] <- 0   for (z) in 0 .. 0 if nfl[0] > capf[0]
 badk[z] <- 0   for (z) in 0 .. 0 if now[0] > capw[0]
 badk[z] <- 0   for (z) in 0 .. 0 if nrl[0] > capr[0]
+# **符号面だけ見張りが無かった。** 一度書いて外している —— `codelen`
+# （バイト数）で見ようとしたからで、それは循環する（符号 → 長さ → 断り →
+# 符号）。だが **命令の数** `nins` は循環しない: 規則と輪の数だけで決まり、
+# 命令を一本も置く前に分かっている。ここを見ていなかったので、規則を 81 本
+# 足した日に 131,072 本を越え、**黙って終了コード 6** が出た（知らせも
+# 出ない —— 知らせを書く命令そのものが地図の外だったからである）。
+field capi : max bound 1            # 命令ごとの箱（form / imm / jt … の bound）
+capi[0] <- 262144
+badk[z] <- 0   for (z) in 0 .. 0 if nins[0] > capi[0]
+# **種にも見張りが無かった。** 種は「輪の無い規則」—— `x[3] <- 1` の形で、
+# .lx を書いていると気づかないうちに増える（宣言の既定値、表の頭、
+# 命令の綴り…）。1024 本目を書いた日に黙って落ちる、いちばん踏みやすい床。
+field caps : max bound 1            # 種ごとの箱（sdf / sdc / sdv / sdp … の bound）
+caps[0] <- 4096
+badk[z] <- 0   for (z) in 0 .. 0 if nsd[0] > caps[0]
 
 #   **符号の長さだけは、ここでは言えない。** 断りは命令を書く（`form[0..7]`）
 #   ので、`codelen` を見て断ると 符号 → 長さ → 断り → 符号 の輪になる ——

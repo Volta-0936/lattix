@@ -331,7 +331,7 @@ def _readback(flds, rules, blob, exe, data, trow):
         return flds, rules, len(blob), {}, {}
     # **符号面を踏み越えたら、そう言う。** 生成器がヘッダの空きに長さを書く ——
     # 黙って落ちるのと、落ちて名前を言うのは違う（不変条件8）。
-    codelen = blob[8] | (blob[9] << 8) | (blob[10] << 16)
+    codelen = blob[8] | (blob[9] << 8) | (blob[10] << 16) | (blob[11] << 24)
     assert 120 + codelen <= len(blob), (
         f"符号面が足りない: 120+{codelen} > {len(blob)}（31_gen の total[] を広げる）")
     if data is not None:                      # 生バイトをそのまま流す
