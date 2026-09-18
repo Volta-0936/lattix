@@ -847,13 +847,27 @@ gkd[snum[t], gno2[t]] <- 9 for (t,zc) in ch if isgrd[t]
 # **辺は式ではない。** `if r + 1 == n[0]` の左は「計数器」でも「場の読み」でも
 # 「定数」でもない —— 焼くと `r` だけを見て黙って外れる。だから **知らない種**
 # （15）にして、生成器が「焼けない」と言えるようにする（不変条件8 を源の側でも）。
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pplus[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pminus[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pstar[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pdiv[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pmod[oppv[t]]
-# 右辺は「その後ろに ± 数が続くか」で見る（`ixhf` が既にそう数えている）
-gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if iscmp2[t] if ixhf[opnx[t]]
+#
+# **辺の形を数え上げるのをやめた。** 以前はここに六本並んでいた ——
+# 左辺の手前が `+ - * / %` か（五本）、右辺の後ろに `± 数` が続くか（一本）。
+# 数え上げは **漏れる**: `if 1 + a[i] >= 2` は左辺の手前が `[` なので当たらず、
+# `if not a[i] + 1` は比較ではないので当たらない。どちらも黙って項を落として
+# いた（気づき34 —— 同じ判断を六箇所に書けば、直らない所が残る）。
+#
+# 言いたいことは一つである —— **if 節の中に、括弧の外の演算子があってはならない**。
+# 括弧の中（`f[i-1]` のずれ）は座標の話なので当たらない。
+field isop : or bound 262144            # 演算子（+ - * / %）
+isop[t] <- true for (t,zc) in ch if isplus[t]
+isop[t] <- true for (t,zc) in ch if ismin[t]
+isop[t] <- true for (t,zc) in ch if isstar[t]
+isop[t] <- true for (t,zc) in ch if isdiv[t]
+isop[t] <- true for (t,zc) in ch if ismod[t]
+field ifop : or bound 262144            # if 節の中の、括弧の外の演算子
+ifop[t] <- true for (t,zc) in ch if isop[t] if tdep[t] == 0
+      if clif2[snum[t], cnum[t]]
+gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if ifop[t]
+gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if ifop[t]
+      if clcmp[snum[t], cnum[t]]
 
 field ggv : max bound 4096 32           # 比較の要求（右の行が持つ）
 ggv[snum[t], gno2[t] + 1] <- opc2[t] for (t,zc) in ch if iscmp2[t]

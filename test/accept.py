@@ -221,6 +221,66 @@ case("入れ子 四重（焼けない）", """table ch = (0,32)
 field a : max bound 16
 a[k] <- 1   for (k) in 0 .. 1 for (m) in 0 .. 1 for (n) in 0 .. 1 for (p) in 0 .. 1
 """, data=b"ab", exit=7, why=(3,2))
+# ══ 断片の際（測った）════════════════════════════════════════════
+# **狭さは覚えていられない。** 「入れ子は一段まで」と書いてあったが、
+# 一段なのは **書き座標** だけで、値とガードは二段まで入る。三つの場所で
+# 三つとも違う —— だから三つとも置く。下の `Z` は共通の前置き（7 行）で、
+# どの組も 8 行目に場、9 行目に規則が来る（`why` の行はそこ）。
+Z = """table ch = (0,32)
+field a : max bound 16
+a[i] <- 1 for (i,c) in ch
+field b : max bound 16
+b[i] <- 0 for (i,c) in ch
+field p : max bound 16
+p[i] <- 0 for (i,c) in ch
+"""
+case("値の読み 二段（通る）", Z + """field v : max bound 16
+v[i] <- a[b[i]] for (i,c) in ch
+""", data=b"ab")
+case("値の読み 三段（焼けない）", Z + """field v : max bound 16
+v[i] <- a[b[p[i]]] for (i,c) in ch
+""", data=b"ab", exit=7, why=(9, 8))
+case("ガードの読み 二段（通る）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if a[b[i]] >= 1
+""", data=b"ab")
+case("ガードの読み 三段（焼けない）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if a[b[p[i]]] >= 1
+""", data=b"ab", exit=7, why=(9, 8))
+# **書き座標だけは一段である。** 値と同じ二段が書けると思っていた。
+case("書き座標の読み 一段（通る）", Z + """field v : or bound 16
+v[a[i]] <- true for (i,c) in ch if a[i] >= 0
+""", data=b"ab")
+case("書き座標の読み 二段（焼けない）", Z + """field v : or bound 16
+v[a[b[i]]] <- true for (i,c) in ch if a[b[i]] >= 0
+""", data=b"ab", exit=7, why=(9, 8))
+# **辺は式ではない。** ここは長いあいだ **黙って壊れた符号**を出していた ——
+# 場の番号のつもりで足し算の結果を読み、走らせると segfault した。
+# 数え上げでは漏れる（左の手前・右の後ろ・前置き・否定の四通りある）ので、
+# いまは「if 節の中の、括弧の外の演算子」を一本で見る。
+case("辺に式 左（焼けない）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if a[i] + 1 >= 2
+""", data=b"ab", exit=7, why=(9, 8))
+case("辺に式 右（焼けない）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if a[i] >= b[i] + 1
+""", data=b"ab", exit=7, why=(9, 8))
+case("辺に式 前置き（焼けない）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if 1 + a[i] >= 2
+""", data=b"ab", exit=7, why=(9, 8))
+case("否定の辺に式（焼けない）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if not a[i] + 1
+""", data=b"ab", exit=7, why=(9, 8))
+# **括弧の中のずれは式ではない。** `f[i-1]` は座標の話なので当たらない。
+case("座標の中のずれ（通る）", Z + """field v : or bound 16
+v[i] <- true for (i,c) in ch if a[i+1] >= 1
+""", data=b"ab")
+# **二次元の中間の場は引ける。** 深い書き座標を平らにするとき、輪の変数が
+# 二つある式はここへ落ちる（`work/flatten.py`）。
+case("二次元の中間の場（通る）", Z + """field q : max bound 64 2
+q[i,k] <- a[i] + k for (i,c) in ch for (k) in 0 .. 1
+field r : or bound 64
+r[q[i,k]] <- true for (i,c) in ch for (k) in 0 .. 1 if q[i,k] >= 0
+""", data=b"ab")
+
 # **項は八つまで。** 九つ目は隣の文の枠を踏んで、答えが黙って変わっていた。
 case("項 八つ（通る）", """table ch = (0,32)
 field a : max bound 16
@@ -402,10 +462,29 @@ def widths(src):
         if m:
             order.append(m.group(1)); lat[m.group(1)]=m.group(2)
             bnd[m.group(1)]=[int(x) for x in (m.group(3) or '64').split()]
+    # **括弧は regex で数えられない。** `[^\]]*` は最初の `]` で止まるので、
+    # `r[q[i,k]]` の添字を `q[i,k` と読み、`r` を二次元だと言っていた ——
+    # 置き場の総和が合わず、生成器の側が悪いように見えた。括弧は **数える**。
     ar=collections.defaultdict(lambda:1)
     for ln in src.split('\n'):
-        for m in re.finditer(r'(\w+)\[([^\]]*)\]', ln.split('#')[0]):
-            if m.group(1) in bnd: ar[m.group(1)]=max(ar[m.group(1)], 1+m.group(2).count(','))
+        ln=ln.split('#')[0]
+        for m in re.finditer(r'(\w+)\[', ln):
+            if m.group(1) not in bnd: continue
+            d=0; j=m.end()-1; k=j
+            while k < len(ln):
+                if ln[k]=='[': d+=1
+                elif ln[k]==']':
+                    d-=1
+                    if d==0: break
+                k+=1
+            ix=ln[j+1:k]
+            nd=1
+            d=0
+            for ch in ix:
+                if ch=='[': d+=1
+                elif ch==']': d-=1
+                elif ch==',' and d==0: nd+=1
+            ar[m.group(1)]=max(ar[m.group(1)], nd)
     # **升の幅は束が言う**（31_gen の `fwb` と同じ規則）—— `or` は 0 か 1 しか
     # 取らないので一升 1 バイト。
     off={}; o=0

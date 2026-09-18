@@ -835,13 +835,27 @@ gkd[snum[t], gno2[t]] <- 9 for (t,zc) in ch if isgrd[t]
 # **辺は式ではない。** `if r + 1 == n[0]` の左は「計数器」でも「場の読み」でも
 # 「定数」でもない —— 焼くと `r` だけを見て黙って外れる。だから **知らない種**
 # （15）にして、生成器が「焼けない」と言えるようにする（不変条件8 を源の側でも）。
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pplus[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pminus[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pstar[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pdiv[oppv[t]]
-gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if pmod[oppv[t]]
-# 右辺は「その後ろに ± 数が続くか」で見る（`ixhf` が既にそう数えている）
-gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if iscmp2[t] if ixhf[opnx[t]]
+#
+# **辺の形を数え上げるのをやめた。** 以前はここに六本並んでいた ——
+# 左辺の手前が `+ - * / %` か（五本）、右辺の後ろに `± 数` が続くか（一本）。
+# 数え上げは **漏れる**: `if 1 + a[i] >= 2` は左辺の手前が `[` なので当たらず、
+# `if not a[i] + 1` は比較ではないので当たらない。どちらも黙って項を落として
+# いた（気づき34 —— 同じ判断を六箇所に書けば、直らない所が残る）。
+#
+# 言いたいことは一つである —— **if 節の中に、括弧の外の演算子があってはならない**。
+# 括弧の中（`f[i-1]` のずれ）は座標の話なので当たらない。
+field isop : or bound 262144            # 演算子（+ - * / %）
+isop[t] <- true for (t,zc) in ch if isplus[t]
+isop[t] <- true for (t,zc) in ch if ismin[t]
+isop[t] <- true for (t,zc) in ch if isstar[t]
+isop[t] <- true for (t,zc) in ch if isdiv[t]
+isop[t] <- true for (t,zc) in ch if ismod[t]
+field ifop : or bound 262144            # if 節の中の、括弧の外の演算子
+ifop[t] <- true for (t,zc) in ch if isop[t] if tdep[t] == 0
+      if clif2[snum[t], cnum[t]]
+gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if ifop[t]
+gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if ifop[t]
+      if clcmp[snum[t], cnum[t]]
 
 field ggv : max bound 4096 32           # 比較の要求（右の行が持つ）
 ggv[snum[t], gno2[t] + 1] <- opc2[t] for (t,zc) in ch if iscmp2[t]
@@ -2534,6 +2548,15 @@ sbase[0] <- sb0[0] + nsee3[0]   for (z) in 0 .. 0
 #   種4 比較の右辺 `g[B]` と比較     6 + 2*次数
 # 一つの規則にいくつでも並ぶ。長さも位置も **ガード番号に沿った前置きの鎖**
 # —— 命令番号・番地・場の置き場・印の置き場に続いて、これで六度目である。
+# **知らない種は 15 である。** 源（33_self）は「辺が式」を 15 と印して
+# 「焼けない」と言わせるつもりだった。だが下の振り分けが `>= 10` と
+# `>= 7` で開いていたので、**番兵の方が大きいせいで番兵が拾われた** ——
+# 焼けないはずの形が、場の番号 ⊥（= 0）を読む命令になって segfault した。
+# 上限は **超えたときを試すまで上限ではない**（気づき44）。
+# だから振り分けは閉じる。閉じる数は **一枚の場に一度だけ**書く（気づき34）。
+field gknown : or bound 4096                   # この種は生成器が出せる
+gknown[gg] <- true               for (gg) in 0 .. nggz[0] if gdk[gg] >= 1 if gdk[gg] <= 11
+
 field glen : max bound 4096
 glen[gg] <- 3                    for (gg) in 0 .. nggz[0] if gdk[gg] == 1
 glen[gg] <- 3                    for (gg) in 0 .. nggz[0] if gdk[gg] == 5
@@ -2541,7 +2564,7 @@ glen[gg] <- 3                    for (gg) in 0 .. nggz[0] if gdk[gg] == 6
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 7
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 9
-glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
+glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
 glen[gg] <- ctot[gdoo[gg]] + 3      for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
@@ -2961,30 +2984,30 @@ form[gpos[gg] + 3] <- 116  for (gg) in 0 .. nggz[0] if gdk[gg] == 6      # jg ->
 jt[gpos[gg] + 3]   <- av[gdr[gg]]    for (gg) in 0 .. nggz[0] if gdk[gg] == 6
 
 # 種7/8: `if f[C] >= 値` / `if f[C] <= 値`（⊥ なら次の行へ）
-form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-form[gc[gg] + 3] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
-imm[gc[gg] + 3]  <- gdgv[gg] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+form[gc[gg] + 3] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
+imm[gc[gg] + 3]  <- gdgv[gg] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
 form[gc[gg] + 4] <- 115 for (gg) in 0 .. nggz[0] if gdk[gg] == 7
 jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 7
 form[gc[gg] + 4] <- 116 for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 
 # 種10/11: `if f[C] == 値` / `!= 値`（場と **定数** の比較。場同士ではない）
-form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-form[gc[gg] + 3] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
-imm[gc[gg] + 3]  <- gdgv[gg] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10
+form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+form[gc[gg] + 3] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
+imm[gc[gg] + 3]  <- gdgv[gg] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
 form[gc[gg] + 4] <- 22  for (gg) in 0 .. nggz[0] if gdk[gg] == 10      # == を要求: 違えば飛ぶ
 jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 10
 form[gc[gg] + 4] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 11      # != を要求: 同じなら飛ぶ
@@ -3460,7 +3483,7 @@ ntm[tmr[gt]] <- tcn[gt] + 2         for (gt) in 0 .. ngtz[0] if isrd[gt]
 
 # ガードの読み（種 2 / 3 / 4 / 7 以上）。**辺が場かどうかは ok が言う**
 field gisr : or bound 4096                     # このガードは場を読む
-gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] >= 7
+gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if gknown[gg]
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
