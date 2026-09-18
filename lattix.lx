@@ -1446,7 +1446,7 @@ lpbc8[gl] <- lpbc[gl] * 8           for (gl) in 0 .. nglz[0]
 # ── 命令の骨。**表ではなく種で置く** —— 焼いた実行ファイルが読める表は
 # 標準入力の一つだけなので、生成器の定数は種でなければならない。
 # encb (形, 位置) → バイト。穴の位置には何も置かない（下で埋める）。
-field encb : max bound 192 12
+field encb : max bound 208 12
 encb[1,0] <- 72
 encb[1,1] <- 199
 encb[1,2] <- 195
@@ -1926,6 +1926,23 @@ encb[167,2] <- 198
 # **命令の大きさ**（オペランド幅）で、これは opcode と REX が決める ——
 # x86 では読みだけ形が変わる（`mov r64,m64` は 8B、`movzx r32,m8` は 0F B6）。
 # だから倍率と違って、幅ごとに形が要る。**五つで足りた**。
+# **穴を持たない形だけを足す。** SIB の検出は「穴の二つ手前が modrm」で
+# 導いているので、穴が即値の形を足すと、即値の中のバイトが modrm に
+# 見えることがある —— 値によって当たったり外れたりする、いちばん質の悪い形。
+# 枠の番地は `total` から焼くので、この三つはどれも穴を持たない。
+# REX.W を立てると **八バイト書く**。枠は四バイトなので隣の知らせを潰す ——
+# 最初 4C と書いて、知らせの頭四文字が消えた（`latt` が 00 00 00 00 に）。
+encb[180,0] <- 68                    # 44 89 3C 25 <枠>        mov [枠], r15d
+encb[180,1] <- 137
+encb[180,2] <- 60
+encb[180,3] <- 37
+encb[181,0] <- 72                    # 48 C7 C6 <枠>           mov rsi, 枠
+encb[181,1] <- 199
+encb[181,2] <- 198
+encb[182,0] <- 72                    # 48 C7 C2 04 00 00 00    mov rdx, 4
+encb[182,1] <- 199
+encb[182,2] <- 194
+encb[182,3] <- 4
 encb[175,0] <- 66                    # 42 0F B6 84 SIB d32  movzx eax,byte [rbx+r9*1+d32]
 encb[175,1] <- 15
 encb[175,2] <- 182
@@ -1977,7 +1994,7 @@ encb[173,2] <- 193
 
 # 形の寸法を一つの数に畳む: 長さ*4096 + 穴の位置*64 + 穴の種
 # （二のべきで割れば戻る —— 種を三本並べるより一本の方が短い）
-field shp : max bound 192
+field shp : max bound 208
 shp[1] <- 28868
 shp[2] <- 28868
 shp[3] <- 28868
@@ -2129,6 +2146,9 @@ shp[176] <- 37188
 shp[177] <- 32964                    # 長さ8・穴3・imm32（SIB は 2）
 shp[178] <- 32964
 shp[179] <- 24708                    # 長さ6・穴2・imm32（SIB 無し）
+shp[180] <- 32768                    # 長さ8・穴なし（枠は骨に焼く）
+shp[181] <- 28672                    # 長さ7・穴なし
+shp[182] <- 28672                    # 長さ7・穴なし
 # **argv を読む十六命令。** 焼いた実行ファイルは `./foo data.bin` と書ける ——
 # 引数が無ければこれまで通り stdin。開けなければ **終了コード 8 で言う**
 # （黙って stdin に落ちない）。fd は rbp に置く（唯一空いていた register）。
@@ -2218,12 +2238,12 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 179
-field shln : max bound 192           # 命令の長さ
+nfm[0] <- 182
+field shln : max bound 208           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
-field shho : max bound 192           # 穴の位置
+field shho : max bound 208           # 穴の位置
 shho[f] <- shp[f] / 64 % 64         for (f) in 0 .. nfm[0]
-field shhk : max bound 192           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
+field shhk : max bound 208           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
 shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 
 # ── **倍率も穴である** ───────────────────────────────────────────
@@ -2238,19 +2258,24 @@ shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 #
 # SIB を持つかは表が言う —— modrm の下三ビットが 4 なら次のバイトが SIB
 # である（x86 の決まり）。位置は必ず穴の一つ手前。数えたら 17 形あった。
-field mrm : max bound 192            # 形 f の modrm（穴の二つ手前）
+field mrm : max bound 208            # 形 f の modrm（穴の二つ手前）
 mrm[f] <- encb[f, shho[f] - 2]      for (f) in 0 .. nfm[0] if shhk[f] == 4 if shho[f] >= 2
-field mrmr : max bound 192           # modrm の rm（下三ビット）
+field mrmr : max bound 208           # modrm の rm（下三ビット）
 mrmr[f] <- mrm[f] % 8               for (f) in 0 .. nfm[0]
-field hassib : or bound 192          # 形 f は SIB を持つ
+field mrmm : max bound 208           # modrm の mod（上二ビット）
+mrmm[f] <- mrm[f] / 64              for (f) in 0 .. nfm[0]
+field hassib : or bound 208          # 形 f は SIB を持つ
+# rm が 4 なら SIB が続く —— ただし mod が 00 のときは [SIB] の絶対番地で
+# 穴の一つ手前とは限らない。ずれ付き（mod 01/10）だけを見る。
 hassib[f] <- true                   for (f) in 0 .. nfm[0] if mrmr[f] == 4
-field shsb : min bound 192           # SIB のバイト位置（63 = 持たない）
+      if mrmm[f] >= 1 if mrmm[f] <= 2
+field shsb : min bound 208           # SIB のバイト位置（63 = 持たない）
 shsb[f] <- 63                       for (f) in 0 .. nfm[0]
 shsb[f] <- shho[f] - 1              for (f) in 0 .. nfm[0] if hassib[f]
 # **表は書き換えない。** 倍率を抜いた SIB も、いまの倍率も、表から出る。
-field sibb : max bound 192           # 倍率を抜いた SIB（index と base だけ）
+field sibb : max bound 208           # 倍率を抜いた SIB（index と base だけ）
 sibb[f] <- encb[f, shsb[f]] % 64    for (f) in 0 .. nfm[0] if hassib[f]
-field fmsc : max bound 192           # 形がいま持っている倍率ビット（既定）
+field fmsc : max bound 208           # 形がいま持っている倍率ビット（既定）
 fmsc[f] <- encb[f, shsb[f]] - sibb[f]   for (f) in 0 .. nfm[0] if hassib[f]
 # 長さと、穴の位置・幅。kind 4 = imm32/d32 / 1 = imm8 / 5 = rel32
 # ── 配置 ─────────────────────────────────────────────────────────
@@ -2751,7 +2776,9 @@ field nins : max bound 1
 # 何も導けなくても **三命令ぶんは要る**（出口の三命令が入る場所）
 # 知らせの八命令が 0..7 に入るので、**八命令ぶんは要る**
 nins[z] <- 8                          for (z) in 0 .. 0
-nins[0] <- ebase[0] + pklen[0] + 50   for (z) in 0 .. 0
+field nrl2 : max bound 1                      # 踏み台のぶん（規則 × 2）
+nrl2[z] <- nrl[0] * 2   for (z) in 0 .. 0
+nins[0] <- ebase[0] + pklen[0] + 56 + nrl2[0]   for (z) in 0 .. 0
 field ninz : max bound 1                      # nins の一つ手前（区間の上端に書ける形）
 ninz[0] <- nins[0] - 1   for (z) in 0 .. 0
 
@@ -3353,7 +3380,7 @@ form[wcp[r]] <- 95   for (r) in 0 .. nrlz[0]      # mov rdx,r9
 form[wcp[r] + 1] <- 74   for (r) in 0 .. nrlz[0]  # cmp rdx, 升数
 imm[wcp[r] + 1]  <- fsz[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0]
 form[wcp[r] + 2] <- 73   for (r) in 0 .. nrlz[0]  # jae -> はみ出した
-jt[wcp[r] + 2]   <- ovf[0]    for (r) in 0 .. nrlz[0]
+jt[wcp[r] + 2]   <- stub[r]    for (r) in 0 .. nrlz[0]
 
 # 動いた印（av の直前。**束によらない** —— 六部のうち五部が束を問わなくなった）
 form[av[r] - 2] <- 19    for (r) in 0 .. nrlz[0]
@@ -3657,16 +3684,41 @@ ovz[z] <- ovf[0]                     for (z) in 0 .. 0
 # 一行出すのに、走って落ちたときは出さない —— **同じ判断が二箇所にあって、
 # 片方だけ実装されていた**（気づき34）。知らせの八命令は即値を持たない形
 # だけで書けるので、前置きの即値とは混ざらない（上の `bad` と同じ手）。
-form[ovz[z]]     <- 165   for (z) in 0 .. 0# mov eax, 1  (sys_write)
-form[ovz[z] + 1] <- 166   for (z) in 0 .. 0# mov edi, 2  (stderr)
-form[ovz[z] + 2] <- 174   for (z) in 0 .. 0# mov rsi, はみ出しの知らせ
-form[ovz[z] + 3] <- 168   for (z) in 0 .. 0# mov rdx, 61
-form[ovz[z] + 4] <- 158   for (z) in 0 .. 0# syscall
-form[ovz[z] + 5] <- 24   for (z) in 0 .. 0# mov eax, 60
-imm[ovz[z] + 5]  <- 60 + bias[0]   for (z) in 0 .. 0
-form[ovz[z] + 6] <- 38   for (z) in 0 .. 0# mov rdi, 6（**宣言した広さを超えた**）
-imm[ovz[z] + 6]  <- 6 + bias[0]   for (z) in 0 .. 0
-form[ovz[z] + 7] <- 25   for (z) in 0 .. 0
+# **どの場を踏んだかを言う。** 一行出るようにはなったが、言っているのは
+# 「どこかの場」だけだった —— 見張りは、踏んだ場所を言えなければ半分しか
+# 立っていない。規則ごとの踏み台が r15 に場番号を入れてここへ飛ぶので、
+# 枠に落として四バイト小端で吐く（知らせの一行のあとに続く）。
+form[ovz[z]]     <- 180   for (z) in 0 .. 0# mov [枠], r15（場番号）
+form[ovz[z] + 1] <- 165   for (z) in 0 .. 0# mov eax, 1  (sys_write)
+form[ovz[z] + 2] <- 166   for (z) in 0 .. 0# mov edi, 2  (stderr)
+form[ovz[z] + 3] <- 174   for (z) in 0 .. 0# mov rsi, はみ出しの知らせ
+form[ovz[z] + 4] <- 168   for (z) in 0 .. 0# mov rdx, 61
+form[ovz[z] + 5] <- 158   for (z) in 0 .. 0# syscall
+form[ovz[z] + 6] <- 165   for (z) in 0 .. 0# mov eax, 1
+form[ovz[z] + 7] <- 166   for (z) in 0 .. 0# mov edi, 2
+form[ovz[z] + 8] <- 181   for (z) in 0 .. 0# mov rsi, 枠
+form[ovz[z] + 9] <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[ovz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
+form[ovz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
+imm[ovz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
+form[ovz[z] + 12] <- 38   for (z) in 0 .. 0# mov rdi, 6（**宣言した広さを超えた**）
+imm[ovz[z] + 12]  <- 6 + bias[0]   for (z) in 0 .. 0
+form[ovz[z] + 13] <- 25   for (z) in 0 .. 0
+
+# ── 規則ごとの踏み台（二命令）────────────────────────────────────
+# はみ出しの出口は全規則で共有しているので、飛ぶ前に場番号を渡せない。
+# 規則ごとに二命令だけ置き、そこを経由させる。使われるのは落ちるときだけで、
+# 一本の書き込みも重くならない。
+field stbz : max bound 1                    # 踏み台の頭
+stbz[z] <- wb[0] + 56                for (z) in 0 .. 0
+field r2 : max bound 4096                   # 規則 r の踏み台のずれ
+r2[r] <- r * 2                      for (r) in 0 .. nrlz[0]
+field stub : max bound 4096                 # 規則 r の踏み台
+stub[r] <- stbz[0] + r2[r]          for (r) in 0 .. nrlz[0]
+form[stub[r]] <- 162                for (r) in 0 .. nrlz[0]   # mov r15d, 場番号
+imm[stub[r]]  <- rrwf[r] + bias[0]  for (r) in 0 .. nrlz[0]
+form[stub[r] + 1] <- 78             for (r) in 0 .. nrlz[0]   # jmp -> はみ出しの出口
+jt[stub[r] + 1]   <- ovf[0]         for (r) in 0 .. nrlz[0]
 
 
 
@@ -4301,6 +4353,17 @@ omso[j] <- total[0] - 128 + j        for (j) in 0 .. 60
 out[omso[j]] <- omsg[j]              for (j) in 0 .. 60 if omsg[j] >= 1
 field mad2 : max bound 1                    # はみ出しの知らせの番地
 mad2[z] <- total[0] + 4194304 - 128  for (z) in 0 .. 0
+# **踏んだ場所を言うための四バイト。** 知らせの二つの一行の手前に置く。
+field mad3 : max bound 1                    # 場番号を置く枠（4 バイト）
+mad3[z] <- total[0] + 4194304 - 132  for (z) in 0 .. 0
+encb[180,4] <- mad3[0] % 256   for (z) in 0 .. 0
+encb[180,5] <- mad3[0] / 256 % 256   for (z) in 0 .. 0
+encb[180,6] <- mad3[0] / 65536 % 256   for (z) in 0 .. 0
+encb[180,7] <- mad3[0] / 16777216 % 256   for (z) in 0 .. 0
+encb[181,3] <- mad3[0] % 256   for (z) in 0 .. 0
+encb[181,4] <- mad3[0] / 256 % 256   for (z) in 0 .. 0
+encb[181,5] <- mad3[0] / 65536 % 256   for (z) in 0 .. 0
+encb[181,6] <- mad3[0] / 16777216 % 256   for (z) in 0 .. 0
 encb[174,3] <- mad2[0] % 256   for (z) in 0 .. 0
 encb[174,4] <- mad2[0] / 256 % 256   for (z) in 0 .. 0
 encb[174,5] <- mad2[0] / 65536 % 256   for (z) in 0 .. 0
