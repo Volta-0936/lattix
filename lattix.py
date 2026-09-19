@@ -1117,6 +1117,31 @@ def _flatreq(e, sense, otherwise):
     return otherwise
 
 
+def _target_req(prog, f):
+    """書き先の束が **呑み込める** 向き —— 値の式の根に要る向き。
+
+    max / or / count の join は上へ動く値を、min / and の join は下へ動く値を
+    呑み込む（途中の寄与は最後の寄与に負ける）。だから値の読みは、書き先と
+    同じ向きに動く限り、同じ層で読んでよい。
+
+    **呑めない束がある。** flat / fourv は値どうしが比べられない —— 3 のあとに
+    5 が来れば ⊤ である。sum / bag は寄与ごとに値を持つ —— 同じ寄与の値が
+    変われば ⊤ である。set は和なので、途中の値が **要素として残る**。
+    どれも、値が動いてはならない。要るのは座標と同じ「動かないこと」で、
+    flat の読み（⊥ → v で止まる）だけが通る。
+
+    以前はここが `{'DOWN': 'DOWN'}.get(sense, 'UP')` で、flat の書き先に上向きを
+    要求していた。`g[k] <- mx[k]`（g は flat、mx は育つ max）が単調とされ、
+    同じ層に置かれた。評価器は依存の順（SCC）に解くので最後の値を読んで
+    正しい答えを出していた —— **分析ではなく順序が救っていた**。焼いた側は
+    同じ表を回る規則を一つのループに畳むので途中の値を掴み、⊤ を出した
+    （sum の書き先では ⊤ ですらなく、**黙って小さい和**を出した）。"""
+    name = prog.fields[f].name
+    if name in ('flat', 'fourv', 'set', 'sum', 'bag'):
+        return 'COORD'
+    return {'DOWN': 'DOWN'}.get(prog.sense.get(f), 'UP')
+
+
 def classify(e, req, strict, sense, out, detail=None):
     """Mark every field read that sits in a NON-monotone position.
 
@@ -1246,10 +1271,13 @@ def classify(e, req, strict, sense, out, detail=None):
     if k == 'ctor':
         # 構成子の引数は「値」であって「座標」ではない。⊥ が伝播するので、
         # flat 場（一度確定したら動かない）を読む限り単調である。
-        # min/max のように後から改善する場を読めば名前が変わってしまうので、
-        # そこは sense の不一致として自動的に非単調になる。
+        # min/max のように後から改善する場を読めば名前が変わってしまう ——
+        # **名前どうしは比べられない**（3 から作った名前と 5 から作った名前の
+        # 間に順序は無い）。以前は 'UP' を要求していたので、「sense の不一致と
+        # して自動的に非単調になる」のは min だけで、max は素通りしていた。
+        # 名前が変わってはならないのだから、要るのは「動かないこと」である。
         for x in e[2]:
-            classify(x, 'UP', strict, sense, out, detail)
+            classify(x, 'COORD', strict, sense, out, detail)
         return
     raise LattixError(f"classify: {e!r}")
 
@@ -1359,7 +1387,7 @@ def check(prog, conservative=False, optimistic=False):
         else:
             global SIGNS
             SIGNS = _Signs(prog, r)
-            tgt_req = {'DOWN': 'DOWN'}.get(prog.sense.get(r.target), 'UP')
+            tgt_req = _target_req(prog, r.target)
             for e in r.keys:
                 classify(e, 'COORD', True, prog.sense, nm)
             classify(r.value, tgt_req, True, prog.sense, nm)
@@ -3103,7 +3131,7 @@ def explain(prog, out=sys.stdout):
     any_ = False
     for r in prog.rules:
         det = []
-        tgt_req = {'DOWN': 'DOWN'}.get(prog.sense.get(r.target), 'UP')
+        tgt_req = _target_req(prog, r.target)
         nm = set()
         for e in r.keys: classify(e, 'COORD', True, prog.sense, nm, det)
         classify(r.value, tgt_req, True, prog.sense, nm, det)

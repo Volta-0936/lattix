@@ -586,6 +586,30 @@ field t : max bound 64
 t[k[i]] <- a[k[i]] * a[k[i]]   for (i,c) in ch
 """, data=b'Z[\\]^_`abc')
 
+# ── 書き先の側の向き ────────────────────────────────────────────
+# 向きは読む側だけのものではない。max / min の join は途中の値を呑み込むが、
+# flat は呑めない（3 のあとの 5 は ⊤）、sum も呑めない（同じ寄与の値が
+# 変われば ⊤ —— 焼いた側では ⊤ ですらなく **小さい和**になっていた）。
+# 答えの定義（`classify`）も flat の書き先に「上へ」を要求していたので、
+# これは二つの実装に同じ形で空いていた穴である。解釈実行は依存の順に
+# 解くので最後の値を読んで正しかった —— 分析ではなく順序が救っていた。
+case("flat が育つ max を読む", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field mx : max bound 64
+mx[k[i]] <- c   for (i,c) in ch
+field g : flat bound 64
+g[k[i]] <- mx[k[i]]   for (i,c) in ch
+""", data=b'abcdefghijklmnopqrstuvwxyz')
+case("sum が育つ max を足す", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field mx : max bound 64
+mx[k[i]] <- c   for (i,c) in ch
+field sm : sum bound 64
+sm[k[i]] <- mx[k[i]]   for (i,c) in ch
+""", data=b'abcdefghijklmnopqrstuvwxyz')
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9

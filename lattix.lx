@@ -383,6 +383,16 @@ keep[t] <- true for (t,zc) in ch if tailok[t] if isstar[lopt[t]]
       if isnum[lopa[t]] if lead[lopa[t]]
 field sdn : or bound 4096               # 文 s の書き先は下へ動く（min）
 sdn[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
+# **書き先の側にも向きがある。** max / or / count の join は上へ動く値を、
+# min の join は下へ動く値を **呑み込む**（途中の値は最後の値に負ける）。
+# flat は呑めない —— 値どうしが比べられないので、3 のあとの 5 は ⊤ になる。
+# sum も呑めない —— 寄与ごとに値を持つので、同じ寄与の値が変われば ⊤ になる。
+# 呑めない書き先の値は、動く場を読んではならない（動かない flat だけ読める）。
+field sabs : or bound 4096              # 文 s の書き先は動く値を呑める
+sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
+sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 2
+sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 3
+sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 9
 field vneg : or bound 589824            # 引かれる群の中
 vneg[t] <- true for (t,zc) in ch if t >= 1 if ismin[ladw[t-1]]
 field rqdn : or bound 589824            # その位置は下へ動くことを要る
@@ -404,6 +414,8 @@ ifocl[gcl[t]] <- true for (t,zc) in ch if ifop[t]
 field tnm4 : or bound 589824
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
       if not keep[t]
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
+      if not sabs[snum[t]]
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
       if rqdn[t] if not rdn[t]
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
