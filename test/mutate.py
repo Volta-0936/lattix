@@ -203,6 +203,7 @@ if __name__ == '__main__':
     rnd = random.Random(int(sys.argv[2]) if len(sys.argv) > 2 else 20260919)
     signal.signal(signal.SIGALRM, _alarm)
     tmp = tempfile.mkdtemp(); kinds = collections.Counter(); bad = []
+    import atexit, shutil; atexit.register(shutil.rmtree, tmp, True)   # 焼いた物は走り終えたら消す
     print("=" * W)
     print("  **変異で撒く** —— 通る本を一か所だけ壊し、焼いた側が黙って外れないか")
     print("=" * W)
@@ -224,13 +225,21 @@ if __name__ == '__main__':
         rc = r2.returncode
         if not ok:
             if rc == 0: bad.append((name, s, '解釈実行は断るのに、焼いた側は答えた'))
-            elif rc in (5, 6, 7): kinds['両者が断る'] += 1
+            elif rc in (4, 5, 6, 7): kinds['両者が断る'] += 1
             else: bad.append((name, s, '解釈実行は断る / 焼いた側は終了コード %d' % rc))
             continue
         if rc in (6, 7): kinds['焼く側が断る（%d）' % rc] += 1; continue
         if rc == 5:
             if top: kinds['両者 ⊤（焼く側は 5 で言う）'] += 1
             else: bad.append((name, s, '⊤ の無い答えで終了コード 5'))
+            continue
+        if rc == 4:                              # 値が印と重なった —— 答えに印と同じ値があるはず
+            _o, _lat, _off, _t = widths(s)
+            hit = [1 for k, v in ref.items() if (_lat.get(k[0]) in ('min', 'flat') and v == 2147483647)
+                   or (_lat.get(k[0]) == 'max' and v == -2147483647)
+                   or (_lat.get(k[0]) == 'flat' and v == 2147483646)]
+            if hit: kinds['値が印と重なる（焼く側は 4 で言う）'] += 1
+            else: bad.append((name, s, '印の無い答えで終了コード 4'))
             continue
         if rc != 0: bad.append((name, s, '終了コード %d %s' % (rc, r2.stderr[:60]))); continue
         order, lat, off, tot = widths(s)

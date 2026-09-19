@@ -1130,6 +1130,12 @@ field ixpre : or bound 589824           # 出現 j の内側の添字がずれ�
 ixpre[j] <- true for (j,zc) in ch if isocc[j] if ixhf[j+2]
 field ixpof : max bound 589824          # そのずれ（mod 256）
 ixpof[j] <- ixof[j+2] for (j,zc) in ch if isocc[j] if ixhf[j+2]
+# **前置のずれは源2/3 の行のものである。** 内側が鎖（`h[g[k[i]] …]`）か二次元
+# （`g[g[j+1, j] - 1, j]`）なら、内側は自分の所有者を持ち、その添字のずれは内側の行が
+# 持つ。外側の行にも前置の印を付けていたので、後置のずれ（`- 1`）が max に負けて
+# **黙って落ちた**（`test/coords.py` が撒いて出した）。
+field ixpr2 : or bound 589824           # 出現 j の前置のずれは、外側の行（源2/3）が持つ
+ixpr2[j] <- true for (j,zc) in ch if ixpre[j] if not isocc[j+2] if not iscom[d0cm[j]]
 
 field ixsr : max bound 589824           # 添字トークンの源
 ixsr[j] <- 4 for (j,zc) in ch if isnum[j]
@@ -1183,10 +1189,10 @@ field c0cf : max bound 16384
 c0cf[oseq[t]] <- ixcf[t+2] for (t,zc) in ch if isocc[t]
 field c0hf : max bound 16384            # 0 無し / 1 後置 / 2 前置
 c0hf[oseq[t]] <- 1 for (t,zc) in ch if isocc[t] if ixhf[t+2]
-c0hf[oseq[t]] <- 2 for (t,zc) in ch if isocc[t] if ixpre[t+2]
+c0hf[oseq[t]] <- 2 for (t,zc) in ch if isocc[t] if ixpr2[t+2]
 field c0of : max bound 16384
 c0of[oseq[t]] <- ixof[t+2]  for (t,zc) in ch if isocc[t] if ixhf[t+2]
-c0of[oseq[t]] <- ixpof[t+2] for (t,zc) in ch if isocc[t] if ixpre[t+2]
+c0of[oseq[t]] <- ixpof[t+2] for (t,zc) in ch if isocc[t] if ixpr2[t+2]
 field has1 : or bound 16384             # 次元1 があるか
 has1[oseq[t]] <- true for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
 field c1sr : max bound 16384            # 出現 o の次元1
@@ -1202,12 +1208,12 @@ field c1hf : max bound 16384            # 0 無し / 1 後置 / 2 前置
 c1hf[oseq[t]] <- 1 for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
       if ixhf[d1t[t]]
 c1hf[oseq[t]] <- 2 for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
-      if ixpre[d1t[t]]
+      if ixpr2[d1t[t]]
 field c1of : max bound 16384
 c1of[oseq[t]] <- ixof[d1t[t]] for (t,zc) in ch if isocc[t]
       if iscom[d0cm[t]] if ixhf[d1t[t]]
 c1of[oseq[t]] <- ixpof[d1t[t]] for (t,zc) in ch if isocc[t]
-      if iscom[d0cm[t]] if ixpre[d1t[t]]
+      if iscom[d0cm[t]] if ixpr2[d1t[t]]
 
 # ── 所有者の種と番号 ───────────────────────────────────────────────
 field isgrd : or bound 589824           # ガードの辺になる出現

@@ -93,6 +93,7 @@ combos=[(a,b,c,d,e,f,h) for a in LAT0 for b in V0 for c in G0
 random.shuffle(combos); combos=combos[:N]
 
 tmp=tempfile.mkdtemp(); data=b'hello Ldx'
+import atexit, shutil; atexit.register(shutil.rmtree, tmp, True)   # 焼いた物は走り終えたら消す
 ran=refused=rejected=0; bad=[]
 print("="*W)
 print("  **文法から撒いて突き合わせる** —— 解釈実行と焼いた符号を升まで")
@@ -130,6 +131,18 @@ for k,c in enumerate(combos):
               if isinstance(v, L._Top) or (isinstance(v, dict) and any(isinstance(x, L._Top) for x in v.values()))]
         if tops: refused+=1; continue
         bad.append((src,'⊤ の無い答えで終了コード 5')); continue
+    # **終了コード 4 は「値が ⊥ / ⊤ の印と重なった」と言っている。** 断りとして数えて
+    # よいのは、答えの定義の側に印と同じ値があるときだけ（捨てられた値で止まることも
+    # ありうるが、そのときはここで食い違いとして見えるので、見てから決める）。
+    if r2.returncode==4:
+        latn={f:p.fields[f].name for f in ref_raw}
+        hit=[1 for f,d in ref_raw.items() for v in d.values()
+             if isinstance(v,int) and not isinstance(v,bool) and (
+                (latn[f] in ('min','flat') and v==2147483647) or
+                (latn[f]=='max' and v==-2147483647) or
+                (latn[f]=='flat' and v==2147483646))]
+        if hit: refused+=1; continue
+        bad.append((src,'印の無い答えで終了コード 4')); continue
     if r2.returncode==7:
         refused+=1
         if not re.search(rb'reason ([0-9A-F]): (.{16})\n', r2.stderr):

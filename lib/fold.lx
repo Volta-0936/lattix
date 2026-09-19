@@ -428,6 +428,12 @@ ix1e[t] <- ixnm[d1t[t]]   for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if ixhf
 field d1cm : max bound 589824                     # 次元1 の直後の語
 d1cm[t] <- nextw[ix1e[t]] for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d1cm[t]]
+# **前置と後置のずれを一つの行に両方は持てない**（`k[k[i+1] - 1]`）。座標の行はずれを
+# 一つしか持たず、二つが max で混ざって別の升を読んでいた。焼かずに言う（理由 8）。
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t]
+      if ixhf[t+2] if ixpr2[t+2]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d0cm[t]]
+      if ixhf[d1t[t]] if ixpr2[d1t[t]]
 # **数は符号つき 32 ビットの即値に収まる所まで**（理由 C）。焼いた符号は定数を即値で
 # 持つので、`x[0] <- 3000000000` が -1294967296 になっていた（解釈実行は大きい数をそのまま
 # 持つ）。割る数・余りの数は二のべきで、即値ではなく「ずらし」と「覆い」になるので
@@ -438,6 +444,13 @@ badk[z] <- tlin[t] * 16 + 12   for (t,zc) in ch for (z) in 0 .. 0 if isnum[t] if
       if tval[t] > 2147483647 if not pdiv[t] if not pmod[t] if not istb[snum[t]]
 badk[z] <- tlin[t] * 16 + 12   for (t,zc) in ch for (z) in 0 .. 0 if isnum[t] if not tcom[t]
       if tlen[t] >= 11 if not pdiv[t] if not pmod[t] if not istb[snum[t]]
+# **種の値が印と重なるなら焼かない**（理由 D）。種は升に直に置くので、走るときの見張り
+# （終了コード 4）を通らない。min と flat の ⊥ の印 2147483647、flat の ⊤ の印 2147483646。
+# （max の ⊥ は負で、種の値は数なので重ならない。）
+badk[z] <- tlin[hotok[s]] * 16 + 13   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
+      if sdn[s] if sedv[s] == 2147483647
+badk[z] <- tlin[hotok[s]] * 16 + 13   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
+      if flatt[hfz[s]] == 6 if sedv[s] >= 2147483646
 # **焼けない束は宣言の行で言う**（理由 8）。断片の束は六つ（min / max / or /
 # flat / sum / count）。set / and / fourv / bag を宣言の行で断らないと、その場を
 # 読む規則で **別の理由が先に出る** —— fourv の `not` は Belnap の否定で単調なのに、

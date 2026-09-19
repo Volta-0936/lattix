@@ -23,7 +23,7 @@
 
     python3 test/meta.py [本数]
 """
-import collections, io, os, random, re, struct, subprocess, sys, tempfile
+import collections, io, os, random, re, shutil, struct, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, 'work'))
@@ -83,6 +83,7 @@ def cells(src, data):
     d = tempfile.mkdtemp(); exe = os.path.join(d, 'a.out')
     open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
     r2 = subprocess.run([exe], input=data, capture_output=True)
+    shutil.rmtree(d, ignore_errors=True)          # 一本ごとに消す（250 本で 160MB 溜まっていた）
     if r2.returncode != 0:
         return ('断り', 'run %d %s' % (r2.returncode, r2.stderr[:40]))
     order, lat, off, tot = widths(src)

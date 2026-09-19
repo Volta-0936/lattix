@@ -52,10 +52,14 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 # lattix: cannot bake - line 000003 reason 5: divisor not 2^n
 ```
 
-理由は十二（`name too long` / `nesting too deep` / `too many terms` /
+理由は十三（`name too long` / `nesting too deep` / `too many terms` /
 `no such field` / `divisor not 2^n` / `need one table` / `unstratifiable` /
 `unsupported form` / `or takes true` / `field redeclared` /
-`bound too small` / `number too big`）。一覧は [SPEC.md](SPEC.md) にある。
+`bound too small` / `number too big` / `reserved value`）。一覧は [SPEC.md](SPEC.md) にある。
+
+焼けた実行ファイルが **走っている途中で**止まることもある —— そのときも黙らない。
+値が ⊥ / ⊤ の印と重なった（4）、`flat` の ⊤ が数として読まれる（5）、
+宣言した広さを超えた（6）。どれも一行と場の番号を標準エラーに出す。
 
 この一行が標準エラーの **すべて**である（証人は fd 3 なので混ざらない）。
 
@@ -97,7 +101,9 @@ python3 runtime.py examples/01_shortest.lx           # C に落とす。**デー
 python3 attest.py examples/01_shortest.lx            # 答えが最小不動点か検査する
 ./check                                              # 全検証（42 本。50 分ほど）
 python3 test/differ.py                               # 文法から撒いて解釈実行と突き合わせる
-python3 test/accept.py                               # 使う側の試験（61 本）
+python3 test/accept.py                               # 使う側の試験（141 本）
+python3 test/mutate.py 300                           # 通る本を一か所壊して撒く
+python3 test/coords.py 300                           # 座標の入れ子を撒く
 ```
 
 ### 処理系に問う

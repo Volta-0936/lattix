@@ -798,14 +798,126 @@ case("大きい割る数（通る）", """table ch = (0,32)
 field x : max bound 4
 x[i] <- i * 429496730 / 4294967296   for (i) in 0 .. 2
 """)
-# ══ 既知の穴: 値が ⊥ の印と重なる ══════════════════════════════════════
+# ══ 値が ⊥ / ⊤ の印と重なる（言う）══════════════════════════════════════
 # 焼いた符号は「無い」を値で見分ける —— min と flat の ⊥ は 2147483647、max は -2147483647、
 # flat の ⊤ は 2147483646。その値そのものを答えに持つ升は ⊥（や ⊤）に見える。
 # 「INT_MAX を無限大に使う」書き方でそのまま踏む。解釈実行は数として持つ。
-case("min に 2147483647（既知の穴）", """table ch = (0,32)
+# 規則の値は join の手前で見張り（終了コード 4）、種は焼く前に断る（理由 D）。
+case("min に 2147483647（言う）", """table ch = (0,32)
 field x : min bound 4
 x[i] <- 2147483647   for (i) in 0 .. 2
-""", known=True)
+""", exit=4)
+case("足して印に届く（言う）", """table ch = (0,32)
+field y : max bound 4
+field x : min bound 4
+y[0] <- 2147483646
+x[i] <- y[0] + 1   for (i) in 0 .. 2
+""", exit=4)
+case("flat に 2147483646（言う）", """table ch = (0,32)
+field g : flat bound 4
+g[i] <- 2147483646   for (i) in 0 .. 1
+""", exit=4)
+case("max に -2147483647（言う）", """table ch = (0,32)
+field y : max bound 4
+y[i] <- 0 - 2147483647   for (i) in 0 .. 1
+""", exit=4)
+case("min ← max の写し（言う）", """table ch = (0,32)
+field y : max bound 4
+field x : min bound 4
+y[0] <- 2147483647
+x[i] <- y[0]   for (i) in 0 .. 0
+""", exit=4)
+case("flat ← min の写し（言う）", """table ch = (0,32)
+field y : min bound 4
+field g : flat bound 4
+y[0] <- 2147483646
+g[i] <- y[0]   for (i) in 0 .. 0
+""", exit=4)
+case("min の種が印（言う）", """table ch = (0,32)
+field x : min bound 4
+x[0] <- 2147483647
+""", data=b"ab", exit=7, why=(3,13))
+case("flat の種が ⊤ の印（言う）", """table ch = (0,32)
+field g : flat bound 4
+g[0] <- 2147483646
+""", data=b"ab", exit=7, why=(3,13))
+case("flat の写しは ⊤ を運ぶ", """table ch = (0,32)
+field g : flat bound 4
+g[0] <- 1   for (i,c) in ch if c == 97
+g[0] <- 2   for (i,c) in ch if c == 98
+field y : flat bound 4
+y[0] <- g[0]   for (i) in 0 .. 0
+""", data=b"ab")
+case("印の隣は通る", """table ch = (0,32)
+field x : min bound 4
+field y : max bound 4
+x[i] <- 2147483646   for (i) in 0 .. 1
+y[i] <- 0 - 2147483646   for (i) in 0 .. 1
+y[2] <- 2147483647
+""")
+
+# ══ 座標の入れ子（test/coords.py が撒いて出した）══════════════════════════
+# 内側の二次元の読みの次元1 は、畳む前にその次元の広さで濾す（前は次の行の升を読んだ）。
+case("内側の次元1 を濾す", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[j] <- h[g[i, j]]   for (i) in 1 .. 1 for (j) in 0 .. 6
+""")
+case("内側の次元1 のずれ", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[i] <- k[g[i+2, i+1]]   for (i) in 0 .. 4
+""")
+case("内側が二次元なら後置は外のもの", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[i] <- g[g[j+1, j] - 1, j] + 1   for (i) in 0 .. 4 for (j) in 0 .. 2
+""")
+case("内側の次元1 に読み（言う）", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[i] <- h[g[i, k[i]]]   for (i) in 0 .. 2
+""", exit=7, why=(9,8))
+case("内側の次元1 に定数の読み（言う）", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[i] <- h[g[i, k[0]]]   for (i) in 2 .. 2
+""", exit=7, why=(9,8))
+case("前置と後置のずれ（言う）", """table ch = (0,32)
+field k : max bound 8
+field h : max bound 8
+field g : max bound 4 4
+field x : max bound 16
+k[i] <- i + 1   for (i) in 0 .. 3
+h[i] <- 7 - i   for (i) in 0 .. 6
+g[i,j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+x[i] <- k[k[i+1] - 1]   for (i) in 0 .. 4
+""", exit=7, why=(9,8))
 
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
@@ -903,6 +1015,7 @@ def widths(src):
 
 BOT={'min':2147483647,'max':-2147483647,'or':0,'flat':2147483647,'sum':0,'count':0}
 tmp=tempfile.mkdtemp()
+import atexit, shutil; atexit.register(shutil.rmtree, tmp, True)   # 焼いた物は走り終えたら消す
 print("="*W); print("  **使う側の試験** —— ./lattix で焼いて走らせ、解釈実行と升まで比べる"); print("="*W)
 print(f"  {'例':<26}{'焼き':>6}{'升':>6}   一致"); print("-"*W)
 bad=[]
