@@ -122,6 +122,14 @@ for k,c in enumerate(combos):
     # 名指しで言うのは断りであって、食い違いではない。
     if r2.returncode==6:
         refused+=1; continue
+    # **終了コード 5 は「⊤ に達した」と言っている**（焼いた符号は ⊤ の規律を持たない
+    # ので、⊤ を作る所で止まる）。断りとして数えてよいのは、答えの定義の側も ⊤ を
+    # 含むときだけである —— ⊤ の無い答えで 5 が出たら、それは嘘の断りである。
+    if r2.returncode==5:
+        tops=[1 for d in ref_raw.values() for v in d.values()
+              if isinstance(v, L._Top) or (isinstance(v, dict) and any(isinstance(x, L._Top) for x in v.values()))]
+        if tops: refused+=1; continue
+        bad.append((src,'⊤ の無い答えで終了コード 5')); continue
     if r2.returncode==7:
         refused+=1
         if not re.search(rb'reason (\d): (.{16})\n', r2.stderr):

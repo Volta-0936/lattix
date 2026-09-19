@@ -2141,6 +2141,9 @@ encb[178,2] <- 19
 encb[178,7] <- 1
 encb[179,0] <- 136                   # 88 83 d32            mov [rbx+d32],al
 encb[179,1] <- 131
+encb[186,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, ⊤ の知らせ
+encb[186,1] <- 199
+encb[186,2] <- 198
 encb[174,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, はみ出しの知らせ
 encb[174,1] <- 199
 encb[174,2] <- 198
@@ -2319,6 +2322,7 @@ shp[166] <- 20480
 shp[167] <- 28672                    # 長さ7・穴なし
 shp[168] <- 28672                     # 長さ1・穴0・imm8（生のバイト）
 shp[174] <- 28672                    # 長さ7・穴なし（はみ出しの知らせの番地）
+shp[186] <- 28672                    # 長さ7・穴なし（⊤ の知らせの番地）
 shp[175] <- 37188                    # 長さ9・穴5・imm32（SIB は 4）
 shp[176] <- 37188
 shp[177] <- 32964                    # 長さ8・穴3・imm32（SIB は 2）
@@ -2423,7 +2427,7 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 185
+nfm[0] <- 186
 field shln : max bound 208           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
 field shho : max bound 208           # 穴の位置
@@ -3040,7 +3044,7 @@ field nins : max bound 1
 nins[z] <- 8                          for (z) in 0 .. 0
 field nrl2 : max bound 1                      # 踏み台のぶん（規則 × 2）
 nrl2[z] <- nrl[0] * 2   for (z) in 0 .. 0
-nins[0] <- ebase[0] + pklen[0] + 56 + nrl2[0]   for (z) in 0 .. 0
+nins[0] <- ebase[0] + pklen[0] + 70 + nrl2[0]   for (z) in 0 .. 0
 field ninz : max bound 1                      # nins の一つ手前（区間の上端に書ける形）
 ninz[0] <- nins[0] - 1   for (z) in 0 .. 0
 
@@ -3610,7 +3614,35 @@ form[jb[r] + 2] <- fs1[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 imm[jb[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 scb[jb[r] + 2]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 
-# flat: ⊥→入れる / 同じ→何もしない / ⊤→何もしない / 違う→⊤
+# flat: ⊥→入れる / 同じ→何もしない / ⊤→何もしない / 違う→⊤ —— ただし、その ⊤ が
+# **数として誤読される場なら、⊤ に達したと言って止まる**（終了コード 5・場の番号つき）。
+# 焼いた符号は ⊤ の規律を持たない（SPEC: ⊤ は「少なくとも真」で比較に立ち、座標には
+# なれず、算術は ⊤ 厳密）。⊤ の印 0x7ffffffe を比較・算術・座標・区間の上端・描画で
+# 読むと **ただの数**として読み、⊤ でない升まで黙って違う答えになった（`if g[0] < 5` で
+# 解釈実行は立ち、焼いた側は立たない）。
+# **誤読されない読みもある**: 素のガード（印は 0 でないので `if` は立ち `if not` は
+# 立たない —— 答えの定義と同じ）と、flat の場への素の写し（`cv[j] <- cv[i]`。印を
+# そのまま写せば ⊤ が ⊤ として伝わる —— 定数伝播はこれで回る）。写し先がまた誤読
+# されるなら、写し元も誤読される（鎖で閉じる）。成層が正しいので、ここに来るのは
+# 答えが本当に ⊤ を含むときだけである（途中の値は来ない）。
+field tmany : or bound 4096                 # 規則 r の値に項が二つ以上ある
+tmany[tmr[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmi[gt] >= 1
+field tcopy : or bound 4096                 # 項 gt は flat の場への素の写し
+tcopy[gt] <- true        for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if not tmany[tmr[gt]]
+      if rrlt[tmr[gt]] == 6
+field tdang : or bound 1024                 # 場 f の ⊤ は、どこかで数として誤読される
+tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if not tcopy[gt]
+tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
+tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tcopy[gt] if tdang[rrwf[tmr[gt]]]
+tdang[gdf[gg]] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] >= 3 if gdk[gg] <= 4
+      if gdok[gg] == 0
+tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+tdang[lpbf[gl]] <- true  for (gl) in 0 .. nglz[0] if lpk[gl] == 2
+tdang[outf[z]] <- true   for (z) in 0 .. 0 if outw[z] == 1   # 定数で引いた書き座標は焼けない
+field frdr : or bound 4096                  # 規則 r の書き先の ⊤ は誤読される
+frdr[r] <- true        for (r) in 0 .. nrlz[0] if tdang[rrwf[r]]
 form[jb[r]] <- 65      for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
@@ -3621,10 +3653,14 @@ jt[jb[r] + 2]   <- jb[r] + 8  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 3] <- 67  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 4] <- 13  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 jt[jb[r] + 4]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-form[jb[r] + 5] <- 66  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-imm[jb[r] + 5]  <- ftop[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-form[jb[r] + 6] <- 13  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-jt[jb[r] + 6]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+form[jb[r] + 5] <- 66  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not frdr[r]
+imm[jb[r] + 5]  <- ftop[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not frdr[r]
+form[jb[r] + 6] <- 13  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not frdr[r]
+jt[jb[r] + 6]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not frdr[r]
+form[jb[r] + 5] <- 162 for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]   # mov r15d, 場番号
+imm[jb[r] + 5]  <- rrwf[r] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]
+form[jb[r] + 6] <- 78  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]    # jmp -> ⊤ の出口
+jt[jb[r] + 6]   <- tpx[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]
 form[jb[r] + 7] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 7]  <- ftop[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 8] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
@@ -3997,12 +4033,34 @@ form[ovz[z] + 12] <- 38   for (z) in 0 .. 0# mov rdi, 6（**宣言した広さ�
 imm[ovz[z] + 12]  <- 6 + bias[0]   for (z) in 0 .. 0
 form[ovz[z] + 13] <- 25   for (z) in 0 .. 0
 
+# ── ⊤ に達したときの出口（十四命令。はみ出しの出口と同じ形、終了コード 5）──
+field tpx : max bound 1                     # ⊤ の出口
+tpx[0] <- wb[0] + 56   for (z) in 0 .. 0
+field tpz : max bound 1                     # tpx を計数器で引ける形に
+tpz[z] <- tpx[0]                     for (z) in 0 .. 0
+form[tpz[z]]      <- 180   for (z) in 0 .. 0# mov [枠], r15（場番号）
+form[tpz[z] + 1]  <- 165   for (z) in 0 .. 0# mov eax, 1  (sys_write)
+form[tpz[z] + 2]  <- 166   for (z) in 0 .. 0# mov edi, 2  (stderr)
+form[tpz[z] + 3]  <- 186   for (z) in 0 .. 0# mov rsi, ⊤ の知らせ
+form[tpz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
+form[tpz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
+form[tpz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
+form[tpz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
+form[tpz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
+form[tpz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[tpz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
+form[tpz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
+imm[tpz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
+form[tpz[z] + 12] <- 38   for (z) in 0 .. 0# mov rdi, 5（**⊤ に達した**）
+imm[tpz[z] + 12]  <- 5 + bias[0]   for (z) in 0 .. 0
+form[tpz[z] + 13] <- 25   for (z) in 0 .. 0
+
 # ── 規則ごとの踏み台（二命令）────────────────────────────────────
 # はみ出しの出口は全規則で共有しているので、飛ぶ前に場番号を渡せない。
 # 規則ごとに二命令だけ置き、そこを経由させる。使われるのは落ちるときだけで、
 # 一本の書き込みも重くならない。
 field stbz : max bound 1                    # 踏み台の頭
-stbz[z] <- wb[0] + 56                for (z) in 0 .. 0
+stbz[z] <- wb[0] + 70                for (z) in 0 .. 0
 field r2 : max bound 4096                   # 規則 r の踏み台のずれ
 r2[r] <- r * 2                      for (r) in 0 .. nrlz[0]
 field stub : max bound 4096                 # 規則 r の踏み台
@@ -4653,6 +4711,78 @@ encb[181,3] <- mad3[0] % 256   for (z) in 0 .. 0
 encb[181,4] <- mad3[0] / 256 % 256   for (z) in 0 .. 0
 encb[181,5] <- mad3[0] / 65536 % 256   for (z) in 0 .. 0
 encb[181,6] <- mad3[0] / 16777216 % 256   for (z) in 0 .. 0
+# **⊤ の知らせ**（終了コード 5）。場番号は同じ枠に落として四バイトで続ける。
+field tmsg : max bound 64
+tmsg[0] <- 108
+tmsg[1] <- 97
+tmsg[2] <- 116
+tmsg[3] <- 116
+tmsg[4] <- 105
+tmsg[5] <- 120
+tmsg[6] <- 58
+tmsg[7] <- 32
+tmsg[8] <- 116
+tmsg[9] <- 111
+tmsg[10] <- 112
+tmsg[11] <- 32
+tmsg[12] <- 114
+tmsg[13] <- 101
+tmsg[14] <- 97
+tmsg[15] <- 99
+tmsg[16] <- 104
+tmsg[17] <- 101
+tmsg[18] <- 100
+tmsg[19] <- 32
+tmsg[20] <- 45
+tmsg[21] <- 32
+tmsg[22] <- 97
+tmsg[23] <- 32
+tmsg[24] <- 102
+tmsg[25] <- 108
+tmsg[26] <- 97
+tmsg[27] <- 116
+tmsg[28] <- 32
+tmsg[29] <- 102
+tmsg[30] <- 105
+tmsg[31] <- 101
+tmsg[32] <- 108
+tmsg[33] <- 100
+tmsg[34] <- 32
+tmsg[35] <- 106
+tmsg[36] <- 111
+tmsg[37] <- 105
+tmsg[38] <- 110
+tmsg[39] <- 101
+tmsg[40] <- 100
+tmsg[41] <- 32
+tmsg[42] <- 116
+tmsg[43] <- 119
+tmsg[44] <- 111
+tmsg[45] <- 32
+tmsg[46] <- 118
+tmsg[47] <- 97
+tmsg[48] <- 108
+tmsg[49] <- 117
+tmsg[50] <- 101
+tmsg[51] <- 115
+tmsg[52] <- 32
+tmsg[53] <- 32
+tmsg[54] <- 32
+tmsg[55] <- 32
+tmsg[56] <- 32
+tmsg[57] <- 32
+tmsg[58] <- 32
+tmsg[59] <- 32
+tmsg[60] <- 10
+field tmso : max bound 64
+tmso[j] <- total[0] - 196 + j        for (j) in 0 .. 60
+out[tmso[j]] <- tmsg[j]              for (j) in 0 .. 60 if tmsg[j] >= 1
+field mad4 : max bound 1                    # ⊤ の知らせの番地
+mad4[z] <- total[0] + 4194304 - 196  for (z) in 0 .. 0
+encb[186,3] <- mad4[0] % 256   for (z) in 0 .. 0
+encb[186,4] <- mad4[0] / 256 % 256   for (z) in 0 .. 0
+encb[186,5] <- mad4[0] / 65536 % 256   for (z) in 0 .. 0
+encb[186,6] <- mad4[0] / 16777216 % 256   for (z) in 0 .. 0
 encb[174,3] <- mad2[0] % 256   for (z) in 0 .. 0
 encb[174,4] <- mad2[0] / 256 % 256   for (z) in 0 .. 0
 encb[174,5] <- mad2[0] / 65536 % 256   for (z) in 0 .. 0

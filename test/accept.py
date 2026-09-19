@@ -635,6 +635,25 @@ liar[i] <- true   for (i,c) in ch
 liar[i] <- not liar[i]   for (i,c) in ch
 """, data=b"ab", exit=7, why=(2,8))
 
+# **⊤ に達したら言う**（終了コード 5）。SPEC は「⊤ は少なくとも真」（比較は ⊤ で立つ）、
+# 「⊤ は座標になれない」、算術は ⊤ 厳密と言う。焼いた符号はこの規律を持たず、⊤ の印
+# 0x7ffffffe を **ただの数**として読んでいた —— `if g[0] < 5` で解釈実行は立ち、焼いた
+# 側は立たなかった。規律を焼けるまでは、⊤ を作る所で止まって言う。
+case("⊤ に達した（言う）", """table ch = (0,32)
+field g : flat bound 4
+g[0] <- 1   for (i,c) in ch if c == 97
+g[0] <- 2   for (i,c) in ch if c == 98
+field x : max bound 4
+x[0] <- 1   for (i) in 0 .. 0 if g[0] < 5
+""", data=b"ab", exit=5)
+case("同じ値なら ⊤ にならない", """table ch = (0,32)
+field g : flat bound 4
+g[0] <- 1   for (i,c) in ch if c == 97
+g[0] <- 1   for (i,c) in ch if c == 98
+field x : max bound 4
+x[0] <- 1   for (i) in 0 .. 0 if g[0] < 5
+""", data=b"ab")
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
