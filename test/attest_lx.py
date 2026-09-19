@@ -5,7 +5,7 @@
 attest は二枚の .lx でできている:
 
     attest/front.lx    源のバイト → 規則の表（焼き手の前段 + 表を語にして描く尻尾）
-    attest/attest.lx   [表][答え][階数][プログラムの入力] → 判定を描く
+    attest/attest.lx   [表][証人（値の面 + 階数の面。fd 3）][出した答え（stdout）][プログラムの入力] → 判定
 
 判定は四つ。ATTESTED（答えは源の最小不動点）、REJECTED（最小不動点でない / 示せない /
 源に答えが無い —— 見出しが言い分ける）、UNSUPPORTED（attest が持たない形。理由を言う）、
@@ -22,6 +22,9 @@ import os, sys, struct, subprocess, tempfile, random, collections, shutil, atexi
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'attest')); sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, 'test'))
 import ir as A
+import re
+import attest as ATT        # 源を lattix.py の構文で読み直す検査器（前段を共有しない）
+import lattix as LX
 W = 78
 NTRIAL = int(sys.argv[1]) if len(sys.argv) > 1 else 2
 NPROG = int(sys.argv[2]) if len(sys.argv) > 2 else 60
@@ -53,7 +56,7 @@ for lx, exe in [('front.lx', FRONT), ('attest.lx', EV)]:
 
 
 def make(src, data):
-    """源を焼いて走らせ、証人（fd 3）を取る。表は attest-front で作る。"""
+    """源を焼いて走らせ、証人（fd 3 = 値の面 + 階数の面）と出した答え（stdout）を取る。表は attest-front で作る。"""
     p = os.path.join(tmp, 's.lx'); open(p, 'w', encoding='utf-8').write(src)
     prog, tab, wit = os.path.join(tmp, 'prog'), os.path.join(tmp, 'tab'), os.path.join(tmp, 'w.bin')
     for f in (prog, tab, wit):
@@ -121,10 +124,44 @@ def corrupt(tab, vals0, ranks0):
     return None
 
 
-def check(label, tab, vals, ranks, data):
+def src_verdict(src, tab, vals, ranks, data):
+    """attest.py（源を lattix.py の構文で読み直す）の判定。**前段を共有しない** —— 表を作った前段が
+    源を読み違えていれば、表の上の判定（ir と .lx）と食い違う。"""
+    try:
+        T = A.Tables(tab); lay, S, K = A.decode(T, vals, ranks)
+        names = re.findall(r'(?m)^field (\w+)', src)
+        store, rank = {}, {}
+        for f, Lf in enumerate(lay):
+            key = (lambda c: (c,)) if Lf['ar'] != 2 else (lambda c, w=Lf['w1']: (c // w, c % w))
+            d = {}
+            for c, v in S[f].items():
+                if Lf['lat'] == 'or': v = True
+                elif Lf['lat'] == 'flat' and v == A.TOPV: v = LX.TOP
+                d[key(c)] = v
+            store[names[f]] = d
+            rank[names[f]] = {key(c): r for c, r in K[f].items()}
+        rows = A.rows_of(T, data)
+        lit = ", ".join("(" + ",".join(str(x) for x in r) + ")" for r in rows) if rows else "(0,32)"
+        src2 = re.sub(r'(?m)^table (\w+) = .*$', lambda m: 'table %s = %s' % (m.group(1), lit), src, count=1)
+        return 'attested' if ATT.attest(src2, store, rank).ok else 'rejected'
+    except Exception as e:
+        return 'py-error'
+
+
+src_tally = collections.Counter(); src_bad = []
+
+
+def check(label, tab, vals, ranks, data, out=None, src=None):
+    """out は出した答え（既定は値の面そのもの —— 場の面をそのまま出す本の stdout）"""
     try: v1 = A.check(tab, vals, ranks, data)['verdict']
     except Exception as e: v1 = 'ir-error'
-    v2, info = verdict(tab + vals + ranks + data)
+    if src is not None:
+        v0 = src_verdict(src, tab, vals, ranks, data)
+        src_tally[(v0, v1)] += 1
+        # 表の上で ATTESTED なら源の上でも、源の上で ATTESTED なら表の上でも（UNSUPPORTED は除く）
+        if (v1 == 'attested') != (v0 == 'attested') and v1 != 'unsupported':
+            src_bad.append((label, v0, v1, src[:200]))
+    v2, info = verdict(tab + vals + ranks + (vals if out is None else out) + data)
     tally[(label, v1, v2)] += 1
     if v2 == 'unsupported' and isinstance(info, str):
         for line in info.splitlines()[2:]:
@@ -134,16 +171,22 @@ def check(label, tab, vals, ranks, data):
     return v1, v2
 
 
+def planes(tab, wit):
+    lay, vt, kt = A.Tables(tab).layout()
+    return wit[:vt], wit[vt:vt + kt]
+
+
 def run(label, src, data, ntrial):
     got = make(src, data)
     if got is None: return False
-    tab, vals0, ranks0 = got
-    check(label + ':元', tab, vals0, ranks0, data)
+    tab, out, wit = got
+    vals0, ranks0 = planes(tab, wit)
+    check(label + ':元', tab, vals0, ranks0, data, out, src=src)   # 元は、本が実際に出した stdout で
     for _ in range(ntrial):
         c = corrupt(tab, vals0, ranks0)
         if c is None: continue
         kind, vals, ranks = c
-        check(label + ':' + kind, tab, vals, ranks, data)
+        check(label + ':' + kind, tab, vals, ranks, data, src=src)
     return True
 
 
@@ -157,7 +200,7 @@ for name, src, data, rows, xexit, known, why in _ns['CASES']:
     inp = data if rows is None else b''.join(struct.pack('<' + 'q' * len(t), *t) for t in rows)
     n_acc += run('accept', src, inp, NTRIAL)
 
-# ── ⊤ の偽物（2026-09-19 に見つけた穴）──────────────────────────────────────
+# ── 偽物（2026-09-19 に見つけた穴。.lx と ir と attest.py の三つとも通らないこと）──────────
 FORGE = [
     ("恒等で ⊤ を偽る（最小不動点は 1）", """table ch = (0,32)
 field f : flat bound 4
@@ -171,20 +214,30 @@ x[z] <- 0   for (z) in 0 .. 0
 x[z] <- w[z]   for (z) in 0 .. 0
 w[z] <- 7   for (z) in 0 .. 0 if x[z]
 """, {'x': (0, A.TOPV, 1), 'w': (0, 7, 2)}),
+    # attest.py は規則の無い場を一度も調べていなかった（前段を共有しない二つを突き合わせて見つけた）
+    ("規則の無い場に値を書く（最小不動点は a も v も ⊥）", """table ch = (0,32)
+field a : max bound 16
+field b : max bound 16
+b[i] <- 3 + i   for (i) in 0 .. 3
+field v : max bound 16
+v[i] <- a[i] + b[i]   for (i) in 0 .. 3
+""", {'a': (2, 5, 1), 'v': (2, 10, 3)}),
 ]
 print("-" * W)
 for label, src, forge in FORGE:
     got = make(src, b'')
-    tab, vals, ranks = got
+    tab, _out, wit = got
+    vals, ranks = planes(tab, wit)
     lay, _, _ = A.Tables(tab).layout()
     names = [l.split(':')[0].split()[1] for l in src.splitlines() if l.startswith('field ')]
     vals, ranks = bytearray(vals), bytearray(ranks)
     for f, (c, v, rk) in forge.items():
         Lf = lay[names.index(f)]
         struct.pack_into('<q', vals, Lf['vo'] + 8 * c, v); struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, rk)
-    v1, v2 = check('偽の ⊤', tab, bytes(vals), bytes(ranks), b'')
-    good = v2 != 'attested' and v1 != 'attested'
-    if not good: bad.append(('偽の ⊤', v1, v2, label))
+    v1, v2 = check('偽物', tab, bytes(vals), bytes(ranks), b'')
+    v0 = src_verdict(src, tab, bytes(vals), bytes(ranks), b'')
+    good = v2 != 'attested' and v1 != 'attested' and v0 != 'attested'
+    if not good: bad.append(('偽物', v1, v2, label + ' attest.py=' + v0))
     print(f"  {label:<58}{'通らない ✓' if good else '通った ✗'}")
 
 # ── 撒いた本（test/progs.py の組み方）────────────────────────────────────
@@ -196,6 +249,33 @@ for _ in range(NPROG):
     seen.add(s)
     n_prog += run('progs', s, b'ab1 cd23', NTRIAL)
 
+# ── 描く本（render）と、出した答えを一バイト変えたもの ───────────────────────────
+# 証人に値の面が入ったので、答えを fd 1 に描く本も確かめられる。出した答えは証人の値から
+# 描き直して比べる —— 使う人が見るのは stdout である
+n_rnd = 0; out_ok = True; out_seen = 0
+for name, src, data, rows, xexit, known, why in _ns['CASES']:
+    if xexit is not None or known or 'render ' not in src: continue
+    inp = data if rows is None else b''.join(struct.pack('<' + 'q' * len(t), *t) for t in rows)
+    got = make(src, inp)
+    if got is None: continue
+    tab, out, wit = got
+    vals, ranks = planes(tab, wit)
+    v1, v2 = check('render:元', tab, vals, ranks, inp, out)
+    n_rnd += 1
+    if out:
+        bad_out = bytearray(out); bad_out[len(out) // 2] ^= 1
+        v, info = verdict(tab + vals + ranks + bytes(bad_out) + inp)
+        out_seen += 1
+        if v2 == 'attested' and not (v == 'rejected' and 'the output is not the answer' in info):
+            out_ok = False; bad.append(('render:出した答えを変えた', v2, v, info))
+# 場の面をそのまま出す本でも、出した答えだけを変えれば言う
+got = make(FORGE[0][1], b'')
+tab, out, wit = got
+vals, ranks = planes(tab, wit)
+bad_out = bytearray(out); bad_out[0] ^= 1
+v, info4 = verdict(tab + vals + ranks + bytes(bad_out))
+dump_ok = v == 'rejected' and 'the output is not the answer' in info4 and 'at byte          0' in info4
+
 # ── 入力でないもの・焼けない源 ─────────────────────────────────────────────
 v, info = verdict(b'hello, this is not a table')
 junk_ok = v == 'other' and info.startswith('attest: NOT AN ATTEST INPUT')
@@ -206,7 +286,7 @@ unbk_ok = v == 'other' and info2.startswith('attest: THE SOURCE CANNOT BE BAKED 
 
 # 面が欠けた入力: 欠けた升は「値の無い在る升」に見え、値を比べる検査が黙って飛ぶ —— 入力でないと言う
 got = make(FORGE[0][1], b'')
-v, info3 = verdict(got[0] + got[1][:len(got[1]) // 2])
+v, info3 = verdict(got[0] + got[2][:len(got[2]) // 2])
 short_ok = v == 'other' and info3.startswith('attest: NOT AN ATTEST INPUT (the answer and the ranks are shorter')
 
 print("-" * W)
@@ -225,8 +305,13 @@ if why_uns:
 print(f"  {'attest の入力でないもの':<52}{'言う ✓' if junk_ok else '✗'}")
 print(f"  {'焼けない源（行 3、理由 4）':<52}{'言う ✓' if unbk_ok else '✗ ' + info2[:40]}")
 print(f"  {'答えと階数の面が欠けた入力':<52}{'言う ✓' if short_ok else '✗ ' + info3[:40]}")
+print(f"  {'描く本 ' + str(n_rnd) + ' 本、出した答えを変えた ' + str(out_seen) + ' 本':<52}{'言う ✓' if out_ok else '✗'}")
+print(f"  {'場の面を出す本の、出した答えだけを変えた':<52}{'言う ✓' if dump_ok else '✗ ' + info4[:60]}")
+print("  源で読み直す検査器（attest.py）と表の上の参照（ir）:", dict(sorted(src_tally.items())))
+print(f"  {'前段を共有しない検査器と、表の上の判定の食い違い':<52}{len(src_bad)}")
+for b in src_bad[:4]: print("  食い違い:", b[0], b[1], b[2], b[3].replace('\n', ' | ')[:120])
 for b in bad[:8]: print("  破れ:", b[0], b[1], b[2], str(b[3])[:160].replace('\n', ' | '))
-ok = not bad and junk_ok and unbk_ok and short_ok
+ok = not bad and not src_bad and junk_ok and unbk_ok and short_ok and out_ok and dump_ok
 print("-" * W)
 if ok:
     print("  **破れ無し** —— attest.lx は、参照が ATTESTED と言わない証明書に一度も ATTESTED と")

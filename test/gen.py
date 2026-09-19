@@ -139,7 +139,11 @@ def gen(flds, seeds, rules, edges, tmp, tag, guards=(), terms=(), coords=(),
 
     ncell = sum(w1 * (w2 if a == 2 else 1) for _f, _l, a, w1, w2 in flds)
     # **升の幅は束が言う**（31_gen の `fwb`）—— `or` は一升 1 バイト。
-    K = struct.unpack(f'<{ncell}i', _wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
+    nbytes = sum(w1 * (w2 if a == 2 else 1) * (1 if l == 3 else 8) for _f, l, a, w1, w2 in flds)
+    # 証人は fd 3 から: [値の面][階数の面]（階数は 4 バイト升）。値の面は答え（stdout）と同じバイト
+    if _wit[:nbytes] != r.stdout[:nbytes]:
+        return len(blob), None, None, "witness values differ from the answer"
+    K = struct.unpack(f'<{ncell}i', _wit[nbytes:nbytes + 4*ncell])
     store, rank = {}, {}
     off = 0
     bo = 0

@@ -301,7 +301,11 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
         # 等号ではなく S[c] ⊑ acc である。等号にすると、途中で止めた答え
         # （まだ緩和しきっていない距離）まで棄却してしまう。
         # 完全性 (A) と合わせれば結局 S[c] = acc になる。
-        for f in here:
+        # **規則の無い場も見る。** 前は規則が書く場（here）だけを見ていた —— 規則も種も無い場に
+        # 値を書いた証明書は、その升が一度も調べられずに通った（`a` に規則が無いのに a[2] = 5、
+        # それを読む v[2] = 10 と書くと ATTESTED。最小不動点では a も v も ⊥。2026-09-19 に
+        # 前段を共有しない二つの検査器を突き合わせて見つけた）。寄与の無い升の値は支えが無い。
+        for f in prog.fields:
             lat = sh[f]
             for key, claimed in S[f].items():
                 if lat.name in ACCUM:

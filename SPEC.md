@@ -356,15 +356,18 @@ end
 `attest/front.lx` と `attest/attest.lx` をそのまま置いてある）。焼き手と同じ `lattix` で二枚を焼く:
 
 ```bash
-./lattix attest/front.lx attest-front       # 源 → 規則の表（焼き手の前段 + 表を語にして描く尻尾）
-./lattix attest/attest.lx attest            # [表][答え][階数][入力] → 判定
-./sssp edges.bin > answer.bin 3> ranks.bin  # 答え（場の面）と証人（階数）
+./lattix attest/front.lx attest-front         # 源 → 規則の表（焼き手の前段 + 表を語にして描く尻尾）
+./lattix attest/attest.lx attest              # [表][証人][出した答え][入力] → 判定
+./sssp edges.bin > answer.bin 3> witness.bin  # 出した答え（stdout）と証人（fd 3: 値の面 + 階数の面）
 ./attest-front examples/01_shortest.lx sssp.tab
-cat sssp.tab answer.bin ranks.bin edges.bin | ./attest
+cat sssp.tab witness.bin answer.bin edges.bin | ./attest
 ```
 
-入力は一続きのバイト列 `[表][値の面][階数の面][プログラムの入力]` で、表の頭が場の数と形を
-言うので、面の長さも入力の始まりも表から決まる。attest は答えを計算し直さない —— 規則の実例を
+入力は一続きのバイト列 `[表][値の面][階数の面][出した答え][プログラムの入力]` で、表の頭が
+場の数と形を言うので、面の長さも出した答えの長さ（場の面をそのまま出す本は値の面と同じ、
+`render` の本は描く場の ⊥ でない升の数）も入力の始まりも決まる。**出した答えも確かめる** ——
+使う人が見るのは stdout である。場の面を出す本は値の面と一バイトずつ、`render` の本は描く場の
+升を座標順に描き直して比べる。attest は答えを計算し直さない —— 規則の実例を
 一度なめて (A)(B) を見る。焼いた符号は一行も見ない。判定の見出しは **言えることだけを言う**:
 
 | 見出し | 意味 |
@@ -373,6 +376,7 @@ cat sssp.tab answer.bin ranks.bin edges.bin | ./attest
 | `REJECTED -- the answer is NOT the least fixed point` | (A) が破れた —— 答えは前不動点でさえない |
 | `REJECTED -- not proven: a value is not grounded` | (B) が破れた —— 余計な値か、違う階数（最終の答えだけでは分からない） |
 | `REJECTED -- a rule writes outside its field's bound` | (A)(B) は通ったが、火を噴く実例が広さの外へ書く —— 源に答えが無い |
+| `REJECTED -- the output is not the answer that was checked` | 証人は通ったが、出した答えが証人の値と違う（何バイト目かを言う） |
 | `UNSUPPORTED` | attest が持たない形。理由を一行ずつ言う |
 | `NOT AN ATTEST INPUT` | 表の頭が無い、または答えと階数の面が表の言う長さより短い（欠けた升を読めないまま判定しない） |
 | `THE SOURCE CANNOT BE BAKED` | 前段が源を断った（行と理由。答えの面は無くてよい） |
@@ -387,8 +391,8 @@ flat の印 2147483646 / 2147483647 に決して当たらない。溢れる掛�
 広い、閉路でしか支えられない flat の ⊤、⊤ の前の値が要る値（attest.lx は影を持たない）。
 
 **前段は焼き手と同じものを使う。** 前段の読み違いは attest の外にある（前段は読めた語を数え、
-読めない語があれば表の頭に断りが載る）。`render` の本は、答えが fd 1 に描かれて場の面が
-出ないので、まだ確かめられない。記憶は約 2 GB 使う（実例 131,072 まで）。
+読めない語があれば表の頭に断りが載る）。記憶は約 2 GB 使う（実例 131,072 まで）。attest の入力は
+焼いた実行ファイルの置き場（983,040 バイト）まで —— 越えれば終了コード 6。
 測る: `python3 test/attest_lx.py`（表の意味の参照実装 `attest/ir.py` と判定を突き合わせる）。
 
 ### 支持は撤回の前線でもある
@@ -721,7 +725,7 @@ lattix: cannot bake - line 000003 reason 5: divisor not 2^n
 |---|---|---|
 | 読む | 標準入力 | `argv[1]` を開いて読む（開けなければ・読めなければ **終了コード 8**。置き場より大きい入力は **6**、語の列が行の途中で切れていれば **8** —— 黙って切らない・埋めない） |
 | 書く | 標準出力 | `argv[2]` を **0755 で作って**書く（開けなければ **9**） |
-| 証人（階数） | **出さない** | **fd 3** が開いていればそこへ書く（`3>witness.bin`） |
+| 証人（値の面と階数の面） | **出さない** | **fd 3** が開いていればそこへ書く（`3>witness.bin`）。**値の面（升ごと 8 バイト、or は 1 バイト）に続けて階数の面（升ごと 4 バイト）** —— 答えを描く本でも、証人だけで答えの値が揃う（前は階数の面だけで、render の本の答えは確かめられなかった） |
 | 知らせ | 標準エラー | 止まった理由の一行だけ（終了コード 2・3・4・5・6・7・10 のとき。2・3・4・5・6・10 は場の番号を四バイトの小端で続ける） |
 
 `lattix` 自身も焼けた実行ファイルなので同じで、`./lattix f.lx foo` と

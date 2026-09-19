@@ -2930,11 +2930,14 @@ form[wbz[z] + 26] <- 130   for (z) in 0 .. 0# test rdx,rdx
 form[wbz[z] + 27] <- 116   for (z) in 0 .. 0# jg -> 書きの頭
 jt[wbz[z] + 27]  <- wb[0] + 19   for (z) in 0 .. 0
 
-# 階数は **別の口**（stderr）。答えと混ざらない。ここも回す
+# 証人は **別の口**（fd 3）。答えと混ざらない。ここも回す。
+# **証人は値の面と階数の面を続けて出す**（二つは置き場で隣り合っている: kbase = fbase + ftot）。
+# 前は階数の面だけだった —— 答えを描く本（render）は答えが fd 1 に描かれて場の面が出ないので、
+# 答えを確かめる手が無かった。証人だけで [値][階数] が揃い、描いた答えはその値から確かめられる。
 form[wbz[z] + 28] <- 36   for (z) in 0 .. 0
-imm[wbz[z] + 28]  <- kbase[0] + bias[0]   for (z) in 0 .. 0
+imm[wbz[z] + 28]  <- fbase[0] + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 29] <- 37   for (z) in 0 .. 0
-imm[wbz[z] + 29]  <- ktot[0] + bias[0]   for (z) in 0 .. 0
+imm[wbz[z] + 29]  <- ftot2[0] + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 30] <- 24   for (z) in 0 .. 0
 imm[wbz[z] + 30]  <- 1 + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 31] <- 38   for (z) in 0 .. 0# mov rdi, 3   （証人は fd 3。開いていなければ EBADF）

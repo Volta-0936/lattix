@@ -352,7 +352,9 @@ def _readback(flds, rules, blob, exe, data, trow):
     # 86万升で 500MB 使って落ちた（答えではなく、答えの受け取り方が重かった）。
     assert len(r.stdout) >= nbytes, (
         f"場が足りない: {len(r.stdout)} < {nbytes}（終了コード {r.returncode}）")
-    K = array.array('i'); K.frombytes(_wit[:4*ncell])   # 証人は fd 3 から（階数は 4 バイト升）
+    # 証人は fd 3 から: [値の面][階数の面]（階数は 4 バイト升）。値の面は答え（stdout）と同じバイト
+    assert _wit[:nbytes] == r.stdout[:nbytes], "証人の値の面が答えと違う"
+    K = array.array('i'); K.frombytes(_wit[nbytes:nbytes + 4*ncell])
     store, rank, off, bo = {}, {}, 0, 0
     for f, l, a, w, w2 in flds:
         cells = w * (w2 if a == 2 else 1)

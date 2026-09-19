@@ -521,7 +521,7 @@ okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0
 field okbk : or bound 1                         # 源は焼ける（前段が断っていない）
 okbk[0] <- true   for (z) in 0 .. 0 if badk[0] < 0
 """.replace("NIV", str(NI)))
-# 描く数: 0 実例 / 1 升 / 2 (A) / 3 (B) / 4 外 / 5 最初の場 / 6 最初の升 / 7 閉路の ⊤ / 8 断りの行 / 9 断りの理由 / 10 入力のバイト数
+# 描く数: 0 実例 / 1 升 / 2 (A) / 3 (B) / 4 外 / 5 最初の場 / 6 最初の升 / 7 閉路の ⊤ / 8 断りの行 / 9 断りの理由 / 10 入力のバイト数 / 11 出した答えの違うバイト
 r("""field pn : max bound 16                         # 描く数
 pn[0] <- 0
 pn[z] <- ninx[0]   for (z) in 0 .. 0
@@ -544,6 +544,8 @@ pn[z] <- badk[0] / 16   for (z) in 8 .. 8 if badk[0] >= 0
 pn[z] <- badk[0] % 16   for (z) in 9 .. 9 if badk[0] >= 0
 pn[10] <- 0
 pn[z] <- nin[0]   for (z) in 10 .. 10 if nin[0] >= 0         # プログラムの入力のバイト数（何を確かめたかを言う）
+pn[11] <- 0
+pn[z] <- ofb[0]   for (z) in 11 .. 11 if obad[0]              # 出した答えの最初に違うバイト
 field pq : max bound 16 11                      # 十で i 回割った商
 pq[k, 0] <- pn[k]   for (k) in 0 .. 15
 pq[k, i] <- pq[k, i-1] * 429496730 / 4294967296   for (k) in 0 .. 15 for (i) in 1 .. 10
@@ -553,7 +555,7 @@ field pc : max bound 16 11                      # i 桁目の文字（上の桁�
 pc[k, i] <- pd[k, i] + 48   for (k) in 0 .. 15 for (i) in 0 .. 9 if pq[k, i] >= 1
 pc[k, i] <- 48   for (k) in 0 .. 15 for (i) in 0 .. 0 if pq[k, i] == 0
 pc[k, i] <- 32   for (k) in 0 .. 15 for (i) in 1 .. 9 if pq[k, i] == 0
-field out : max bound 1000
+field out : max bound 1100
 """)
 # 描く行の種類ごとに一つの印（dw）を立て、文字ごとの規則はその印だけを見る —— 文字ごとに条件を
 # 全部書くと、焼き手のガードの面（8,192 行）を越える（2026-09-19 に越えた）
@@ -577,8 +579,9 @@ def num(line, col, n, cond):
 def nl(line, cond):
     k = flag(cond)
     r(f"out[z] <- 10   for (z) in {100 * line + 99} .. {100 * line + 99} if dw[{k}]")
-ATT = " if okin[0] if okbk[0] if not anyun[0] if not bad1[0]"
+ATT = " if okin[0] if okbk[0] if not anyun[0] if not bad1[0] if not obad[0]"
 REJ = " if okin[0] if okbk[0] if not anyun[0] if bad1[0]"
+REJX = " if okin[0] if okbk[0] if not anyun[0] if not bad1[0] if obad[0]"   # 証人は正しいが、出した答えが違う
 # 見出しは **言えることだけを言う**。(A) の破れは「最小不動点でない」（答えは前不動点でさえない）。
 # (B) の破れは「示せない」（余計な値か、違う階数か —— 最終の答えだけでは分からない）。広さの外へ
 # 書く実例は、(A) も (B) も通ったとき（答えが最小不動点まで来ている）にだけ「源に答えが無い」と言う
@@ -594,6 +597,7 @@ text(0, 0, "attest: ATTESTED -- the answer is the least fixed point of the sourc
 text(0, 0, "attest: REJECTED -- the answer is NOT the least fixed point", REJA)
 text(0, 0, "attest: REJECTED -- a rule writes outside its field's bound: the source has no answer", REJO)
 text(0, 0, "attest: REJECTED -- not proven: a value is not grounded (an extra fact, or a wrong rank)", REJB)
+text(0, 0, "attest: REJECTED -- the output is not the answer that was checked", REJX)
 text(0, 0, "attest: UNSUPPORTED -- attest cannot check this answer", UNS)
 text(0, 0, "attest: NOT AN ATTEST INPUT (no table header)", NOTIN)
 text(0, 0, "attest: NOT AN ATTEST INPUT (the answer and the ranks are shorter than the table says)", SHORT)
@@ -634,6 +638,10 @@ nl(9, UNS + " if un1[5]")
 MISS = REJA + " if not rjb[0] if not rjo[0]"
 text(9, 0, "  every value is grounded, so facts are missing: the answer is below it", MISS)
 nl(9, MISS)
+OBAD = OK2 + " if obad[0]"
+text(10, 0, "  the output differs from the answer in the witness at byte ", OBAD)
+num(10, 61, 11, OBAD)
+nl(10, OBAD)
 r("render out")
 src = open(OUT, encoding='utf-8').read() + "\n".join(R) + "\n"
 open(OUT, 'w', encoding='utf-8').write(src)

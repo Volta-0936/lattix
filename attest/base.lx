@@ -1,6 +1,7 @@
 # ══ attest-eval 一段目 —— 入力のバイトを読み分ける ══════════════════════════════
 #
-# 入力は一続きのバイト列:  [表（attest-front の語の列）] [値の面] [階数の面] [プログラムの入力]
+# 入力は一続きのバイト列:  [表（attest-front の語の列）] [値の面] [階数の面] [出した答え] [プログラムの入力]
+# 値の面と階数の面は、焼いた本が fd 3 に続けて出す証人そのもの。出した答えは stdout。
 # 表の頭が場の数と形を言うので、面の長さも入力の始まりも表から導ける。
 
 table ch = (0,32)
@@ -132,8 +133,22 @@ field vB : max bound 1
 vB[z] <- nwz[z] * 8 + 8   for (z) in 0 .. 0
 field kB : max bound 1
 kB[z] <- vB[z] + vtot[z]   for (z) in 0 .. 0
-field iB : max bound 1
-iB[z] <- kB[z] + ncl[z] * 4   for (z) in 0 .. 0
+# 出した答え（stdout）: 場の面をそのまま出す本は値の面と同じ長さ、render の本は描く場の
+# ⊥ でない升の数（一升一バイト）。**出した答えも確かめる** —— 使う人が見るのは stdout である
+field ouw : max bound 1                    # 描く幅（8 は場の面をそのまま、1 は render）
+ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260919
+field ouf : max bound 1                    # 描く場（render のとき）
+ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260919 if hd[11] == 1
+field oB : max bound 1                     # 出した答えの始まり
+oB[z] <- kB[z] + ncl[z] * 4   for (z) in 0 .. 0
+field nrd : count bound 1                  # 描かれる升の数
+nrd[0] <- 1   for (g) in 0 .. nclz[0] if ouw[0] == 1 if gf[g] == ouf[0] if sp[g]
+field olen : max bound 1                   # 出した答えの長さ
+olen[z] <- vtot[z]   for (z) in 0 .. 0 if ouw[z] == 8
+olen[z] <- 0   for (z) in 0 .. 0 if ouw[z] == 1
+olen[z] <- nrd[z]   for (z) in 0 .. 0 if ouw[z] == 1
+field iB : max bound 1                     # プログラムの入力の始まり
+iB[z] <- oB[z] + olen[z]   for (z) in 0 .. 0
 
 # ── 升 g（通し番号）の場・値・階数 ─────────────────────────────────
 field gmk : max bound 262144               # 場 f の最初の升に印
@@ -200,6 +215,37 @@ field svx : max bound 262144               # max の升の値
 svx[g] <- sv[g] / 4   for (g) in 0 .. nclz[0] if glt[g] == 2 if not sbig[g]
 field sk : max bound 262144                # 升 g の階数
 sk[g] <- h32[gkp[g]]   for (g) in 0 .. nclz[0]
+
+# ── 出した答えは、確かめた答えか ──────────────────────────────────────
+# 場の面をそのまま出す本: 一バイトずつ値の面と同じか。render の本: 描く場の ⊥ でない升を
+# 座標順に一バイトずつ（値は 0..255。外なら焼いた側は終了コード 2 で止まり、⊤ なら 5 で止まる
+# —— 出した答えがあること自体が食い違い）。
+field obad : or bound 1                    # 出した答えが、確かめた答えと違う
+field ofb : min bound 1                    # 最初に違うバイト（出した答えの中の位置）
+field vtz : max bound 1
+vtz[z] <- vtot[z] - 1   for (z) in 0 .. 0
+field opp : max bound 983040               # 出した答えの i バイト目の位置
+opp[i] <- oB[0] + i   for (i) in 0 .. vtz[0] if ouw[0] == 8
+field vpp : max bound 983040               # 値の面の i バイト目の位置
+vpp[i] <- vB[0] + i   for (i) in 0 .. vtz[0] if ouw[0] == 8
+obad[0] <- true   for (i) in 0 .. vtz[0] if ouw[0] == 8 if by[opp[i]] != by[vpp[i]]
+ofb[0] <- i   for (i) in 0 .. vtz[0] if ouw[0] == 8 if by[opp[i]] != by[vpp[i]]
+field drw : or bound 262144                # 升 g は描かれる
+drw[g] <- true   for (g) in 0 .. nclz[0] if ouw[0] == 1 if gf[g] == ouf[0] if sp[g]
+field rpc : max bound 262144               # 升 g より前に描かれる升の数
+rpc[0] <- 0
+rpc[g] <- rpc[g-1] + 1   for (g) in 1 .. nclz[0] if drw[g-1]
+rpc[g] <- rpc[g-1]   for (g) in 1 .. nclz[0] if not drw[g-1]
+field rpp : max bound 262144               # 升 g のバイトの位置
+rpp[g] <- oB[0] + rpc[g]   for (g) in 0 .. nclz[0] if drw[g]
+obad[0] <- true   for (g) in 0 .. nclz[0] if drw[g] if stop[g]
+obad[0] <- true   for (g) in 0 .. nclz[0] if drw[g] if ghi[g] != 0
+obad[0] <- true   for (g) in 0 .. nclz[0] if drw[g] if glo[g] > 255
+obad[0] <- true   for (g) in 0 .. nclz[0] if drw[g] if by[rpp[g]] != glo[g]
+ofb[0] <- rpc[g]   for (g) in 0 .. nclz[0] if drw[g] if stop[g]
+ofb[0] <- rpc[g]   for (g) in 0 .. nclz[0] if drw[g] if ghi[g] != 0
+ofb[0] <- rpc[g]   for (g) in 0 .. nclz[0] if drw[g] if glo[g] > 255
+ofb[0] <- rpc[g]   for (g) in 0 .. nclz[0] if drw[g] if by[rpp[g]] != glo[g]
 
 # ── プログラムの入力 ───────────────────────────────────────────────
 field nin : max bound 1                    # 入力のバイトの数

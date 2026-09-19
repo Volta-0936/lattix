@@ -35,7 +35,7 @@ dist[j] <- dist[i] + w   for (i,j,w) in edges
 開けなかったときは黙って落ちない —— **源が開けなければ終了コード 8、
 出す先が開けなければ 9**。
 
-**階数（証人）は fd 3 に出る。** 既定では **何も出ない** —— 285 バイトの源でも
+**証人（値の面と階数の面）は fd 3 に出る。** 既定では **何も出ない** —— 285 バイトの源でも
 521MB あるものを、頼まれてもいないのに端末へ流さない。要るときだけ開ける:
 
 ```bash
@@ -99,15 +99,17 @@ C も Python も一度も通らない。
 二枚を焼けば、答えが源の最小不動点かどうかを **Lattix だけで**確かめられる:
 
 ```bash
-./lattix attest/front.lx attest-front       # 源 → 規則の表
-./lattix attest/attest.lx attest            # [表][答え][階数][入力] → 判定
-./sssp edges.bin > answer.bin 3> ranks.bin  # 答えと、証人（階数）
+./lattix attest/front.lx attest-front         # 源 → 規則の表
+./lattix attest/attest.lx attest              # [表][証人][出した答え][入力] → 判定
+./sssp edges.bin > answer.bin 3> witness.bin  # 出した答えと、証人（値の面 + 階数の面）
 ./attest-front examples/01_shortest.lx sssp.tab
-cat sssp.tab answer.bin ranks.bin edges.bin | ./attest
+cat sssp.tab witness.bin answer.bin edges.bin | ./attest
 # attest: ATTESTED -- the answer is the least fixed point of the source
 ```
 
-答えを一か所でも変えれば `REJECTED` と、どの場のどの升かを言う。attest は答えを計算し
+答えを一か所でも変えれば `REJECTED` と、どの場のどの升かを言う。**出した答え（stdout）も
+確かめる** —— 証人の値と一バイトでも違えば、何バイト目かを言う。答えを描く本（`render`）も
+同じ手順で確かめられる（描いた文字を、確かめた値から描き直して比べる）。attest は答えを計算し
 直さない（規則の実例を一度なめるだけ）し、焼いた符号も見ない。持たない形は `UNSUPPORTED` と
 理由を言う —— **検査していないものを ATTESTED とは言わない**。見出しの意味と限界は
 [SPEC.md §9](SPEC.md) にある。
