@@ -658,8 +658,14 @@ sedc[s] <- tval[hotok[s] + 2] * fwid2[hfz[s]] + tval[hotok[s] + 4]
 field sedvt : max bound 4096            # 種の値のトークン
 sedvt[s] <- nextw[arrowt[s] + 1] for (s) in 0 .. nstz[0] if isseed[s]
 field sedv : max bound 4096             # 種の値（`true` は 1）
-sedv[s] <- tval[sedvt[s]] for (s) in 0 .. nstz[0] if isseed[s]
-sedv[s] <- 1 for (s) in 0 .. nstz[0] if isseed[s] if kwtru[sedvt[s]]
+# **count の種は 1 である**（寄与が一つある、というだけ —— 値は数えない）。種は升に
+# 値を直に置くので、`d[0] <- 0`（d は count）が 0、つまり ⊥ を置いていた。解釈実行は
+# 1 と言う（`test/mutate.py` が束を count に替えて出した）。
+field scnt : or bound 4096              # 文 s の書き先は count
+scnt[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 9
+sedv[s] <- tval[sedvt[s]] for (s) in 0 .. nstz[0] if isseed[s] if not scnt[s]
+sedv[s] <- 1 for (s) in 0 .. nstz[0] if isseed[s] if kwtru[sedvt[s]] if not scnt[s]
+sedv[s] <- 1 for (s) in 0 .. nstz[0] if isseed[s] if scnt[s]
 
 # ── 変数はどの列か。**束縛点の座標がそのまま答えである** ────────────
 # `for (i,j,w) in edge` の i,j,w は組の 0/1/2 番目。使う側はその綴りを持つ

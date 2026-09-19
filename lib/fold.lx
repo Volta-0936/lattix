@@ -396,10 +396,11 @@ sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if tval[hotok[s] + 2] >=
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if h2d[s]
       if tval[hotok[s] + 4] >= fwid2[hfz[s]]
 badk[z] <- tlin[hotok[s]] * 16 + 11   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sdbad[s]
-field sdnum : or bound 4096                       # 種 s の座標は数
+field sdnum : or bound 4096                       # 種 s の座標は数（一つだけ。`d[0+1]` は式）
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if not h2d[s]
+      if isclo[hotok[s] + 3]
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if h2d[s]
-      if isnum[hotok[s] + 4]
+      if iscom[hotok[s] + 3] if isnum[hotok[s] + 4] if isclo[hotok[s] + 5]
 badk[z] <- tlin[hotok[s]] * 16 + 8   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
       if hasr[s] if not sdnum[s]
 # **種の値は数か `true` 一つ**（理由 8）。種は矢印の次の語だけを置く（`sedvt`）ので、
@@ -427,6 +428,16 @@ ix1e[t] <- ixnm[d1t[t]]   for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if ixhf
 field d1cm : max bound 589824                     # 次元1 の直後の語
 d1cm[t] <- nextw[ix1e[t]] for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d1cm[t]]
+# **数は符号つき 32 ビットの即値に収まる所まで**（理由 C）。焼いた符号は定数を即値で
+# 持つので、`x[0] <- 3000000000` が -1294967296 になっていた（解釈実行は大きい数をそのまま
+# 持つ）。割る数・余りの数は二のべきで、即値ではなく「ずらし」と「覆い」になるので
+# 大きくてよい（`/ 4294967296`）。表の行は走るときに 8 バイトで読むので関わらない。
+# （閾は `> 2147483647` と書く —— `>= 2147483648` と書いたら、その 2147483648 自身が即値に
+# 収まらず -2147483648 に化け、焼き手はすべての数を「大きすぎる」と言った。穴が自分を踏んだ。）
+badk[z] <- tlin[t] * 16 + 12   for (t,zc) in ch for (z) in 0 .. 0 if isnum[t] if not tcom[t]
+      if tval[t] > 2147483647 if not pdiv[t] if not pmod[t] if not istb[snum[t]]
+badk[z] <- tlin[t] * 16 + 12   for (t,zc) in ch for (z) in 0 .. 0 if isnum[t] if not tcom[t]
+      if tlen[t] >= 11 if not pdiv[t] if not pmod[t] if not istb[snum[t]]
 # **焼けない束は宣言の行で言う**（理由 8）。断片の束は六つ（min / max / or /
 # flat / sum / count）。set / and / fourv / bag を宣言の行で断らないと、その場を
 # 読む規則で **別の理由が先に出る** —— fourv の `not` は Belnap の否定で単調なのに、

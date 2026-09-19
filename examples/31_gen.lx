@@ -2885,6 +2885,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）
 #       9 or の値は true か or の読み / A 同じ名前を二度宣言した / B 種の座標が宣言の広さの外
+#       C 数が符号つき 32 ビットに収まらない（割る数・余りの数は除く）
 #
 # **十進の桁は割り算なしで出す。** 二のべきでしか割れないので、
 # 逆数を掛けて 2^32 で寄せる（`v * 429496730 / 2^32` が `v / 10`）——
@@ -3253,6 +3254,23 @@ rtx[9,12] <- 101
 rtx[9,13] <- 32
 rtx[9,14] <- 32
 rtx[9,15] <- 32
+# 12 (C): number too big
+rtx[12,0] <- 110
+rtx[12,1] <- 117
+rtx[12,2] <- 109
+rtx[12,3] <- 98
+rtx[12,4] <- 101
+rtx[12,5] <- 114
+rtx[12,6] <- 32
+rtx[12,7] <- 116
+rtx[12,8] <- 111
+rtx[12,9] <- 111
+rtx[12,10] <- 32
+rtx[12,11] <- 98
+rtx[12,12] <- 105
+rtx[12,13] <- 103
+rtx[12,14] <- 32
+rtx[12,15] <- 32
 # 11 (B): bound too small
 rtx[11,0] <- 98
 rtx[11,1] <- 111
@@ -3304,6 +3322,7 @@ out[msgo[j]] <- rtx[8,j-44]          for (j) in 44 .. 59 if brz[0] == 8 if bad[0
 out[msgo[j]] <- rtx[9,j-44]          for (j) in 44 .. 59 if brz[0] == 9 if bad[0]
 out[msgo[j]] <- rtx[10,j-44]         for (j) in 44 .. 59 if brz[0] == 10 if bad[0]
 out[msgo[j]] <- rtx[11,j-44]         for (j) in 44 .. 59 if brz[0] == 11 if bad[0]
+out[msgo[j]] <- rtx[12,j-44]         for (j) in 44 .. 59 if brz[0] == 12 if bad[0]
 out[mbz[z] + 27] <- dgt[k] + 48      for (k) in 5 .. 5 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 28] <- dgt[k] + 48      for (k) in 4 .. 4 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 29] <- dgt[k] + 48      for (k) in 3 .. 3 for (z) in 0 .. 0 if bad[0]

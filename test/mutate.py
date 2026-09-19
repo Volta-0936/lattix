@@ -6,7 +6,8 @@
 ここでは `accept.py` の **通る本**を種にして、一か所だけ壊す（行を二度・行を消す・
 読みの名を替える・束を替える・`not` を足す・数を替える・規則を入れ替える・値に
 場を足す・行を動かす・演算子や比較を替える・宣言の名だけ替える・括弧を一つ
-消す・広さを縮める）。壊れた本は、答えの定義（lattix.py）が答えるか断るかの
+消す・広さを縮める・添字をずらす・区間を替える・ガードを足す・`true` と数を入れ替える・
+項を入れ替える・二か所壊す）。壊れた本は、答えの定義（lattix.py）が答えるか断るかの
 どちらかである。焼いた側に許されるのは:
 
     答える  → 解釈実行と升まで一致する
@@ -36,7 +37,8 @@ W = 78
 _src = open(os.path.join(ROOT, 'test', 'accept.py'), encoding='utf-8').read()
 _ns = {'__name__': 'mutate', '__file__': os.path.join(ROOT, 'test', 'accept.py')}
 exec(compile(_src[:_src.index("tmp=tempfile.mkdtemp()")], 'accept', 'exec'), _ns)
-SEEDS = [c for c in _ns['CASES'] if c[4] is None and 'render ' not in c[1]]
+# 既知の穴の組は種にしない（壊すと同じ穴を踏む —— 測られているものを数え直さない）
+SEEDS = [c for c in _ns['CASES'] if c[4] is None and not c[5] and 'render ' not in c[1]]
 widths, BOT = _ns['widths'], _ns['BOT']
 
 
@@ -68,7 +70,7 @@ LATS = ['min', 'max', 'or', 'flat', 'sum', 'count']
 
 
 def mutate(s, rnd):
-    lines = s.split('\n'); k = rnd.randrange(14)
+    lines = s.split('\n'); k = rnd.randrange(20)
     fl = re.findall(r'(?m)^field (\w+)', s)
     idx = [i for i, l in enumerate(lines) if l.strip()]
     if not idx: return None
@@ -135,6 +137,38 @@ def mutate(s, rnd):
         if not m: return None
         j = rnd.choice(m)
         lines[j] = re.sub(r'bound (\d+)', lambda mm: 'bound %d' % max(1, int(mm.group(1)) // 4), lines[j], count=1)
+    elif k == 14:                                                        # 添字をずらす
+        m = list(re.finditer(r'\[(\w+)\]', lines[i]))
+        if not m: return None
+        mm = rnd.choice(m); d = rnd.choice(['+1', '-1', '+2', '-3'])
+        lines[i] = lines[i][:mm.start()] + '[%s%s]' % (mm.group(1), d) + lines[i][mm.end():]
+    elif k == 15:                                                        # 区間を替える
+        m = list(re.finditer(r'in (\d+) \.\. (\d+)', lines[i]))
+        if not m: return None
+        mm = rnd.choice(m)
+        lo, hi = rnd.choice([(0, 0), (3, 1), (0, 200), (1, 1), (0, 63), (2, 5)])
+        lines[i] = lines[i][:mm.start()] + 'in %d .. %d' % (lo, hi) + lines[i][mm.end():]
+    elif k == 16:                                                        # ガードを足す
+        r = [j for j, l in enumerate(lines) if '<-' in l and ' for ' in l]
+        if not r or not fl: return None
+        j = rnd.choice(r); f = rnd.choice(fl)
+        v = re.search(r'for \((\w+)', lines[j])
+        if not v: return None
+        g = rnd.choice(['if %s[%s]', 'if not %s[%s]', 'if %s[%s] >= 1', 'if %s[%s] == 0', 'if %s[%s] < 3'])
+        lines[j] = lines[j] + '   ' + g % (f, v.group(1))
+    elif k == 17:                                                        # true と数を入れ替える
+        if 'true' in lines[i]: lines[i] = lines[i].replace('true', rnd.choice(['1', '0', '2']), 1)
+        else:
+            m = list(re.finditer(r'<- (\d+)', lines[i]))
+            if not m: return None
+            mm = m[0]; lines[i] = lines[i][:mm.start()] + '<- true' + lines[i][mm.end():]
+    elif k == 18:                                                        # 項を入れ替える
+        m = re.search(r'<- (\S+) ([+\-*]) (\S+)(\s)', lines[i])
+        if not m: return None
+        lines[i] = lines[i][:m.start()] + '<- %s %s %s%s' % (m.group(3), m.group(2), m.group(1), m.group(4)) + lines[i][m.end():]
+    elif k == 19:                                                        # 二か所壊す
+        a = mutate(s, rnd)
+        return mutate(a, rnd) if a else None
     else: return None
     return '\n'.join(lines)
 

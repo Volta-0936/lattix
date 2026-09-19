@@ -52,10 +52,10 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 # lattix: cannot bake - line 000003 reason 5: divisor not 2^n
 ```
 
-理由は十一（`name too long` / `nesting too deep` / `too many terms` /
+理由は十二（`name too long` / `nesting too deep` / `too many terms` /
 `no such field` / `divisor not 2^n` / `need one table` / `unstratifiable` /
 `unsupported form` / `or takes true` / `field redeclared` /
-`bound too small`）。一覧は [SPEC.md](SPEC.md) にある。
+`bound too small` / `number too big`）。一覧は [SPEC.md](SPEC.md) にある。
 
 この一行が標準エラーの **すべて**である（証人は fd 3 なので混ざらない）。
 

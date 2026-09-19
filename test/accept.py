@@ -780,6 +780,33 @@ field w : max bound 8
 w[i, j, k] <- i + j + k   for (i) in 0 .. 1 for (j) in 0 .. 1 for (k) in 0 .. 1
 """, data=b"ab", exit=7, why=(3,8))
 
+case("count の種は 1", """table ch = (0,32)
+field d : count bound 16
+d[0] <- 0
+d[2] <- 5
+d[i] <- 1   for (i,c) in ch
+""", data=b"abc")
+case("種の座標が式（言う）", """table ch = (0,32)
+field d : min bound 16
+d[0+1] <- 0
+""", data=b"ab", exit=7, why=(3,8))
+case("大きい数（言う）", """table ch = (0,32)
+field x : max bound 4
+x[i] <- i + 3000000000   for (i) in 0 .. 2
+""", data=b"ab", exit=7, why=(3,12))
+case("大きい割る数（通る）", """table ch = (0,32)
+field x : max bound 4
+x[i] <- i * 429496730 / 4294967296   for (i) in 0 .. 2
+""")
+# ══ 既知の穴: 値が ⊥ の印と重なる ══════════════════════════════════════
+# 焼いた符号は「無い」を値で見分ける —— min と flat の ⊥ は 2147483647、max は -2147483647、
+# flat の ⊤ は 2147483646。その値そのものを答えに持つ升は ⊥（や ⊤）に見える。
+# 「INT_MAX を無限大に使う」書き方でそのまま踏む。解釈実行は数として持つ。
+case("min に 2147483647（既知の穴）", """table ch = (0,32)
+field x : min bound 4
+x[i] <- 2147483647   for (i) in 0 .. 2
+""", known=True)
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
