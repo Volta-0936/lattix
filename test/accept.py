@@ -654,6 +654,89 @@ field x : max bound 4
 x[0] <- 1   for (i) in 0 .. 0 if g[0] < 5
 """, data=b"ab")
 
+# ══ 変異で撒いて出た穴（`test/mutate.py`）══════════════════════════
+# 通る本を一行ずつ壊して焼くと、焼いた側が **落ちる**か **黙って違う答え**を出す
+# 形が十一出た。どれも解釈実行は答えるか断るかのどちらかで、焼いた側だけが外れた。
+case("同じ名前を二度宣言（言う）", """table ch = (0,32)
+field a : max bound 4
+a[0] <- 5
+field a : min bound 4
+a[0] <- 3
+""", data=b"ab", exit=7, why=(4,10))
+case("規則の無い場を先に宣言", """table ch = (0,32)
+field a : max bound 16
+field b : max bound 16
+b[i] <- 3 + i   for (i) in 0 .. 3
+field v : max bound 16
+v[i] <- a[i] + b[i]   for (i) in 0 .. 3
+field w : max bound 16
+w[i] <- b[i]   for (i) in 0 .. 3
+""")
+case("規則が一本も無い", """table ch = (0,32)
+field t : max bound 16
+t[0] <- 1
+""")
+case("場が一つも無い", """table ch = (0,32)
+""")
+case("print に宣言の無い名（言う）", """table ch = (0,32)
+print x
+""", data=b"ab", exit=7, why=(2,4))
+case("比較の節の not（言う）", """table ch = (0,32)
+field a : max bound 16
+a[i] <- c   for (i,c) in ch
+field big : or bound 16
+big[i] <- true   for (i,c) in ch if not a[i] > 97
+""", data=b"ab", exit=7, why=(5,8))
+case("集約に二重のループ（言う）", """table ch = (0,32)
+field a : count bound 4
+a[0] <- 1   for (i,c) in ch for (k) in 0 .. 2
+""", data=b"ab", exit=7, why=(3,8))
+case("true は 1（max）", """table ch = (0,32)
+field x : max bound 4
+x[i] <- true   for (i) in 0 .. 2
+field y : max bound 4
+y[i] <- true + 1   for (i) in 0 .. 2
+""")
+case("or に true と読みを足す（言う）", """table ch = (0,32)
+field e : or bound 4
+e[i] <- true   for (i) in 0 .. 2
+field n : or bound 4
+n[i] <- true + e[i]   for (i) in 0 .. 2
+""", data=b"ab", exit=7, why=(5,9))
+case("頭の無い矢印（言う）", """table ch = (0,32)
+field r : max bound 16
+ri] <- i   for (i) in 0 .. 9
+""", data=b"ab", exit=7, why=(3,8))
+case("閉じない括弧（言う）", """table ch = (0,32)
+field h : max bound 16
+h[i <- i   for (i) in 0 .. 9
+field r : max bound 16
+r[i] <- 1   for (i) in 0 .. 3
+""", data=b"ab", exit=7, why=(3,8))
+case("一次元と二次元を混ぜる（言う）", """table ch = (0,32)
+field q : max bound 8 2
+q[i] <- 0   for (i) in 0 .. 3
+q[i,k] <- i + k   for (i) in 0 .. 3 for (k) in 0 .. 1
+""", data=b"ab", exit=7, why=(3,8))
+case("否定 × 広さの外（立つ）", """table ch = (0,32)
+field isw : or bound 256
+isw[i] <- true   for (i,c) in ch if c >= 97
+field brk : or bound 256
+brk[i] <- true   for (i,c) in ch if i >= 0 if isw[i] if not isw[i-1]
+""", data=b"the quick brown fox")
+case("内側の添字が広さの外（⊥）", """table ch = (0,32)
+field g : max bound 4
+g[k] <- 1   for (k) in 0 .. 3
+field f : max bound 64
+f[k] <- 7   for (k) in 0 .. 63
+field x : max bound 64
+x[i] <- f[g[i]]   for (i,c) in ch
+field y : max bound 64
+y[i] <- f[g[i] + 2]   for (i,c) in ch
+field z : or bound 64
+z[i] <- true   for (i,c) in ch if not f[g[i]]
+""", data=b"the quick brown fox")
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
@@ -764,8 +847,8 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
     if xexit is not None:                    # **黙って間違えない**（言うはず）
         good = (r2.returncode == xexit); note = f"終了コード {r2.returncode}"
         if why is not None:                  # **どこを直すか**まで言うはず
-            m = re.search(rb'lattix: cannot bake - line (\d{6}) reason (\d): (.{16})\n', r2.stderr)
-            got = (int(m.group(1)), int(m.group(2))) if m else None
+            m = re.search(rb'lattix: cannot bake - line (\d{6}) reason ([0-9A-F]): (.{16})\n', r2.stderr)
+            got = (int(m.group(1)), int(m.group(2), 16)) if m else None
             note = f"{got[0]:06d}:{got[1]} {m.group(3).decode().strip()}" if got else "知らせ無し"
             good = good and (got == why)
         print(f"  {name:<26}{len(src):>6}{'':>6}   {'✓' if good else '✗'}  （{note}）")

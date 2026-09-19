@@ -381,6 +381,11 @@ sdn[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
 # flat は呑めない —— 値どうしが比べられないので、3 のあとの 5 は ⊤ になる。
 # sum も呑めない —— 寄与ごとに値を持つので、同じ寄与の値が変われば ⊤ になる。
 # 呑めない書き先の値は、動く場を読んではならない（動かない flat だけ読める）。
+field sor : or bound 4096               # 文 s の書き先は or
+sor[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 3
+field sagg : or bound 4096              # 文 s の書き先は集約（sum / count）
+sagg[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 8
+sagg[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 9
 field sabs : or bound 4096              # 文 s の書き先は動く値を呑める
 sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
 sabs[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 2
@@ -489,6 +494,9 @@ kwrnd[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t]
 # 出現の側にしか無いので、出現に入れる —— 文の頭でも節の中でも矢印の後ろ
 # でもないので、項にもガードにも書き先にもならない（種は付かない）。
 isocc[t] <- true for (t,zc) in ch if kwrnd[prevw[t]] if tkind[t] == 1
+# `print x` の `x` も出現である —— 宣言が無ければ解釈実行は断る（理由 4 で言う）。
+# 焼く側は print を読まないので、宣言の無い名前を黙って通していた。
+isocc[t] <- true for (t,zc) in ch if kwprn[prevw[t]] if tkind[t] == 1
 field rndf : max bound 8               # `render` する場（0 起点）
 rndf[z] <- ofl[oseq[t]] - 1 for (t,zc) in ch for (z) in 0 .. 0
       if kwrnd[prevw[t]] if tkind[t] == 1
@@ -581,6 +589,12 @@ hfz[s] <- hfl[s] - 1 for (s) in 0 .. nstz[0] if hasr[s]
 field farr : max bound 1024             # 場 f の次数（**使われ方**が言う）
 farr[hfz[s]] <- 1 for (s) in 0 .. nstz[0] if hasr[s]
 farr[hfz[s]] <- 2 for (s) in 0 .. nstz[0] if hasr[s] if h2d[s]
+# **読まれるだけの場も、宣言だけの場も次数を持つ。** 次数を書き先だけから取って
+# いたので、規則の無い場は次数が ⊥ で置き場の大きさも ⊥ になり、置き場の鎖
+# （`foff`）がそこで切れて、後ろの場がみな番地を失った —— 宣言を一行足しただけで
+# 焼けた実行ファイルは segfault した（`test/mutate.py` が撒いて出した）。
+farr[fdno[t]] <- 1 for (t,zc) in ch if isdcl[t]
+farr[ixcf[t]] <- 2 for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
 
 # ── 表の行。**行も列も鎖である**（`(` で行が進み、`,` で列が進む）────
 field isnum : or bound 589824           # 数のトークン（英数字は数で始まらない）
@@ -840,6 +854,11 @@ istrm[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t]
 field istrmn : or bound 589824          # 定数の項
 istrmn[t] <- true for (t,zc) in ch if aftarw[t] if isnum[t]
       if isrec[snum[t]]
+# **`true` も値である**（解釈実行では 1）。項の種のどれにも当たらず黙って落ちて
+# いたので、`x[i] <- true`（max）が 0、`true + 1` が 1 になっていた。`or` の書き先
+# では `true` は項ではない（`or` の join は値を見ない —— 規則が撃てば 1 を置く）。
+istrmn[t] <- true for (t,zc) in ch if aftarw[t] if kwtru[t]
+      if isrec[snum[t]] if not sor[snum[t]]
 field istrmv : or bound 589824          # 変数の項
 istrmv[t] <- true for (t,zc) in ch if aftarw[t] if tkind[t] == 1
       if not isnum[t] if vbnd[t] >= 0 if isrec[snum[t]]
@@ -900,6 +919,7 @@ trcl[snum[t], tcnt[t]] <- vlpz[t] for (t,zc) in ch if istrmv[t] if tcnt[t] <= 7
       if lkd[snum[t], vlpz[t]] >= 1
 field trvl : max bound 4096 8           # 定数
 trvl[snum[t], tcnt[t]] <- tval[t] for (t,zc) in ch if istrmn[t] if tcnt[t] <= 7
+trvl[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if kwtru[t] if tcnt[t] <= 7
 
 print isrec
 print rlt
@@ -990,6 +1010,12 @@ field ifop : or bound 589824            # if 節の中の、括弧の外の演�
 ifop[t] <- true for (t,zc) in ch if isop[t] if tdep[t] == 0
       if clif2[snum[t], cnum[t]]
 gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if ifop[t]
+# **比較の節の `not` も式である。** 解釈実行は `if not a[i] > b[i]` を
+# `(not a[i]) > b[i]` と読む（真偽を数と比べる）。辺にその形は無いのに、焼く側は
+# `not` を黙って落として `a[i] > b[i]` を焼いていた。知らない種（15）にする。
+gkd[snum[t], gno2[t]] <- 15 for (t,zc) in ch if iscmp2[t] if clneg[snum[t], cnum[t]]
+gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if iscmp2[t]
+      if clneg[snum[t], cnum[t]]
 gkd[snum[t], gno2[t] + 1] <- 15 for (t,zc) in ch if ifop[t]
       if clcmp[snum[t], cnum[t]]
 

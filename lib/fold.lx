@@ -9,6 +9,7 @@
 
 # ── 場の一覧 ───────────────────────────────────────────────────────
 field nfl : max bound 1                        # 場の数
+nfl[0] <- 0                                     # 場の無い源もある（無いは 0）
 nfl[z] <- fdno[t] + 1                for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t]
 field fdlat : max bound 1024                     # 場 f の束
 fdlat[f] <- flatt[f]                for (f) in 0 .. nfdz[0]
@@ -63,6 +64,10 @@ rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
       for (s) in 0 .. nstz[0] if isrec[s]
 
 field nrl : max bound 1                        # 規則の数
+# **規則が一本も無い源もある**（宣言と種だけ）。数えるものが無いと数は ⊥ で、
+# 命令の数（`nins` は規則の数から出る）まで ⊥ になり、焼けた実行ファイルは
+# 符号を一つも持たずに segfault した。**無いは 0 である** —— 種で置く。
+nrl[0] <- 0
 nrl[z] <- rno[s] + 1                 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isrec[s]
 field rrst : max bound 2048
 rrst[rno[s]] <- rst[s]              for (s) in 0 .. nstz[0] if isrec[s]
@@ -345,6 +350,43 @@ badk[z] <- tlin[t] * 16 + 3   for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if t
 badk[z] <- tlin[otok[o]] * 16 + 4   for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o] if not ohas[o]
 badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if ntb[0] >= 2
 badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if not hastb[0]
+# **同じ名前を二度宣言したら言う**（理由 A）。解釈実行は「redeclared」と断る。
+# 焼いた側は二つの宣言を別々の場として置き場を数え、出現は鍵の合う宣言の
+# **番号の大きい方**を指す（`ofl` は max）—— 数え方と指し方が食い違い、
+# 焼けた実行ファイルは **segfault** していた（声ではない）。
+field ddup : or bound 1024                        # 宣言 d は前の宣言と同じ名前
+ddup[d] <- true   for (d) in 0 .. ndcz[0] for (e) in 0 .. ndcz[0] if din[d] if din[e]
+      if e < d if dkey[e] == dkey[d] if dkey2[e] == dkey2[d]
+badk[z] <- tlin[t] * 16 + 10  for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t]
+      if ddup[dseq[t]]
+# **or の値は `true` か or の読み一つ**（理由 9）。`true + none[i]` を解釈実行は
+# 断るのに、焼く側は `true` を項と見ないので `none[i]` だけを焼いていた。
+badk[z] <- tlin[t] * 16 + 9   for (t,zc) in ch for (z) in 0 .. 0 if vop[t] if sor[snum[t]]
+# **集約の規則はループ一つまで**（理由 8）。sum / count の「一度だけ数える印」は
+# 外側の表の行（rcx）でしか引いていない —— 二重のループでは内側の実例が同じ印を
+# 踏み、`for (i,c) in ch for (k) in 0 .. 2` の count が 12 でなく 4 になっていた。
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwfor[t] if lseq[t] >= 2
+      if sagg[snum[t]]
+# **形の崩れた源は焼かない**（理由 8）。解釈実行は構文で断るのに、焼く側は
+# 頭の無い矢印の文（`ri] <- …`）を規則でないものとして黙って落とし、答えを出していた。
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t]
+      if arrowt[snum[t]] >= 0 if not hasr[snum[t]]
+# 括弧が閉じないまま次の文に入った（あるいは閉じすぎた）
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if tdep[t] != 0
+field lastc : max bound 1                         # 源の最後の文字
+lastc[z] <- i                 for (i,c) in ch for (z) in 0 .. 0
+badk[z] <- lnum[lastc[z]] * 16 + 8   for (z) in 0 .. 0 if pre[lastc[z]] != 0
+# **同じ場を一次元と二次元の両方で使ったら言う**（理由 8）。解釈実行は `q[i]` と
+# `q[i,k]` を別の鍵として持つが、焼く側の置き場は場ごとに次数が一つしか無く、
+# 一次元の書き込みを二次元の面に黙って畳んでいた。
+field obk : or bound 589824                       # `[` の付いた出現（描画・print の名は除く）
+obk[t] <- true   for (t,zc) in ch if isocc[t] if tch[t+1,0] == 91
+field fuse1 : or bound 1024                       # 場 f を一次元で使った
+fuse1[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if not iscom[d0cm[t]]
+field fuse2 : or bound 1024                       # 場 f を二次元で使った
+fuse2[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if iscom[d0cm[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
+      if fuse1[ixcf[t]] if fuse2[ixcf[t]]
 # **焼けない束は宣言の行で言う**（理由 8）。断片の束は六つ（min / max / or /
 # flat / sum / count）。set / and / fourv / bag を宣言の行で断らないと、その場を
 # 読む規則で **別の理由が先に出る** —— fourv の `not` は Belnap の否定で単調なのに、

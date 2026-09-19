@@ -1233,6 +1233,7 @@ field foff : max bound 1024                   # 場 f の先頭（F の先頭か
 foff[0] <- 0
 foff[f] <- foff[f-1] + fsz8[f-1]    for (f) in 0 .. nflz[0] if f > 0
 field ftot : max bound 1                    # 場ぜんぶの大きさ（値の側）
+ftot[0] <- 0                         # 場が一つも無ければ 0（⊥ だと後ろの番地がみな ⊥）
 ftot[z] <- foff[f] + fsz8[f]         for (f) in 0 .. nflz[0] for (z) in 0 .. 0
 
 # ── **階数の升は 4 バイトである。** 値は 8 バイト要る（⊥ が 2^31、
@@ -1259,6 +1260,7 @@ field koff : max bound 1024                 # 場 f の階数の先頭（K の�
 koff[0] <- 0
 koff[f] <- koff[f-1] + ksz[f-1]     for (f) in 0 .. nflz[0] if f > 0
 field ktot : max bound 1                    # 階数ぜんぶの大きさ
+ktot[0] <- 0
 ktot[z] <- koff[f] + ksz[f]         for (f) in 0 .. nflz[0] for (z) in 0 .. 0
 field ftot2 : max bound 1                   # 場の置き場（値 F と 階数 K）
 ftot2[0] <- ftot[0] + ktot[0]   for (z) in 0 .. 0
@@ -1477,8 +1479,10 @@ clen[gc] <- 1   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] == 0
 clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] >= 1
 clen[gc] <- 1   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0
 clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] >= 1
-clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
-clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] >= 1
+# 源2/3 は **座標を二つ持つ**（内側の添字と、読んだ値）—— どちらも濾す。下の形を見よ。
+clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
+clen[gc] <- 10  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 1
+clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
 # 源5: 内側の所有者の長さ + 読み三命令（読む・⊥ と比べる・⊥ なら抜ける）
 clen[gc] <- ctot[cdcc[gc]] + 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 # 内側のスロット: 次元0 は載せるだけ、次元1 以降は **畳んで足す**（二命令）
@@ -1506,7 +1510,7 @@ cchk[gc] <- true  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1
 # `cdhf == 1` の 4 と 7 には濾しが既に入っているので足さない。
 clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] == 0 if cchk[gc]
 clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0 if cchk[gc]
-clen[gc] <- 6   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
+clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
       if cchk[gc]
 clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
       if cchk[gc]
@@ -2027,13 +2031,12 @@ form[cdpos[gc] + 1] <- 173  for (gc) in 0 .. ngcz[0] if isin[cso[gc]]
 imm[cdpos[gc] + 1]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0]
       if isin[cso[gc]] if csd[gc] >= 1 if cdsr[gc] == 4
 
-# ── 否定のガードの下では、⊥ は **撃つ** ────────────────────────────
-# `if not g[f[i]]` で `f[i]` が ⊥ のとき、読めるものは無いので `g[⊥]` は ⊥、
-# `not ⊥` は真である —— つまり **この行は撃つ**。焼いた側は座標の ⊥ 検査と
-# 濾しを一律に「次の行へ」（`av`）にしていたので、**撃たなかった**。
-# 解釈実行と食い違う（撒いて出た。手で書いた試験では一度も出ていない）。
-# 飛び先はガードの終わり —— 長さは一つも変わらない。
-# 鎖の内側へも継ぐ（`not g[f[h[i]]]` の内側の ⊥ も同じ扱い）
+# ── 否定のガードの下の ⊥ ──────────────────────────────────────────
+# `if not g[f[i]]` で `f[i]` が ⊥ のとき、g の **どの升も読まれていない** ——
+# 撃たない（座標の ⊥ 検査は「次の行へ」のままでよい）。以前ここに「撃つ」と
+# 書いてあったのは解釈実行の誤りに合わせた読みで、直すべきは解釈実行だった
+# （d475c0a）。**座標が値を持って広さの外にある**ときは別で、そこは升が ⊥ なので
+# `not` は立つ —— 下の濾しの飛び先 `gpas` がそれである。
 
 # ── 源5: 内側の所有者が座標を作り終えた所で読む ──────────────────
 field inrd : max bound 16384                    # 読みの命令の位置
@@ -2050,29 +2053,26 @@ imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc]
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 0
 form[cdpos[gc]] <- 104  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 1
 form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 2
-# ずれが無いか後置なら、読みは先頭の次に来る
-form[cdpos[gc] + 1] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1  # mov r9,[F_cf]
-imm[cdpos[gc] + 1]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
-scb[cdpos[gc] + 1]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
-form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1  # cmp r9, ⊥
-imm[cdpos[gc] + 2]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
-form[cdpos[gc] + 3] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
-jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
-
-# **前置のずれ**（`g[x+2]`）—— ずらす → 内側の場の広さで濾す → 読む → ⊥ で抜ける
-form[cdpos[gc] + 1] <- 71   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # add r9, ずれ
+# **源2/3 は座標を二つ持つ** —— 内側の添字（`g[i]` の i）と、読んだ値（外の座標）。
+# 読んだ値は下の濾しが見るが、**内側の添字を濾していたのは前置のずれ（`g[i+2]`）の
+# ときだけ**だった。ずれの無い `f[g[i]]` で i が g の広さを超えると、g の後ろの升
+# （隣の場や階数）を読んで、その数を外の座標にしていた —— 解釈実行は ⊥ なのに
+# `x[i] <- f[g[i]]` が 7 を答えた（撒いて出した。座標の濾しと同じ穴の、内側の半分）。
+# 形は一つにする: 載せる → 前置のずれ（無ければ 0）→ 内側の広さで濾す → 読む → ⊥ で抜ける。
+form[cdpos[gc] + 1] <- 71   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # add r9, 前置のずれ
 imm[cdpos[gc] + 1]  <- cdof[gc] + bias[0]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # cmp r9, 内側の広さ
-imm[cdpos[gc] + 2]  <- fw[cdcf[gc],0] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-form[cdpos[gc] + 4] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # mov r9,[F_cf]
-imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-form[cdpos[gc] + 5] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2  # cmp r9, ⊥
-imm[cdpos[gc] + 5]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-form[cdpos[gc] + 6] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-jt[cdpos[gc] + 6]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+imm[cdpos[gc] + 1]  <- bias[0]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] <= 1
+form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r9, 内側の広さ
+imm[cdpos[gc] + 2]  <- fw[cdcf[gc],0] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 4] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # mov r9,[F_cf]
+imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 5] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r9, ⊥
+imm[cdpos[gc] + 5]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 6] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+jt[cdpos[gc] + 6]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 
 # 座標のずれ（鎖）。範囲の外は ⊥ —— unsigned 比較が負も上も捕まえる
 
@@ -2091,9 +2091,21 @@ form[cend[gc] - 1] <- 73   for (gc) in 0 .. ngcz[0] if cchk[gc]
 # 解釈実行は宣言の広さを見ずに書くので、書きの側で黙るのが一番悪い。
 field iswro : or bound 16384                    # 書き先の座標を持つ所有者
 iswro[rroo[r]] <- true   for (r) in 0 .. nrlz[0] if rroo[r] >= 0
+#   否定のガードの座標 … そこに値は無い（⊥）のだから `not` は **立つ**。ガードの後ろへ。
+#                 座標そのものが ⊥ なのとは違う —— そちらは升を一つも読んでいない
+#                 ので立たない（⊥ の検査が次の行へ飛ばす）。内側の読みの座標が
+#                 はみ出せば内側が ⊥ になり、外の座標が ⊥ になる —— 内側の所有者は
+#                 否定のガードではないので、ここには来ない。
+#                 （`if i >= 0 … if not isw[i-1]` の i = 0 で、解釈実行は立ち、焼いた側は
+#                 次の行へ飛んでいた。`test/mutate.py` が撒いて出した。）
+field isngo : or bound 16384                    # 否定のガードの所有者
+isngo[gdoo[gg]] <- true  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+field gpas : max bound 16384                    # そのガードの後ろ（立ったときの行き先）
+gpas[gdoo[gg]] <- gpos[gg] + glen[gg] + 1   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 jt[cend[gc] - 1]   <- av[cdr[gc]]    for (gc) in 0 .. ngcz[0] if cchk[gc]
-      if not iswro[cso[gc]]
-      if not iswro[cso[gc]]
+      if not iswro[cso[gc]] if not isngo[cso[gc]]
+jt[cend[gc] - 1]   <- gpas[cso[gc]]  for (gc) in 0 .. ngcz[0] if cchk[gc]
+      if isngo[cso[gc]]
 jt[cend[gc] - 1]   <- stub[cdr[gc]]  for (gc) in 0 .. ngcz[0] if cchk[gc]
       if iswro[cso[gc]]
 
@@ -2862,6 +2874,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #       4 宣言の無い場を読んだ / 5 二のべきでない除数 / 6 表が無い・二つ以上 /
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）
+#       9 or の値は true か or の読み / A 同じ名前を二度宣言した
 #
 # **十進の桁は割り算なしで出す。** 二のべきでしか割れないので、
 # 逆数を掛けて 2^32 で寄せる（`v * 429496730 / 2^32` が `v / 10`）——
@@ -3075,7 +3088,7 @@ out[i] <- sibb[bfm[i]] + scb[bown[i]]   for (i) in 0 .. bmax[0] if issib[i]
 # ——**定数**なので、形167 が即値として持てる（穴が要らない）。
 # **番号は引くもの、言葉は読むもの。** 番号だけでは表を引きに行かねば
 # ならない —— 人も、AI も。だから同じ行に言葉も置く（16 バイト固定）。
-field rtx : max bound 10 16                  # 理由ごとの言葉
+field rtx : max bound 16 16                  # 理由ごとの言葉（十六進の一桁）
 # 1: name too long
 rtx[1,0] <- 110
 rtx[1,1] <- 97
@@ -3230,6 +3243,23 @@ rtx[9,12] <- 101
 rtx[9,13] <- 32
 rtx[9,14] <- 32
 rtx[9,15] <- 32
+# 10 (A): field redeclared
+rtx[10,0] <- 102
+rtx[10,1] <- 105
+rtx[10,2] <- 101
+rtx[10,3] <- 108
+rtx[10,4] <- 100
+rtx[10,5] <- 32
+rtx[10,6] <- 114
+rtx[10,7] <- 101
+rtx[10,8] <- 100
+rtx[10,9] <- 101
+rtx[10,10] <- 99
+rtx[10,11] <- 108
+rtx[10,12] <- 97
+rtx[10,13] <- 114
+rtx[10,14] <- 101
+rtx[10,15] <- 100
 
 field mbz : max bound 1
 mbz[z] <- total[0] - 64              for (z) in 0 .. 0
@@ -3245,13 +3275,16 @@ out[msgo[j]] <- rtx[6,j-44]          for (j) in 44 .. 59 if brz[0] == 6 if bad[0
 out[msgo[j]] <- rtx[7,j-44]          for (j) in 44 .. 59 if brz[0] == 7 if bad[0]
 out[msgo[j]] <- rtx[8,j-44]          for (j) in 44 .. 59 if brz[0] == 8 if bad[0]
 out[msgo[j]] <- rtx[9,j-44]          for (j) in 44 .. 59 if brz[0] == 9 if bad[0]
+out[msgo[j]] <- rtx[10,j-44]         for (j) in 44 .. 59 if brz[0] == 10 if bad[0]
 out[mbz[z] + 27] <- dgt[k] + 48      for (k) in 5 .. 5 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 28] <- dgt[k] + 48      for (k) in 4 .. 4 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 29] <- dgt[k] + 48      for (k) in 3 .. 3 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 30] <- dgt[k] + 48      for (k) in 2 .. 2 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 31] <- dgt[k] + 48      for (k) in 1 .. 1 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 32] <- dgt[k] + 48      for (k) in 0 .. 0 for (z) in 0 .. 0 if bad[0]
-out[mbz[z] + 41] <- brz[0] + 48      for (z) in 0 .. 0 if bad[0]
+# 理由は十六進の一桁（A 以降は英字。行 * 16 + 理由 の鍵がもともと四ビットを持つ）
+out[mbz[z] + 41] <- brz[0] + 48      for (z) in 0 .. 0 if bad[0] if brz[0] <= 9
+out[mbz[z] + 41] <- brz[0] + 55      for (z) in 0 .. 0 if bad[0] if brz[0] >= 10
 
 # ══ はみ出したときの一行（終了コード 6）════════════════════════════
 #   焼けたプログラムが走っている最中に「宣言した広さ」を超えたら、

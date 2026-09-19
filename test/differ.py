@@ -132,7 +132,7 @@ for k,c in enumerate(combos):
         bad.append((src,'⊤ の無い答えで終了コード 5')); continue
     if r2.returncode==7:
         refused+=1
-        if not re.search(rb'reason (\d): (.{16})\n', r2.stderr):
+        if not re.search(rb'reason ([0-9A-F]): (.{16})\n', r2.stderr):
             bad.append((src,'理由を言わずに 7'))
         continue
     if r2.returncode!=0:

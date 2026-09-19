@@ -73,7 +73,7 @@ def baked_refuses(raw):
     open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
     q = subprocess.run([exe], input=b'', capture_output=True)
     if q.returncode == 7:
-        m = re.search(rb'line (\d{6}) reason (\d)', q.stderr)
+        m = re.search(rb'line (\d{6}) reason ([0-9A-F])', q.stderr)
         return f"行 {int(m.group(1))} 理由 {m.group(2).decode()}" if m else "理由なし"
     if q.returncode == 6: return "広さを超えた"
     return None
