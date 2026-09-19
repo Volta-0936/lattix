@@ -538,20 +538,53 @@ field f1 : count bound 256
 f1[i] <- i   for (i) in 1 .. 6   if not g0[f0[i]]
 """, data=b'hello Ldx')
 
-# ══ 既知の穴: count の読み × min（`test/meta.py` が撒いて出した）════
-# `f2[f0[i]] <- f1[i]`（f1 は count、f2 は min、書き座標が読み）で、
-# f2 に **どこから来たのか説明できない 1** が入る（正しくは 2）。
-# `f2[i] <- f1[i]` と書けば正しい。`f2` を max にしても正しい。
-# **今日の変更より前から在る**（HEAD の焼き手も同じ答えを出す）。
-# 順序を替えると勝つ寄与が変わるので `meta.py` の「順序」の法則が破れる。
-case("count の読み × min（既知の穴）", """table ch = (0,32)
+# ══ 向きの食い違い（成層の四つ目）══════════════════════════════════
+# 焼く側の成層は **位置**しか見ていなかった（`not` の直後・比較の節・添字の中）。
+# 答えの定義は **向き**も見る —— 読む場の動く向きと、読む位置が要る向きが
+# 食い違えば、書き手が途中で持っていた値を読み手が取り消せない。同じ層で
+# 読むと、同じ表を回る規則が一つのループに畳まれて **途中の値を掴む**。
+# 以下の五つは、直す前の焼き手がどれも **黙って違う答え**を出していた
+# （`test/meta.py` が一つ目を撒いて出し、残りは位置ごとに作って確かめた）。
+case("count の読み × min", """table ch = (0,32)
 field f0 : max bound 64
 f0[i] <- c % 8   for (i,c) in ch
 field f1 : count bound 64
 f1[f0[i]] <- 1   for (i,c) in ch
 field f2 : min bound 64
 f2[f0[i]] <- f1[i]   for (i,c) in ch
-""", data=b'aabbcc', known=True)
+""", data=b'aabbcc')
+case("count を引いて max へ", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field b : count bound 64
+b[k[i]] <- 1   for (i,c) in ch
+field t : max bound 64
+t[k[i]] <- 100 - b[k[i]]   for (i,c) in ch
+""", data=b'abcdefghijklmnopqrstuvwxyz')
+case("育つ max を min が読む", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field mx : max bound 64
+mx[k[i]] <- c   for (i,c) in ch
+field m : min bound 64
+m[k[i]] <- mx[k[i]]   for (i,c) in ch
+""", data=b'abcdefghijklmnopqrstuvwxyz')
+case("素のガードが min を読む", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field mn : min bound 64
+mn[k[i]] <- c - 97   for (i,c) in ch
+field x : max bound 64
+x[k[i]] <- 1   for (i,c) in ch if mn[k[i]]
+""", data=b'ea')
+case("証の無い掛け算（負が育つ）", """table ch = (0,32)
+field k : max bound 64
+k[i] <- c % 4   for (i,c) in ch
+field a : max bound 64
+a[k[i]] <- c - 100   for (i,c) in ch
+field t : max bound 64
+t[k[i]] <- a[k[i]] * a[k[i]]   for (i,c) in ch
+""", data=b'Z[\\]^_`abc')
 
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4

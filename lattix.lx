@@ -286,7 +286,7 @@ field ohd : or bound 8192               # 出現が文の頭（＝書き先）
 ohd[oseq[t]] <- true for (t,zc) in ch if isocc[t] if sbrk[t]
 
 # ── 非単調な読み ───────────────────────────────────────────────────
-# 三つある: `not` の直後 / 比較のある節の中 / **添字の中**
+# 四つある: `not` の直後 / 比較のある節の中 / **添字の中** / **向きの食い違い**
 # （座標にできるのは確定した値だけ —— 気づき24 の表側）
 field arrw : or bound 589824             # `<-` の `<`（比較ではない）
 arrw[t] <- true for (t,zc) in ch if tlen[t] == 1 if not tcom[t]
@@ -314,8 +314,110 @@ field tnonm : or bound 589824
 tnonm[t] <- true for (t,zc) in ch if isneg[t]
 tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]]
 tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1
+tnonm[t] <- true for (t,zc) in ch if tnm4[t]
 field onm : or bound 8192
 onm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tnonm[t]
+
+# ── 四つ目: **向きの食い違い** ─────────────────────────────────────
+# 三つは **位置**だけを見ていた。答えの定義（解釈実行の `classify`）は
+# 位置のほかに **向き**を見る。読む場は動く向きが決まっている —— min は
+# 下へ、max / or / count は上へ、flat は動かない（一度入ったら ⊤ しかない）。
+# 読む位置も要る向きが決まっている —— min の値は下へ、ほかの値と素の
+# ガードと区間の上端は上へ、引く群は裏返り、証の無い `*` `/` `%` に
+# 呑まれた読みは向きを失う（座標と同じになる）。食い違えば、書き手が
+# 途中で持っていた値を読み手が **取り消せない**: `f2[f0[i]] <- f1[i]`
+# （f2 は min、f1 は count）では、数え終わる前の 1 を min が掴んで離さない。
+# 焼く側は三つしか数えていなかったので、同じ層で読んで **黙って間違えた**
+# （入力 `abcdefghij` で f2[1] が 解釈 3 / 焼いた答え 1）。`lattix.lx` 自身の中にも
+# 百十六本あった —— 値が一度しか入らない場（鎖）ばかりだったので出なかった。
+# 流儀は `classify` と同じ: 向きを保つのは `+`、裏返すのは `-` の右、
+# `* 数` と `/ 正の数` は保ち、それ以外の掛け割り余りは座標にする。
+# **変数を掛ける読みは証さない**（解釈実行はデータで証せるが、焼く側は
+# データを見ずに焼く）—— 余分に層を切るのは答えを変えない。足りないのが嘘である。
+field vop : or bound 589824             # 値の式の、括弧の外の演算子
+vop[t] <- true for (t,zc) in ch if aftarw[t] if isop[t]
+field vadd : or bound 589824            # そのうち足し引き（群の切れ目）
+vadd[t] <- true for (t,zc) in ch if vop[t] if isplus[t]
+vadd[t] <- true for (t,zc) in ch if vop[t] if ismin[t]
+# 手前と後ろの演算子は **鎖**で運ぶ（lastw / firstw と同じ手）。値の式は
+# 矢印で始まり、節の頭で終わる —— その二つが番兵である。添字の中の
+# 演算子は深さ 1 なので `vop` にならず、鎖は `f[i-1]` を一跨ぎにする。
+field lopw : max bound 589824           # t 以前で最後の演算子（矢印も）
+lopw[t] <- t         for (t,zc) in ch if vop[t]
+lopw[t] <- t         for (t,zc) in ch if arrw[t]
+lopw[t] <- lopw[t-1] for (t,zc) in ch if t >= 1 if not vop[t] if not arrw[t]
+field ladw : max bound 589824           # t 以前で最後の足し引き（矢印も）
+ladw[t] <- t         for (t,zc) in ch if vadd[t]
+ladw[t] <- t         for (t,zc) in ch if arrw[t]
+ladw[t] <- ladw[t-1] for (t,zc) in ch if t >= 1 if not vadd[t] if not arrw[t]
+field nopw : min bound 589824           # t 以降で最初の演算子（節の頭も）
+nopw[t] <- t         for (t,zc) in ch if vop[t]
+nopw[t] <- t         for (t,zc) in ch if cbrk[t]
+nopw[t] <- nopw[t+1] for (t,zc) in ch if not vop[t] if not cbrk[t]
+field lopt : max bound 589824           # 因子 t の手前の演算子
+lopt[t] <- lopw[t-1] for (t,zc) in ch if t >= 1
+field lopa : max bound 589824           # その演算子の手前の語（前の因子）
+lopa[t] <- prevw[lopt[t]] for (t,zc) in ch if t >= 1
+field nopt : min bound 589824           # 因子 t の後ろの演算子
+nopt[t] <- nopw[t+1] for (t,zc) in ch
+field nxat : min bound 589824           # その演算子の次の語（次の因子）
+nxat[t] <- nextw[nopt[t]] for (t,zc) in ch
+field lead : or bound 589824            # 群の頭（手前が 矢印 / + / -）
+lead[t] <- true for (t,zc) in ch if arrw[lopt[t]]
+lead[t] <- true for (t,zc) in ch if isplus[lopt[t]]
+lead[t] <- true for (t,zc) in ch if ismin[lopt[t]]
+# 後ろに続く掛け割りが **全部** `* 数` か `/ 正の数` なら向きは保たれる
+field tailok : or bound 589824
+tailok[t] <- true for (t,zc) in ch if cbrk[nopt[t]]
+tailok[t] <- true for (t,zc) in ch if isplus[nopt[t]]
+tailok[t] <- true for (t,zc) in ch if ismin[nopt[t]]
+tailok[t] <- true for (t,zc) in ch if isstar[nopt[t]] if isnum[nxat[t]]
+      if tailok[nxat[t]]
+tailok[t] <- true for (t,zc) in ch if isdiv[nopt[t]] if isnum[nxat[t]]
+      if tval[nxat[t]] >= 1 if tailok[nxat[t]]
+# 保たれるのは群の頭か、`数 * f[x]` の二つ目（`2 * 3 * f[x]` は保たない ——
+# 答えの定義がそう読む。左が式なら証が無い）
+field keep : or bound 589824
+keep[t] <- true for (t,zc) in ch if tailok[t] if lead[t]
+keep[t] <- true for (t,zc) in ch if tailok[t] if isstar[lopt[t]]
+      if isnum[lopa[t]] if lead[lopa[t]]
+field sdn : or bound 4096               # 文 s の書き先は下へ動く（min）
+sdn[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
+field vneg : or bound 589824            # 引かれる群の中
+vneg[t] <- true for (t,zc) in ch if t >= 1 if ismin[ladw[t-1]]
+field rqdn : or bound 589824            # その位置は下へ動くことを要る
+rqdn[t] <- true for (t,zc) in ch if sdn[snum[t]] if not vneg[t]
+rqdn[t] <- true for (t,zc) in ch if not sdn[snum[t]] if vneg[t]
+field rdl : max bound 589824            # 読む場の束
+rdl[t] <- flatt[ixcf[t]] for (t,zc) in ch if isocc[t]
+field rup : or bound 589824             # 読む場は上へ動く（max / or / count）
+rup[t] <- true for (t,zc) in ch if rdl[t] == 2
+rup[t] <- true for (t,zc) in ch if rdl[t] == 3
+rup[t] <- true for (t,zc) in ch if rdl[t] == 9
+field rdn : or bound 589824             # 読む場は下へ動く（min）
+rdn[t] <- true for (t,zc) in ch if rdl[t] == 1
+field rfl : or bound 589824             # 読む場は動かない（flat）
+rfl[t] <- true for (t,zc) in ch if rdl[t] == 6
+# sum と、断片の知らない束は **どちらへも動く**とみなす（証が無い）
+field ifocl : or bound 589824           # 括弧の外に演算子を持つ if 節
+ifocl[gcl[t]] <- true for (t,zc) in ch if ifop[t]
+field tnm4 : or bound 589824
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
+      if not keep[t]
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
+      if rqdn[t] if not rdn[t]
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
+      if not rqdn[t] if not rup[t]
+# 素のガード（`if f[x]`）と区間の上端（`.. f[0]`）は上へ動くことを要る
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if not rfl[t]
+      if not rup[t] if clif2[snum[t], cnum[t]]
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if not rfl[t]
+      if not rup[t] if isbnd[t]
+# for 節の、上端でない読みは向きを言えない（区間の下端は下へ動くことを要る）
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if cnum[t] >= 1
+      if not isbnd[t] if not clif2[snum[t], cnum[t]]
+# 式の辺は焼かない（種15）が、**成層は焼けるかどうかに寄りかからない**
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if ifocl[gcl[t]]
 
 # ══ 成層 ═══════════════════════════════════════════════════════════
 # 辺の表は要らない。**場の番号を座標にして**書き手と読み手を繋ぐ。
