@@ -1,0 +1,167 @@
+# ══ attest-front の尻尾 —— 規則の表を語の列にして描く ══════════════════════
+#
+# 上（33_self + lib/fold.lx）は焼き手と同じ前段で、源から規則の表を導く。ここはそれを
+# **八バイト小端の語の列**にして render するだけ —— 判断は一つも持たない。
+# 読む側（attest-eval）は、この表を焼き手の符号生成とは別の道で一歩ずつ評価する。
+#
+#   頭 16 語: 印 / 場 / 種 / 規則 / ループ / ガード / 項 / 座標 / 所有者 / 口 / 描く場 /
+#             描く幅 / 断り（行*16+理由、無ければ -1）/ 表の列の数 / 0 / 0
+#   続けて F(4) S(3) R(6) L(8) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
+
+# ── 数。**無いは 0**（ガードの無い本では ngg が ⊥ で、頭の鎖が全部 ⊥ になり何も描かなかった）
+field kfl : max bound 1
+kfl[0] <- 0
+kfl[z] <- nfl[z]   for (z) in 0 .. 0
+field ksd : max bound 1
+ksd[0] <- 0
+ksd[z] <- nsd[z]   for (z) in 0 .. 0
+field krl : max bound 1
+krl[0] <- 0
+krl[z] <- nrl[z]   for (z) in 0 .. 0
+field kgl : max bound 1
+kgl[0] <- 0
+kgl[z] <- ngl[z]   for (z) in 0 .. 0
+field kgg : max bound 1
+kgg[0] <- 0
+kgg[z] <- ngg[z]   for (z) in 0 .. 0
+field kgt : max bound 1
+kgt[0] <- 0
+kgt[z] <- ngt[z]   for (z) in 0 .. 0
+field kgc : max bound 1
+kgc[0] <- 0
+kgc[z] <- ngc[z]   for (z) in 0 .. 0
+
+field anfl : max bound 1
+anfl[0] <- 0
+anfl[z] <- kfl[0]   for (z) in 0 .. 0
+field ansdz : max bound 1
+ansdz[z] <- ksd[0] - 1   for (z) in 0 .. 0
+field anrlz : max bound 1
+anrlz[z] <- krl[0] - 1   for (z) in 0 .. 0
+field anglz : max bound 1
+anglz[z] <- kgl[0] - 1   for (z) in 0 .. 0
+field anggz : max bound 1
+anggz[z] <- kgg[0] - 1   for (z) in 0 .. 0
+field angtz : max bound 1
+angtz[z] <- kgt[0] - 1   for (z) in 0 .. 0
+field angcz : max bound 1
+angcz[z] <- kgc[0] - 1   for (z) in 0 .. 0
+field anflz : max bound 1
+anflz[z] <- kfl[0] - 1   for (z) in 0 .. 0
+
+field ab : max bound 8                        # 節の頭（語の番号）
+ab[0] <- 16
+ab[z] <- 16 + kfl[0] * 4   for (z) in 1 .. 1
+ab[z] <- ab[1] + ksd[0] * 3   for (z) in 2 .. 2
+ab[z] <- ab[2] + krl[0] * 6   for (z) in 3 .. 3
+ab[z] <- ab[3] + kgl[0] * 8   for (z) in 4 .. 4
+ab[z] <- ab[4] + kgg[0] * 9   for (z) in 5 .. 5
+ab[z] <- ab[5] + kgt[0] * 7   for (z) in 6 .. 6
+ab[z] <- ab[6] + kgc[0] * 8   for (z) in 7 .. 7
+field anw : max bound 1                       # 語の数の一つ手前
+anw[z] <- ab[7] - 1   for (z) in 0 .. 0
+
+field wd : max bound 524288                   # 語の列
+wd[n] <- -2147483646   for (n) in 0 .. anw[0]
+wd[0] <- 20260919
+wd[1] <- kfl[z]   for (z) in 0 .. 0
+wd[2] <- ksd[z]   for (z) in 0 .. 0
+wd[3] <- krl[z]   for (z) in 0 .. 0
+wd[4] <- kgl[z]   for (z) in 0 .. 0
+wd[5] <- kgg[z]   for (z) in 0 .. 0
+wd[6] <- kgt[z]   for (z) in 0 .. 0
+wd[7] <- kgc[z]   for (z) in 0 .. 0
+wd[8] <- now[z]   for (z) in 0 .. 0
+wd[9] <- inpw[z]   for (z) in 0 .. 0
+wd[z] <- 0 - 1   for (z) in 10 .. 10
+wd[10] <- outf[z]   for (z) in 0 .. 0
+wd[11] <- outw[z]   for (z) in 0 .. 0
+wd[z] <- 0 - 1   for (z) in 12 .. 12
+wd[12] <- badk[z]   for (z) in 0 .. 0 if badk[z] <= 16777215
+wd[z] <- 0 - 1   for (z) in 13 .. 13
+wd[13] <- ncol[z]   for (z) in 0 .. 0
+wd[14] <- 0
+wd[15] <- 0
+# ── F（4 語ずつ）
+field apF : max bound 16384
+apF[f] <- ab[z] + f * 4   for (z) in 0 .. 0 for (f) in 0 .. anflz[0]
+wd[apF[f]] <- fdlat[f]   for (f) in 0 .. anflz[0]
+wd[apF[f] + 1] <- fdar[f]   for (f) in 0 .. anflz[0]
+wd[apF[f] + 2] <- fw[f, 0]   for (f) in 0 .. anflz[0]
+wd[apF[f] + 3] <- fw[f, 1]   for (f) in 0 .. anflz[0]
+# ── S（3 語ずつ）
+field apS : max bound 16384
+apS[s] <- ab[z] + s * 3   for (z) in 1 .. 1 for (s) in 0 .. ansdz[0]
+wd[apS[s]] <- sdf[s]   for (s) in 0 .. ansdz[0]
+wd[apS[s] + 1] <- sdc[s]   for (s) in 0 .. ansdz[0]
+wd[apS[s] + 2] <- sdv[s]   for (s) in 0 .. ansdz[0]
+# ── R（6 語ずつ）
+field apR : max bound 16384
+apR[r] <- ab[z] + r * 6   for (z) in 2 .. 2 for (r) in 0 .. anrlz[0]
+wd[apR[r]] <- rrst[r]   for (r) in 0 .. anrlz[0]
+wd[apR[r] + 1] <- rrlt[r]   for (r) in 0 .. anrlz[0]
+wd[apR[r] + 2] <- rrar[r]   for (r) in 0 .. anrlz[0]
+wd[apR[r] + 3] <- rrwf[r]   for (r) in 0 .. anrlz[0]
+wd[apR[r] + 4] <- rroo[r]   for (r) in 0 .. anrlz[0]
+wd[apR[r] + 5] <- rlin[r]   for (r) in 0 .. anrlz[0]
+# ── L（8 語ずつ）
+field apL : max bound 16384
+apL[g] <- ab[z] + g * 8   for (z) in 3 .. 3 for (g) in 0 .. anglz[0]
+wd[apL[g]] <- lpr[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 1] <- lpi[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 2] <- lpk[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 3] <- lplo[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 4] <- lphi[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 5] <- lpar[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 6] <- lpbf[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 7] <- lpbc[g]   for (g) in 0 .. anglz[0]
+# ── G（9 語ずつ）
+field apG : max bound 16384
+apG[g] <- ab[z] + g * 9   for (z) in 4 .. 4 for (g) in 0 .. anggz[0]
+wd[apG[g]] <- gdr[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 1] <- gdi[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 2] <- gdk[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 3] <- gdf[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 4] <- gdc1[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 5] <- gdgv[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 6] <- gdok[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 7] <- gdov[g]   for (g) in 0 .. anggz[0]
+wd[apG[g] + 8] <- gdoo[g]   for (g) in 0 .. anggz[0]
+# ── T（7 語ずつ）
+field apT : max bound 16384
+apT[g] <- ab[z] + g * 7   for (z) in 5 .. 5 for (g) in 0 .. angtz[0]
+wd[apT[g]] <- tmr[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 1] <- tmi[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 2] <- tmk[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 3] <- tmf[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 4] <- tmc1[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 5] <- tmv[g]   for (g) in 0 .. angtz[0]
+wd[apT[g] + 6] <- tmoo[g]   for (g) in 0 .. angtz[0]
+# ── C（8 語ずつ）
+field apC : max bound 16384
+apC[g] <- ab[z] + g * 8   for (z) in 6 .. 6 for (g) in 0 .. angcz[0]
+wd[apC[g]] <- cso[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 1] <- cdr[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 2] <- csd[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 3] <- cdsr[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 4] <- cdcf[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 5] <- cdcc[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 6] <- cdhf[g]   for (g) in 0 .. angcz[0]
+wd[apC[g] + 7] <- cdof[g]   for (g) in 0 .. angcz[0]
+
+# ── 語をバイトに（小端。負は二の補数 —— 床の割り算と非負の余りがそのまま出す）
+field an8 : max bound 524288
+an8[n] <- n * 8   for (n) in 0 .. anw[0]
+field ob : max bound 4194304
+ob[an8[n]] <- wd[n] % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 1] <- wd[n] / 256 % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 2] <- wd[n] / 65536 % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 3] <- wd[n] / 16777216 % 256   for (n) in 0 .. anw[0]
+# 上の四バイトは上半分から取る（割る数は 2^32 まで —— 焼き手の二のべきの表がそこまで）
+field wh : max bound 524288
+wh[n] <- wd[n] / 4294967296   for (n) in 0 .. anw[0]
+ob[an8[n] + 4] <- wh[n] % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 5] <- wh[n] / 256 % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 6] <- wh[n] / 65536 % 256   for (n) in 0 .. anw[0]
+ob[an8[n] + 7] <- wh[n] / 16777216 % 256   for (n) in 0 .. anw[0]
+render ob

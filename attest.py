@@ -90,8 +90,13 @@ class Report:
     @property
     def sound(self):
         """(B) 有基性: 主張された値はすべて正当に導出できる  ⟹  S ⊑ lfp
-        つまり『書いてあることはすべて真』。途中で打ち切った答えでも成り立つ。"""
-        return not (self.grounded or self.extra)
+        つまり『書いてあることはすべて真』。途中で打ち切った答えでも成り立つ。
+
+        **閉路でしか支えられない ⊤（cyclic_top）は、導出を示していない。** 最終の答えだけ
+        では本物（f <- f + 1 で 1 と 2 が届いた ⊤）と偽物（恒等 f <- f で 1 しか来ないのに
+        ⊤ と書いたもの）を見分けられない。前はこれを「破れではない」として健全に数え、
+        恒等の偽物に ATTESTED と言っていた（2026-09-19 に測って直した）。"""
+        return not (self.grounded or self.extra or self.cyclic_top)
     @property
     def complete(self):
         """(A) 安定性: どの寄与も吸収済み  ⟹  lfp ⊑ S
@@ -105,7 +110,7 @@ class Report:
         return self.sound and self.complete
 
 
-def shadow(prog, sh, S, pre, prerank):
+def shadow(prog, sh, S, pre, prerank, R=None):
     """**影の店** —— 平坦な場が ⊤ になる *前* に持っていた確定値だけの店。
 
     平坦束のセルは生涯にただ一つの確定値しか持てない（⊥ → a → ⊤）。
@@ -120,39 +125,61 @@ def shadow(prog, sh, S, pre, prerank):
     非平坦な場は最終の答えのまま使う。それは既に (A)(B) で lfp と証明済みなので
     公理として置ける —— 影の帰納は **平坦なセルの上だけ** で well-founded。
 
-    返すのは (S₂, R₂, 寄与)。寄与の階数は平坦な読みだけを見る。"""
+    返すのは (S₂, R₂, 寄与)。
+
+    **影は層ごとに組む**（2026-09-19 に直した）。前は下の層の平坦な場まで ⊤ の前の値に
+    戻していた —— 下の層は、上の層が走るときには確定している。`if not z[q]` は z の ⊤ を
+    見て立たないのに、影では z の前の値 0 を見て立ち、存在しない寄与 5 を証人にした
+    （x = 7 の答えを x = ⊤ と偽った証明書が通った）。いまは、規則 r の層で書かれる平坦な
+    場だけを ⊤ の前の値（と、⊤ にならなかった確定値）に戻し、それ以外は最終の答えを読む。
+    寄与の階数は同じ層の読み（平坦な場は影の階数、それ以外は最終の階数）を見る。"""
     FL = {f for f, l in prog.fields.items() if l.name in ('flat', 'fourv')}
-    S2 = {f: (dict(pre.get(f, {})) if f in FL else dict(S.get(f, {})))
-          for f in prog.fields}
-    R2 = {f: dict(prerank.get(f, {})) for f in prog.fields}
+    R = R or {}
+    S2 = {f: {} for f in FL}
+    R2 = {f: {} for f in FL}
     contrib = {}
-    for r in prog.rules:
-        reads = (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
-                 + [x for k in r.keys for x in _frefs(k)])
-        for env in L.bindings(r, prog, None, S2):
-            try:
-                if not all(L._truthy(L.ev(g, env, S2, sh)) for g in r.guards):
+    for si, rules in enumerate(prog.strata):
+        if not rules: continue
+        here = {r.target for r in rules}
+        St, Rt = {}, {}
+        for f in prog.fields:
+            if f in FL and f in here:
+                d = {k: v for k, v in S.get(f, {}).items()
+                     if v is not None and not isinstance(v, L._Top)}
+                rk = {k: R.get(f, {}).get(k, 0) for k in d}
+                d.update(pre.get(f, {})); rk.update(prerank.get(f, {}))
+                St[f], Rt[f] = d, rk
+                S2[f].update(d); R2[f].update(rk)
+            else:
+                St[f], Rt[f] = dict(S.get(f, {})), dict(R.get(f, {}))
+        for r in rules:
+            reads = (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
+                     + [x for k in r.keys for x in _frefs(k)])
+            for env in L.bindings(r, prog, None, St):
+                try:
+                    if not all(L._truthy(L.ev(g, env, St, sh)) for g in r.guards):
+                        continue
+                    v = L.ev(r.value, env, St, sh)
+                    key = tuple(L.ev(x, env, St, sh) for x in r.keys)
+                except Exception:
                     continue
-                v = L.ev(r.value, env, S2, sh)
-                key = tuple(L.ev(x, env, S2, sh) for x in r.keys)
-            except Exception:
-                continue
-            if v is None or isinstance(v, L._Top): continue
-            if any(x is None or isinstance(x, L._Top) for x in key): continue
-            if sh[r.target].name == 'fourv' and isinstance(v, bool):
-                v = L.FTRUE if v else L.FFALSE
-            mr = 0
-            for f, ix in reads:
-                if f not in FL: continue
-                try: kk = tuple(L.ev(x, env, S2, sh) for x in ix)
-                except Exception: continue
-                mr = max(mr, R2[f].get(kk, 0))
-            contrib.setdefault((r.target, key), []).append((v, mr))
-    # 影の有基性: どの影の値も、*より小さい影の階数* の影の値から導ける
+                if v is None or isinstance(v, L._Top): continue
+                if any(x is None or isinstance(x, L._Top) for x in key): continue
+                if sh[r.target].name == 'fourv' and isinstance(v, bool):
+                    v = L.FTRUE if v else L.FFALSE
+                mr = 0
+                for f, ix in reads:
+                    if f not in here: continue          # 下の層は確定している
+                    try: kk = tuple(L.ev(x, env, St, sh) for x in ix)
+                    except Exception: continue
+                    mr = max(mr, Rt[f].get(kk, 0))
+                contrib.setdefault((r.target, key), []).append((v, mr))
+    # 影の有基性: どの影の値（⊤ になる前の値）も、*より小さい影の階数* の影の値から導ける
+    # （⊤ にならなかった確定値は最終の答えの (B) で示してある）
     for f in FL:
         lat = sh[f]
-        for key, a in S2[f].items():
-            k = R2[f].get(key, 0)
+        for key, a in (pre.get(f) or {}).items():
+            k = (prerank.get(f) or {}).get(key, 0)
             if k <= 0: return None, None, None
             acc = lat.bot
             for v, mr in contrib.get((f, key), ()):
@@ -289,28 +316,35 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
                     # **⊤ は二つの寄与で支えられる。**
                     # 階数の証明書は「より小さい階数のセルから導ける」を要求するが、
                     # ⊤ はしばしば **そのセル自身の過去の値** を通って生じる
-                    # （ループを回った定数伝播がまさにそれ）。束の高さが 2 なので
-                    # 循環で ⊤ を捏造することはできない —— 相異なる二つの
-                    # *確定値* が要り、その各々は自分の階数で支えられている。
-                    # だから頂点だけは「値の段」で整礎性を見る。
+                    # （ループを回った定数伝播がまさにそれ）。
+                    # 前はここに「束の高さが 2 なので循環で ⊤ を捏造することはできない」と
+                    # 書き、二つの確定値を階数を問わずに数えていた。**捏造できた。**
+                    # **違う二つの値も、より小さい階数の読みから来ていなければならない。**
+                    # 前は階数を問わなかった —— `w <- 7 if x` と `x <- w` の閉路で、x = ⊤ と w = 7 を
+                    # 偽った証明書が通った（x の ⊤ を w の 7 が支え、w の 7 を「⊤ は真」が支える。
+                    # 最小不動点は x = 0、w = ⊥）。flat の値からの比較・ガードは単調なので（⊥ は偽、
+                    # ⊤ は真）、閉路の中に置ける —— 階数の規律を外してよい所は無い（2026-09-19）
+                    kx = R[f].get(key, 0)
                     vs = {v for v, _mr in contrib.get((f, key), ())
-                          if v != lat.bot and not isinstance(v, L._Top)}
+                          if v != lat.bot and not isinstance(v, L._Top) and _mr < kx}
                     tops = [mr for v, mr in contrib.get((f, key), ())
                             if isinstance(v, L._Top)]
-                    if len(vs) >= 2 or (tops and min(tops) < R[f].get(key, 0)):
+                    if len(vs) >= 2 or (tops and min(tops) < kx):
                         continue
-                    if vs and tops and pre is not None:
+                    vs_any = {v for v, _mr in contrib.get((f, key), ())
+                              if v != lat.bot and not isinstance(v, L._Top)}
+                    if (vs_any and tops or len(vs_any) >= 2) and pre is not None:
                         # **影に訊く。** 最終の答えでは片方の確定値が ⊤ に
                         # 吸収されているが、⊤ になる前の店には残っている。
                         if _sh[0] is None:
-                            _sh[0] = shadow(prog, sh, S, pre, prerank or {})
+                            _sh[0] = shadow(prog, sh, S, pre, prerank or {}, R)
                         _S2, _R2, c2 = _sh[0]
                         if c2 is not None:
-                            w = {v for v, _ in c2.get((f, key), ())}
+                            w = {v for v, _m in c2.get((f, key), ()) if _m < kx}
                             if len(w) >= 2:
                                 rep.top_witness.append((f, key, sorted(w, key=repr)[:2]))
                                 continue
-                    if vs and tops:
+                    if vs_any and tops or len(vs_any) >= 2:
                         # **閉路で押し上げられた ⊤。**
                         # 定数伝播のループがこれである: 最初 0 が入り、一周して
                         # 1 が戻り、⊤ になる。答えは最小不動点で正しいが、
@@ -318,7 +352,8 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
                         # 二つ目の確定値（1）は ⊤ に吸収されて消えている。
                         # 階数の証明書は帰納の半分であって、これは余帰納の側である
                         # （上界 `U` の話。GUIDE の穴を読むこと）。
-                        # 破れではないので violation にはしないが、**黙らない**。
+                        # 最終の答えだけでは本物と偽物（恒等 f <- f で ⊤ と書いたもの）を
+                        # 見分けられない。**示せないので健全に数えない**（Report.sound）。
                         rep.cyclic_top.append((f, key))
                         continue
                     rep.grounded.append((f, key, claimed, "⊤ without two witnesses"))
@@ -331,6 +366,18 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
                 for v, mr in contrib.get((f, key), ()):
                     if mr < k:
                         acc = lat.join(acc, v)
+                if not lat.leq(claimed, acc) and pre is not None:
+                    # **⊤ の前の値に訊く。** `w <- 7 if x` の w は、x が ⊤ になる前の値を読んで
+                    # 立った。最終の答えでは x は ⊤（階数は w より大きい）なので、w の支えが見えない。
+                    # 影（同じ層の平坦な場を ⊤ の前の値に戻した店）の寄与を、同じ階数の規律で足す
+                    # —— 影の値も階数で支えられているので、帰納は一つの整列の上で閉じる。
+                    if _sh[0] is None:
+                        _sh[0] = shadow(prog, sh, S, pre, prerank or {}, R)
+                    _S2, _R2, c2 = _sh[0]
+                    if c2 is not None:
+                        for v, mr in c2.get((f, key), ()):
+                            if mr < k:
+                                acc = lat.join(acc, v)
                 if not lat.leq(claimed, acc):
                     rep.grounded.append((f, key, claimed, acc))
         # 集約で申告漏れ（寄与はあるのに答えに無い）= 完全性の破れ
@@ -374,6 +421,10 @@ if __name__ == '__main__':
         print("          the C compiler was not trusted, examined, or executed by this checker.")
     elif rep.sound:
         print("PARTIAL : SOUND ✓  COMPLETE ✗   every claimed fact is true, some are missing.")
+    elif rep.cyclic_top and not (rep.grounded or rep.extra or rep.stability):
+        print("UNPROVEN: a flat ⊤ is supported only by a cycle — the final answer alone cannot")
+        print("          tell it from a forged ⊤. give the store before ⊤ (pre / prerank) to prove it.")
+        for v in rep.cyclic_top[:5]: print("  unproven ⊤  :", v)
     else:
         print("REJECTED")
         for v in rep.stability[:5]: print("  not stable  :", v)

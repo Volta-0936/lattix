@@ -942,7 +942,11 @@ def emit_rule(a, prog, r, arity, indexed=None, push=False, only_new=False, row0=
                if DENSE else "")
         a(f"{ind}  if(_c == {BOT[lat]}){{ F_{r.target}[_t] = _v; changed = 1;"
           f" K_{r.target}[_t] = _rk{r.id} + 1;{pre} " + PUSH(r.target) + " }")
-        a(f"{ind}  else if(_c != _v && _c != {TOPV}){{ F_{r.target}[_t] = {TOPV}; changed = 1; " + PUSH(r.target) + " } }")
+        # **⊤ になった階数を書く。** 前は最初の確定値の階数のまま残していた —— ⊤ を支える二つ目の値は
+        # それより後に来るので、「より小さい階数の寄与から支える」を満たせない（階数の規律を
+        # 外して数えていた間は見えなかった。2026-09-19）。二つの寄与のどちらよりも大きく取る。
+        a(f"{ind}  else if(_c != _v && _c != {TOPV}){{ F_{r.target}[_t] = {TOPV}; changed = 1;"
+          f" if(K_{r.target}[_t] < _rk{r.id} + 1) K_{r.target}[_t] = _rk{r.id} + 1; " + PUSH(r.target) + " } }")
     else:
         a(f"{ind}{{ i64 _v = {cexpr(r.value, V)}; long long _t = {key}; JOINS++;"); a(chk)
         cnd = (f"(F_{r.target}[_t] == {BOT[lat]} || z_cmp(_v, F_{r.target}[_t]) {CMP[lat]} 0)"

@@ -43,6 +43,7 @@ run "baked       run.lx baked, tables fed" test/baked.py 3000
 run "dataflow    analyses vs reference" test/dataflow.py 600
 run "why         ask the answer" test/why.py 600
 run "topwitness  cyclic top proved" test/topwitness.py 600
+run "attest_lx   .lx checker vs reference" test/attest_lx.py 1800
 run "build       real directory" test/build.py 600
 run "retract     delete facts" test/retract.py
 echo "-- expressiveness ---------------------------------------"

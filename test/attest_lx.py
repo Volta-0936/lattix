@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""**答えの検査器を .lx で** —— attest/attest.lx を焼き、答えと壊した証明書にかける。
+
+attest は二枚の .lx でできている:
+
+    attest/front.lx    源のバイト → 規則の表（焼き手の前段 + 表を語にして描く尻尾）
+    attest/attest.lx   [表][答え][階数][プログラムの入力] → 判定を描く
+
+判定は四つ。ATTESTED（答えは源の最小不動点）、REJECTED（最小不動点でない / 示せない /
+源に答えが無い —— 見出しが言い分ける）、UNSUPPORTED（attest が持たない形。理由を言う）、
+そして入力が attest の入力でない・源が焼けない。
+
+ここでは表の意味の参照実装（attest/ir.py。表だけを読む Python）と判定を突き合わせる。
+**許す組は五つだけ:** 両者 ATTESTED、両者 REJECTED、両者 UNSUPPORTED、参照が ATTESTED /
+REJECTED で .lx が UNSUPPORTED（.lx の限界 —— 鎖の深さ・値の幅・実例の数）。
+.lx が ATTESTED なのに参照がそう言わない組は **嘘** である。落ちる（終了コード 0 以外）のも破れ。
+
+    使い方:  python3 test/attest_lx.py [壊す回数（一件あたり、既定 2）] [撒く本の数（既定 60）] [種]
+"""
+import os, sys, struct, subprocess, tempfile, random, collections, shutil, atexit
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, 'attest')); sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, 'test'))
+import ir as A
+W = 78
+NTRIAL = int(sys.argv[1]) if len(sys.argv) > 1 else 2
+NPROG = int(sys.argv[2]) if len(sys.argv) > 2 else 60
+SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+LATTIX = os.environ.get('LATTIX_EXE', os.path.join(ROOT, 'lattix'))
+tmp = tempfile.mkdtemp(); atexit.register(shutil.rmtree, tmp, True)
+
+print("=" * W)
+print("  **答えの検査器を .lx で** —— attest/attest.lx を焼き、答えと壊した証明書にかける")
+print("=" * W)
+
+# ── 組んだ .lx が生成器と一致するか（手で直していないか）──────────────────────
+for gen, lx, args in [('mkfront.py', 'front.lx', []), ('mkeval.py', 'attest.lx', ['131072'])]:
+    out = os.path.join(tmp, lx)
+    subprocess.run([sys.executable, os.path.join(ROOT, 'attest', gen)] + args + [out], check=True, capture_output=True)
+    same = open(out, 'rb').read() == open(os.path.join(ROOT, 'attest', lx), 'rb').read()
+    print(f"  {'attest/' + lx + ' は ' + gen + ' の出力と同じ':<52}{'✓' if same else '✗（組み直すこと）'}")
+    if not same: sys.exit(1)
+
+# ── 焼く ──────────────────────────────────────────────────────────────
+FRONT, EV = os.path.join(tmp, 'attest-front'), os.path.join(tmp, 'attest')
+for lx, exe in [('front.lx', FRONT), ('attest.lx', EV)]:
+    r = subprocess.run([LATTIX, os.path.join(ROOT, 'attest', lx), exe], capture_output=True)
+    os.chmod(exe, 0o755)
+    probe = subprocess.run([exe], input=b'', capture_output=True)
+    ok = r.returncode == 0 and b'cannot bake' not in probe.stderr
+    print(f"  {'焼いた ' + lx:<52}{'✓' if ok else '✗ ' + probe.stderr[:60].decode(errors='replace')}")
+    if not ok: sys.exit(1)
+
+
+def make(src, data):
+    """源を焼いて走らせ、証人（fd 3）を取る。表は attest-front で作る。"""
+    p = os.path.join(tmp, 's.lx'); open(p, 'w', encoding='utf-8').write(src)
+    prog, tab, wit = os.path.join(tmp, 'prog'), os.path.join(tmp, 'tab'), os.path.join(tmp, 'w.bin')
+    for f in (prog, tab, wit):
+        if os.path.exists(f): os.remove(f)
+    subprocess.run([LATTIX, p, prog], capture_output=True)
+    subprocess.run([FRONT, p, tab], capture_output=True)
+    if not os.path.exists(prog) or not os.path.exists(tab): return None
+    os.chmod(prog, 0o755)
+    try:
+        r = subprocess.run(['sh', '-c', 'exec 3>"$1"; shift; exec "$@"', 'sh', wit, prog], input=data,
+                           capture_output=True, timeout=20)
+    except subprocess.TimeoutExpired:
+        return None
+    if r.returncode != 0: return None
+    return open(tab, 'rb').read(), r.stdout, open(wit, 'rb').read()
+
+
+WORD = {'ATTESTED': 'attested', 'REJECTED': 'rejected', 'UNSUPPORTED': 'unsupported'}
+def verdict(blob):
+    p = os.path.join(tmp, 'in'); open(p, 'wb').write(blob)
+    r = subprocess.run([EV, p], capture_output=True)
+    if r.returncode != 0: return 'rc%d' % r.returncode, r.stderr[:80]
+    first = r.stdout.split(b'\n')[0].decode(errors='replace')
+    for w, v in WORD.items():
+        if first.startswith('attest: ' + w): return v, r.stdout.decode(errors='replace')
+    return 'other', r.stdout.decode(errors='replace')
+
+
+ALLOWED = {('attested', 'attested'), ('rejected', 'rejected'), ('unsupported', 'unsupported'),
+           ('attested', 'unsupported'), ('rejected', 'unsupported')}
+tally = collections.Counter(); bad = []; why_uns = collections.Counter()
+rnd = random.Random(SEED)
+
+
+def corrupt(tab, vals0, ranks0):
+    """一か所だけ壊す: 値を動かす・消す・足す・flat を ⊤ にする・階数を下げる"""
+    lay, _, _ = A.Tables(tab).layout()
+    lay = [L for L in lay if L['cells']]
+    if not lay: return None
+    for _ in range(20):
+        Lf = rnd.choice(lay); c = rnd.randrange(Lf['cells'])
+        kind = rnd.choice(['bump', 'drop', 'add', 'top', 'rank0', 'rank1'])
+        vals, ranks = bytearray(vals0), bytearray(ranks0)
+        bot = A.BOT[Lf['lat']]; off = Lf['vo'] + Lf['wb'] * c
+        cur = vals[off] if Lf['wb'] == 1 else struct.unpack_from('<q', vals, off)[0]
+        rk = struct.unpack_from('<i', ranks, Lf['ko'] + 4 * c)[0]
+        if kind == 'bump' and cur != bot:
+            nv = (1 - cur) if Lf['wb'] == 1 else cur + rnd.choice([1, -1, 7])
+        elif kind == 'drop' and cur != bot:
+            nv = bot
+        elif kind == 'add' and cur == bot:
+            nv = 1 if Lf['wb'] == 1 else rnd.choice([1, 5, -3])
+            struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, rnd.choice([1, 2, 5]))
+        elif kind == 'top' and Lf['lat'] == 'flat' and cur != A.TOPV:
+            nv = A.TOPV
+            struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, rnd.choice([1, 2, 5]))
+        elif kind in ('rank0', 'rank1') and rk > 0:
+            nv = cur
+            struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, 0 if kind == 'rank0' else rk - 1)
+        else:
+            continue
+        if Lf['wb'] == 1: vals[off] = nv
+        else: struct.pack_into('<q', vals, off, nv)
+        return kind, bytes(vals), bytes(ranks)
+    return None
+
+
+def check(label, tab, vals, ranks, data):
+    try: v1 = A.check(tab, vals, ranks, data)['verdict']
+    except Exception as e: v1 = 'ir-error'
+    v2, info = verdict(tab + vals + ranks + data)
+    tally[(label, v1, v2)] += 1
+    if v2 == 'unsupported' and isinstance(info, str):
+        for line in info.splitlines()[2:]:
+            if line.startswith('  a ') or line.startswith('  more'): why_uns[line.strip()[:60]] += 1
+    if (v1, v2) not in ALLOWED:
+        bad.append((label, v1, v2, info))
+    return v1, v2
+
+
+def run(label, src, data, ntrial):
+    got = make(src, data)
+    if got is None: return False
+    tab, vals0, ranks0 = got
+    check(label + ':元', tab, vals0, ranks0, data)
+    for _ in range(ntrial):
+        c = corrupt(tab, vals0, ranks0)
+        if c is None: continue
+        kind, vals, ranks = c
+        check(label + ':' + kind, tab, vals, ranks, data)
+    return True
+
+
+# ── accept の答える本 ─────────────────────────────────────────────────
+_src = open(os.path.join(ROOT, 'test', 'accept.py'), encoding='utf-8').read()
+_ns = {'__name__': 'x', '__file__': os.path.join(ROOT, 'test', 'accept.py')}
+exec(compile(_src[:_src.index("tmp=tempfile.mkdtemp()")], 'accept', 'exec'), _ns)
+n_acc = 0
+for name, src, data, rows, xexit, known, why in _ns['CASES']:
+    if xexit is not None or known or 'render ' in src: continue
+    inp = data if rows is None else b''.join(struct.pack('<' + 'q' * len(t), *t) for t in rows)
+    n_acc += run('accept', src, inp, NTRIAL)
+
+# ── ⊤ の偽物（2026-09-19 に見つけた穴）──────────────────────────────────────
+FORGE = [
+    ("恒等で ⊤ を偽る（最小不動点は 1）", """table ch = (0,32)
+field f : flat bound 4
+f[0] <- 1
+f[z] <- f[z]   for (z) in 0 .. 0
+""", {'f': (0, A.TOPV, 1)}),
+    ("「⊤ は真」の閉路で ⊤ と 7 を偽る（最小不動点は x = 0、w = ⊥）", """table ch = (0,32)
+field x : flat bound 1
+field w : flat bound 1
+x[z] <- 0   for (z) in 0 .. 0
+x[z] <- w[z]   for (z) in 0 .. 0
+w[z] <- 7   for (z) in 0 .. 0 if x[z]
+""", {'x': (0, A.TOPV, 1), 'w': (0, 7, 2)}),
+]
+print("-" * W)
+for label, src, forge in FORGE:
+    got = make(src, b'')
+    tab, vals, ranks = got
+    lay, _, _ = A.Tables(tab).layout()
+    names = [l.split(':')[0].split()[1] for l in src.splitlines() if l.startswith('field ')]
+    vals, ranks = bytearray(vals), bytearray(ranks)
+    for f, (c, v, rk) in forge.items():
+        Lf = lay[names.index(f)]
+        struct.pack_into('<q', vals, Lf['vo'] + 8 * c, v); struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, rk)
+    v1, v2 = check('偽の ⊤', tab, bytes(vals), bytes(ranks), b'')
+    good = v2 != 'attested' and v1 != 'attested'
+    if not good: bad.append(('偽の ⊤', v1, v2, label))
+    print(f"  {label:<58}{'通らない ✓' if good else '通った ✗'}")
+
+# ── 撒いた本（test/progs.py の組み方）────────────────────────────────────
+import progs as P
+prnd = random.Random(SEED + 7); n_prog = 0; seen = set()
+for _ in range(NPROG):
+    s = P.program(prnd)
+    if s in seen: continue
+    seen.add(s)
+    n_prog += run('progs', s, b'ab1 cd23', NTRIAL)
+
+# ── 入力でないもの・焼けない源 ─────────────────────────────────────────────
+v, info = verdict(b'hello, this is not a table')
+junk_ok = v == 'other' and info.startswith('attest: NOT AN ATTEST INPUT')
+p = os.path.join(tmp, 'u.lx'); open(p, 'w').write("table ch = (0,32)\nfield f : max bound 4\nf[i] <- g[i]   for (i,c) in ch\n")
+subprocess.run([FRONT, p, os.path.join(tmp, 'ut')], capture_output=True)
+v, info2 = verdict(open(os.path.join(tmp, 'ut'), 'rb').read())
+unbk_ok = v == 'other' and info2.startswith('attest: THE SOURCE CANNOT BE BAKED -- line          3 reason          4')
+
+# 面が欠けた入力: 欠けた升は「値の無い在る升」に見え、値を比べる検査が黙って飛ぶ —— 入力でないと言う
+got = make(FORGE[0][1], b'')
+v, info3 = verdict(got[0] + got[1][:len(got[1]) // 2])
+short_ok = v == 'other' and info3.startswith('attest: NOT AN ATTEST INPUT (the answer and the ranks are shorter')
+
+print("-" * W)
+groups = collections.Counter()
+for (label, v1, v2), n in tally.items():
+    groups[(label.split(':')[1] if ':' in label else label, v1, v2)] += n
+print(f"  {'種類':<10}{'参照（ir）':<14}{'attest.lx':<14}{'件数':>6}")
+for (k, v1, v2), n in sorted(groups.items(), key=str):
+    mark = '' if (v1, v2) in ALLOWED else '  ← 破れ'
+    print(f"  {k:<10}{v1:<14}{v2:<14}{n:>6}{mark}")
+print("-" * W)
+print(f"  答えた本: accept {n_acc} 本、撒いた本 {n_prog} 本（一件あたり {NTRIAL} 回壊す）")
+if why_uns:
+    print("  UNSUPPORTED の理由（.lx の限界）:")
+    for w, n in why_uns.most_common(): print(f"    {n:>4}  {w}")
+print(f"  {'attest の入力でないもの':<52}{'言う ✓' if junk_ok else '✗'}")
+print(f"  {'焼けない源（行 3、理由 4）':<52}{'言う ✓' if unbk_ok else '✗ ' + info2[:40]}")
+print(f"  {'答えと階数の面が欠けた入力':<52}{'言う ✓' if short_ok else '✗ ' + info3[:40]}")
+for b in bad[:8]: print("  破れ:", b[0], b[1], b[2], str(b[3])[:160].replace('\n', ' | '))
+ok = not bad and junk_ok and unbk_ok and short_ok
+print("-" * W)
+if ok:
+    print("  **破れ無し** —— attest.lx は、参照が ATTESTED と言わない証明書に一度も ATTESTED と")
+    print("  言わず、落ちなかった。限界（鎖の深さ・値の幅・実例の数・閉路の ⊤）は UNSUPPORTED で言う。")
+else:
+    print(f"  **破れ {len(bad)}**")
+print("=" * W)
+sys.exit(0 if ok else 1)

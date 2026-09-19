@@ -90,10 +90,27 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 上の例なら `dist = [0, 3, 1, 8, 11, 13]` が升の並び（8バイト小端）で stdout に出る。
 C も Python も一度も通らない。
 
-`lattix` は 512KB の静的 ELF で、**それ自身が Lattix で書かれている**
+`lattix` は 1 MB の静的 ELF で、**それ自身が Lattix で書かれている**
 （`lattix.lx` を焼いたもの）。`lattix < lattix.lx` は自分自身をバイトまで同じに
 書き直す —— それが「自立している」の証明である（`test/g4d.py`）。
 受け取る形は [SPEC.md §12](SPEC.md) にある。
+
+**答えを確かめる。** `attest/` に **Lattix で書いた答えの検査器**がある。同じ `lattix` で
+二枚を焼けば、答えが源の最小不動点かどうかを **Lattix だけで**確かめられる:
+
+```bash
+./lattix attest/front.lx attest-front       # 源 → 規則の表
+./lattix attest/attest.lx attest            # [表][答え][階数][入力] → 判定
+./sssp edges.bin > answer.bin 3> ranks.bin  # 答えと、証人（階数）
+./attest-front examples/01_shortest.lx sssp.tab
+cat sssp.tab answer.bin ranks.bin edges.bin | ./attest
+# attest: ATTESTED -- the answer is the least fixed point of the source
+```
+
+答えを一か所でも変えれば `REJECTED` と、どの場のどの升かを言う。attest は答えを計算し
+直さない（規則の実例を一度なめるだけ）し、焼いた符号も見ない。持たない形は `UNSUPPORTED` と
+理由を言う —— **検査していないものを ATTESTED とは言わない**。見出しの意味と限界は
+[SPEC.md §9](SPEC.md) にある。
 
 道具の側（Python 版。**言語はこちらの方が広い**）:
 
@@ -110,6 +127,7 @@ python3 test/coords.py 300                           # 座標の入れ子を撒�
 python3 test/values.py 300                           # 値の幅（印の近く・64 ビットの近く）を撒く
 python3 test/mouths.py                               # 口を打つ（大きい入力・読めない入力・書けない出す先）
 python3 test/progs.py 300                            # 本を丸ごと撒く（場・種・規則・層・集約・値の式の形を混ぜる）
+python3 test/attest_lx.py                            # .lx の検査器を答えと壊した証明書にかける
 ```
 
 ### 処理系に問う
@@ -169,12 +187,13 @@ Lattix の字句解析器と構文解析器**）。`lib/` は Lattix で書い�
 ## 構造
 
 ```
-lattix       **焼いた処理系**（512KB の静的 ELF。依存なし。lattix.lx から作られる）
-lattix.lx    その源（2,826行。33_self + lib/fold + 31_gen を一枚に畳んだもの）
+lattix       **焼いた処理系**（1 MB の静的 ELF。依存なし。lattix.lx から作られる）
+lattix.lx    その源（6,126行。33_self + lib/fold + 31_gen を一枚に畳んだもの）
 lattix.py    処理系（構文解析・成層・極性解析・証明書・解釈実行）
 native.py    C バックエンド（単相化・索引導出・スケジューラ選択・領域実行）
 runtime.py   C バックエンド（プログラムだけを焼く。データは実行時。**Python から離れる道**）
-attest.py    答えの検査器 ← 信頼するのはここだけ
+attest.py    答えの検査器（Python）← 信頼するのはここだけ
+attest/      答えの検査器（**Lattix で書いたもの**。front.lx と attest.lx を焼いて使う）
 check        全検証
 
 lib/         Lattix で書かれたライブラリ（fold.lx = 前段と生成器の写し）
