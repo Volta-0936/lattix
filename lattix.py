@@ -1885,11 +1885,23 @@ def ev(e, env, store, fields):
     if k == 'bnot':
         return _fnot(ev(e[1], env, store, fields))
     if k == 'not':
-        v = ev(e[1], env, store, fields)
+        # **添字は否定の下でも添字である**（`classify` の極性解析、
+        # `native.botguards` の「添字は否定の下でも要る」、C 測定器、焼いた
+        # 符号 —— 四つが同じことを言っていた）。`not f[g[x]]` で g[x] が ⊥ なら、
+        # f の **どの升も読まれていない**。寄与が消えるだけで、「f が ⊥ だから真」
+        # にはならない。ここだけが座標の不在を値の不在にすり替えていた ——
+        # `fref` は座標が ⊥ でも「その升は ⊥」と答えるので、`not` がそれを
+        # 真に裏返していた（`differ` が撒いて出した。三つの実装のうち二つが
+        # 撃たず、ここだけが撃っていた）。
+        inner = e[1]
+        if inner[0] == 'fref' and \
+           any(ev(x, env, store, fields) is None for x in inner[2]):
+            return None
+        v = ev(inner, env, store, fields)
         # `not (f[x] < 6)` は f が ⊥ のときも発火してはならない ——
         # 「⊥ だから偽」を否定すると真になり、あとで値が入ると偽に戻る。
         # ⊥ は否定を跨いで **⊥ のまま**（発火しない）である。
-        if v is None and e[1][0] in ('cmp', 'not'): return None
+        if v is None and inner[0] in ('cmp', 'not'): return None
         return not _truthy(v)
     if k == 'fn':
         a = ev(e[2], env, store, fields); b = ev(e[3], env, store, fields)
