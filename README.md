@@ -53,7 +53,7 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 ```
 
 理由は九つ（`name too long` / `nesting too deep` / `too many terms` /
-`no such field` / `divisor not 2^n` / `need one table` / `mul after add` /
+`no such field` / `divisor not 2^n` / `need one table` / `unstratifiable` /
 `unsupported form` / `or takes true`）。一覧は [SPEC.md](SPEC.md) にある。
 
 この一行が標準エラーの **すべて**である（証人は fd 3 なので混ざらない）。

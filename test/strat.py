@@ -65,6 +65,20 @@ def statements(raw):
     return heads
 
 
+def baked_refuses(raw):
+    """焼いて走らせ、断ったなら理由を返す（答えを出したなら None）。"""
+    r = subprocess.run([LATTIX], input=raw, capture_output=True)
+    if r.returncode or r.stdout[:4] != b'\x7fELF': return None
+    exe = os.path.join(tmp, 'x.out')
+    open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
+    q = subprocess.run([exe], input=b'', capture_output=True)
+    if q.returncode == 7:
+        m = re.search(rb'line (\d{6}) reason (\d)', q.stderr)
+        return f"行 {int(m.group(1))} 理由 {m.group(2).decode()}" if m else "理由なし"
+    if q.returncode == 6: return "広さを超えた"
+    return None
+
+
 def refs_of(r):
     out = set()
     for e in r.keys + [r.value] + r.guards: L.field_refs(e, out)
@@ -80,8 +94,11 @@ def check(path):
     if r.returncode:
         return None, f"探針が止まった rc={r.returncode}"
     lv = r.stdout
-    # **層 127 は「深すぎる」**（`toodeep`）—— 焼く側はそこで断る。断るのは嘘ではない。
+    # **層 127 は「振れない」**（非単調な読みが閉路の中にある）。そこで焼く側が
+    # **本当に断るか**は、焼いて走らせて確かめる —— 層を数えていても、誰も
+    # 読んでいなければ断りにならない（2026-09-19 まで `toodeep` はそうだった）。
     deep = any(b != 32 and b - 48 >= 127 for b in lv)
+    refuse = baked_refuses(raw) if deep else None
     try:
         p = L.parse(raw.decode('utf-8')); L.check(p)
     except Exception as ex:
@@ -90,10 +107,11 @@ def check(path):
         L.stratify(p)
     except Exception as ex:
         # 答えの定義が「成層できない」と言うなら、焼く側も断っていなければならない
-        if deep: return None, "両者が断る（成層できない）"
-        return (0, [(0, '—', '—', 0, 0, '成層できないのに焼く側が層を振った')], 0), None
+        if deep and refuse: return None, f"両者が断る（成層できない。焼く側は {refuse}）"
+        return (0, [(0, '—', '—', 0, 0, '成層できないのに焼く側が答えを出した')], 0), None
     if deep:
-        return None, "焼く側が断る（層が深すぎる）"
+        if refuse: return None, f"焼く側が断る（{refuse}）"
+        return (0, [(0, '—', '—', 127, 0, '層を振れないのに焼く側が答えを出した')], 0), None
     heads = statements(raw)
     stmt_of_line = {ln: s for s, (ln, h) in enumerate(heads)}
     writers = collections.defaultdict(list)

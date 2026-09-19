@@ -610,6 +610,31 @@ field sm : sum bound 64
 sm[k[i]] <- mx[k[i]]   for (i,c) in ch
 """, data=b'abcdefghijklmnopqrstuvwxyz')
 
+# **成層できない源は焼かない。** `alive[i] <- true ... if not alive[i]` は、問いの
+# 答えがその問い自身に依る（解釈実行は「成層できない」と断る）。前段は層が
+# 上がり続けて 127 に届いたこと（`toodeep`）を数えていたのに、**誰も読んで
+# いなかった** —— 焼いた側は黙って答えを出していた。いまは理由 7 で言う。
+case("成層できない（言う）", """table ch = (0,32)
+field alive : or bound 64
+alive[i] <- true   for (i,c) in ch if not alive[i]
+""", data=b"ab", exit=7, why=(3,7))
+case("向きの閉路（言う）", """table ch = (0,32)
+field a : min bound 8
+field b : max bound 8
+a[0] <- 5
+b[i] <- a[i]   for (i) in 0 .. 3
+a[i] <- b[i] - 1   for (i) in 0 .. 3
+""", data=b"ab", exit=7, why=(5,7))
+
+# **焼けない束は宣言の行で言う。** fourv の `not` は Belnap の否定で単調なのに、
+# 断片はそれを否定として数えて層が上がり続け、「成層できない」と言っていた
+# （断るのは正しいが、理由が嘘）。宣言の行で「焼けない形」と言う。
+case("焼けない束（言う）", """table ch = (0,32)
+field liar : fourv bound 8
+liar[i] <- true   for (i,c) in ch
+liar[i] <- not liar[i]   for (i,c) in ch
+""", data=b"ab", exit=7, why=(2,8))
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
