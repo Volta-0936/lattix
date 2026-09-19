@@ -533,12 +533,37 @@ nextw[t] <- firstw[t+1]  for (t,zc) in ch
 # ── 数を読む。**桁を積むのは掛け算である** ─────────────────────────
 field digv : max bound 589824           # 文字 i の数字の値
 digv[i] <- c - 48 for (i,c) in ch if digit[i]
+field numa : max bound 589824           # 18 桁までの数（その字句の先頭から i まで）
+numa[i] <- digv[i]                  for (i,c) in ch if digit[i] if brk[i]
+numa[i] <- numa[i-1] * 10 + digv[i] for (i,c) in ch if i >= 1 if digit[i]
+      if not brk[i] if dpos[i] <= 17
+# **桁は 64 ビットに収まる所まで積む。** 前は桁を際限なく積み、19 桁を越える数で焼き手
+# そのものが `numv` で溢れて終了コード 3 で止まった（源のどの行かを言えない）。18 桁
+# （10^18 未満）は必ず収まる。19 桁目は、手前の 18 桁が 922337203685477580 より小さいか、
+# 等しくて 19 桁目が 7 以下のときだけ積む（2^63 - 1 まで）。収まらない数は `dlong` —— 焼く側が
+# 理由 C で言う。上限は 32 ビットの即値に収まらないので積で作る（焼き手が自分を焼ける形）。
+field dpos : max bound 589824           # 数の字句の中の桁の位置（0 起点）
+dpos[i] <- 0                        for (i,c) in ch if digit[i] if brk[i]
+dpos[i] <- dpos[i-1] + 1            for (i,c) in ch if i >= 1 if digit[i] if not brk[i]
+field n18 : max bound 1                 # 922337203685477580
+n18[z] <- 922337203 * 1000000000 + 685477580   for (z) in 0 .. 0
 field numv : max bound 589824           # そのトークンの先頭から i までの数
-numv[i] <- digv[i]                  for (i,c) in ch if digit[i] if brk[i]
-numv[i] <- numv[i-1] * 10 + digv[i] for (i,c) in ch if i >= 1 if digit[i]
-      if not brk[i]
+numv[i] <- numa[i]                  for (i,c) in ch if digit[i] if dpos[i] <= 17
+numv[i] <- numa[i-1] * 10 + digv[i] for (i,c) in ch if i >= 1 if digit[i] if dpos[i] == 18
+      if numa[i-1] < n18[0]
+numv[i] <- numa[i-1] * 10 + digv[i] for (i,c) in ch if i >= 1 if digit[i] if dpos[i] == 18
+      if numa[i-1] == n18[0] if digv[i] <= 7
+field dlong : or bound 589824           # 64 ビットに収まらない数の字句
+dlong[tnum[i]] <- true              for (i,c) in ch if digit[i] if dpos[i] >= 19
+dlong[tnum[i]] <- true              for (i,c) in ch if i >= 1 if digit[i] if dpos[i] == 18
+      if numa[i-1] > n18[0]
+dlong[tnum[i]] <- true              for (i,c) in ch if i >= 1 if digit[i] if dpos[i] == 18
+      if numa[i-1] == n18[0] if digv[i] >= 8
 field tval : max bound 589824           # 整数トークンの値
-tval[tnum[i]] <- numv[i] for (i,c) in ch if digit[i]
+# 収まらない数は 1 と読む（焼かないので値は使われない。**別の理由が先に立たないように**
+# —— 18 桁で切った値で読むと、割る数なら「二のべきでない」と嘘の理由が出た）
+tval[tnum[i]] <- numv[i] for (i,c) in ch if digit[i] if not dlong[tnum[i]]
+tval[t] <- 1             for (t,zc) in ch if dlong[t]
 
 # ── 宣言の中身: `field 名 : 束 bound 広さ 広さ` ─────────────────────
 field fdno : max bound 589824           # 宣言のトークン → 場番号（0 起点）
@@ -620,7 +645,10 @@ colc[t] <- colc[t-1]     for (t,zc) in ch if t >= 1 if not sbrk[t] if not rowbk[
       if not colbk[t]
 field tbrow : max bound 8192 8         # 行 r の列 c の値（表は一つに均す）
 tbrow[rowc[t], colc[t]] <- tval[t] for (t,zc) in ch if isnum[t]
-      if istb[snum[t]] if tdep[t] == 1
+      if istb[snum[t]] if tdep[t] == 1 if colc[t] <= 7 if rowc[t] <= 8191
+# （**面の内側だけを書く。** 九列の表を書くと `tbrow[r, 8]` が面の外へ出て、焼き手そのものが
+# 終了コード 6「入力が大きすぎる」—— 嘘の理由 —— で止まった。表の中身は焼き込まない
+# ので、ここは読むためだけの面である。列の上限は焼く側が数えて言う。）
 # **表は一つだけ。** 二つ書かれたら断片の外である —— 黙って混ぜずに数える
 # （数え方は集約ではなく鎖。区間の集約はまだ焼けない）。
 field ctb : max bound 8192              # ここまでの表の数
@@ -775,6 +803,9 @@ rarr[snum[t]] <- colc[t] + 1 for (t,zc) in ch if isbind[t]
 
 # ── ループ。`in` の次が数なら区間、名前なら表 ───────────────────────
 field lz : max bound 589824             # for 節の番号（0 起点）
+# **for の無い `in` は番号 -1 を持つ。** `mf[i] <- 1 (i) in 0 .. 3` を焼くと `lkd[s, -1]` へ書き、
+# 焼き手そのものが終了コード 6（「入力が大きすぎる」—— 嘘の理由）で止まった。九つ目の for も
+# 面の外（8）。書く所は 0..7 に守る —— 形の崩れは値の式の語の数えで理由 8 と言う。
 lz[t] <- lseq[t] - 1 for (t,zc) in ch
 field int1 : max bound 589824           # `in` の次の語（下端 or 表の名）
 int1[t] <- nextw[t] for (t,zc) in ch if kwin[t]
@@ -785,23 +816,23 @@ int3[t] <- nextw[int2[t]] for (t,zc) in ch if kwin[t]
 field int4 : max bound 589824           # 上端
 int4[t] <- nextw[int3[t]] for (t,zc) in ch if kwin[t]
 field lkd : max bound 8192 8            # 0 表 / 1 区間（上端が定数）/ 2 上端が場
-lkd[snum[t], lz[t]] <- 0 for (t,zc) in ch if kwin[t] if not isnum[int1[t]]
-lkd[snum[t], lz[t]] <- 1 for (t,zc) in ch if kwin[t] if isnum[int1[t]]
+lkd[snum[t], lz[t]] <- 0 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if not isnum[int1[t]]
+lkd[snum[t], lz[t]] <- 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if isnum[int1[t]]
       if isnum[int4[t]]
 # **区間の端は場でもよい**（`for (n) in 0 .. nins[0]`）—— 記述が空間を決める
-lkd[snum[t], lz[t]] <- 2 for (t,zc) in ch if kwin[t] if isnum[int1[t]]
+lkd[snum[t], lz[t]] <- 2 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if isnum[int1[t]]
       if isocc[int4[t]]
 field llo2 : max bound 8192 8           # 区間の下端
-llo2[snum[t], lz[t]] <- tval[int1[t]] for (t,zc) in ch if kwin[t]
+llo2[snum[t], lz[t]] <- tval[int1[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if isnum[int1[t]]
 field lhi2 : max bound 8192 8           # 区間の上端（定数のとき）
-lhi2[snum[t], lz[t]] <- tval[int4[t]] for (t,zc) in ch if kwin[t]
+lhi2[snum[t], lz[t]] <- tval[int4[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if isnum[int1[t]] if isnum[int4[t]]
 field oint4 : max bound 589824           # 上端の出現（三段を割る）
 oint4[t] <- oseq[int4[t]] for (t,zc) in ch if kwin[t] if isnum[int1[t]]
       if isocc[int4[t]]
 field lbf2 : max bound 8192 8           # 上端の場（種2）
-lbf2[snum[t], lz[t]] <- ofl[oint4[t]] - 1 for (t,zc) in ch if kwin[t]
+lbf2[snum[t], lz[t]] <- ofl[oint4[t]] - 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if isnum[int1[t]] if isocc[int4[t]]
 # **⊥ から座標を作らない**（気づき27 の座標側）—— 先に「あるとき」だけの
 # 場に置いてから引く。`int4[t] + 2` は int4 が ⊥ だと桁が溢れる。
@@ -809,10 +840,10 @@ field int4b : max bound 589824           # 上端の場の添字のトークン
 int4b[t] <- int4[t] + 2 for (t,zc) in ch if kwin[t]
       if isnum[int1[t]] if isocc[int4[t]]
 field lbc2 : max bound 8192 8           # 上端の座標（種2）
-lbc2[snum[t], lz[t]] <- tval[int4b[t]] for (t,zc) in ch if kwin[t]
+lbc2[snum[t], lz[t]] <- tval[int4b[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if isnum[int1[t]] if isocc[int4[t]]
 field lar2 : max bound 8192 8           # その節の組の長さ
-lar2[snum[t], lz[t]] <- colc[t] + 1 for (t,zc) in ch if isbind[t]
+lar2[snum[t], lz[t]] <- colc[t] + 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if isbind[t]
 
 # ── 項。**矢印より後ろ・節0・深さ0** が値の式である ─────────────────
 field isclo : or bound 589824           # `]`
@@ -1109,20 +1140,23 @@ field ixnm : max bound 589824           # そのまた次の語（ずれの数�
 ixnm[j] <- nextw[ixop[j]] for (j,zc) in ch
 field ixnv : max bound 589824           # ずれの数の値
 ixnv[j] <- tval[ixnm[j]] for (j,zc) in ch
-# **ずれは 255 まで。** `neg` は 256 升しか無い —— それを超える数を座標に
-# すると、機械語は地図の外を読む（C の側では黙って ⊥ が返るので気づかない）。
+# **ずれは -128 から +127 まで。** ずれは `add r9, imm8` の一バイトで持つ —— 符号つきなので、
+# 128 以上の `+` は負に化け（`c[i+200]` が c[i-56] を読み、升が外れて黙って ⊥）、129 以上の `-` は
+# `neg` で正に化けていた（`c[i-200]` が c[i+56] を読み、**もっともらしい違う数**を答えた）。
+# 前はここに「255 まで」と書いてあった —— 一バイトに入ることだけを見て、符号を見ていなかった。
+# 外のずれはずれとして読まない（座標の語の数えが理由 8 で言う）。
 # `0 - 2147483647` のような **ずれではない引き算**もここを通る（`ixend` は
 # 出現でないトークンでは自分自身なので）ので、上限は数えて言う（気づき35）。
 field ixhf : or bound 589824            # ずれがあるか
 ixhf[j] <- true for (j,zc) in ch if isnum[ixnm[j]] if ismin[ixop[j]]
-      if ixnv[j] <= 255
+      if ixnv[j] <= 128
 ixhf[j] <- true for (j,zc) in ch if isnum[ixnm[j]] if isplus[ixop[j]]
-      if ixnv[j] <= 255
+      if ixnv[j] <= 127
 field ixof : max bound 589824           # ずれ（mod 256）
 ixof[j] <- ixnv[j]      for (j,zc) in ch if isplus[ixop[j]] if isnum[ixnm[j]]
-      if ixnv[j] <= 255
+      if ixnv[j] <= 127
 ixof[j] <- neg[ixnv[j]] for (j,zc) in ch if ismin[ixop[j]] if isnum[ixnm[j]]
-      if ixnv[j] <= 255
+      if ixnv[j] <= 128
 
 # **前置のずれ**（`p[j+1]`）—— 内側の添字が動く。後置（`p[j] + 1`）とは
 # 別の場所に別の命令が要る。同じ印に畳んでいたら **黙って落ちていた**。

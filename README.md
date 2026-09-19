@@ -104,12 +104,12 @@ python3 runtime.py examples/01_shortest.lx           # C に落とす。**デー
 python3 attest.py examples/01_shortest.lx            # 答えが最小不動点か検査する
 ./check                                              # 全検証（42 本。50 分ほど）
 python3 test/differ.py                               # 文法から撒いて解釈実行と突き合わせる
-python3 test/accept.py                               # 使う側の試験（141 本）
-python3 test/mutate.py 300                           # 通る本を一か所壊して撒く
+python3 test/accept.py                               # 使う側の試験（217 本）
+python3 test/mutate.py 300                           # 通る本を一か所壊して撒く（語を足す・消す・括弧で包む…も）
 python3 test/coords.py 300                           # 座標の入れ子を撒く
 python3 test/values.py 300                           # 値の幅（印の近く・64 ビットの近く）を撒く
 python3 test/mouths.py                               # 口を打つ（大きい入力・読めない入力・書けない出す先）
-python3 test/progs.py 300                            # 本を丸ごと撒く（場・種・規則・層・集約を混ぜる）
+python3 test/progs.py 300                            # 本を丸ごと撒く（場・種・規則・層・集約・値の式の形を混ぜる）
 ```
 
 ### 処理系に問う

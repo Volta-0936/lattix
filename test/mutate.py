@@ -7,7 +7,8 @@
 読みの名を替える・束を替える・`not` を足す・数を替える・規則を入れ替える・値に
 場を足す・行を動かす・演算子や比較を替える・宣言の名だけ替える・括弧を一つ
 消す・広さを縮める・添字をずらす・区間を替える・ガードを足す・`true` と数を入れ替える・
-項を入れ替える・二か所壊す）。壊れた本は、答えの定義（lattix.py）が答えるか断るかの
+項を入れ替える・二か所壊す・**語を足す・消す・二度書く・`-` を付ける・丸括弧で包む・
+演算子を重ねる**）。壊れた本は、答えの定義（lattix.py）が答えるか断るかの
 どちらかである。焼いた側に許されるのは:
 
     答える  → 解釈実行と升まで一致する
@@ -70,7 +71,7 @@ LATS = ['min', 'max', 'or', 'flat', 'sum', 'count']
 
 
 def mutate(s, rnd):
-    lines = s.split('\n'); k = rnd.randrange(20)
+    lines = s.split('\n'); k = rnd.randrange(26)
     fl = re.findall(r'(?m)^field (\w+)', s)
     idx = [i for i, l in enumerate(lines) if l.strip()]
     if not idx: return None
@@ -169,6 +170,37 @@ def mutate(s, rnd):
     elif k == 19:                                                        # 二か所壊す
         a = mutate(s, rnd)
         return mutate(a, rnd) if a else None
+    elif k >= 20:                                                        # **字句を撒く**
+        # 上の十九の壊し方は、どれも行か正規表現の単位で、**語の並び**そのものは壊さない。
+        # 焼く側の前段は知らない語を黙って読み飛ばしていた（丸括弧・演算子の重なり・
+        # 座標の `i*2`・ガードの `not not`・for の後ろの語）—— 語を一つ足す・消す・
+        # 二度書く・先頭に `-` を付ける・丸括弧で包む・演算子を重ねる。
+        r = [j for j, l in enumerate(lines) if '<-' in l]
+        if not r: return None
+        j = rnd.choice(r)
+        toks = re.findall(r'\w+|[^\w\s]|\s+', lines[j])
+        pos = [q for q, t in enumerate(toks) if not t.isspace()]
+        if not pos: return None
+        q = rnd.choice(pos); kk = k - 20
+        if kk == 0:                                                      # 語を一つ足す
+            toks.insert(q, ' %s ' % rnd.choice(['-', '+', '*', '/', '%', '(', ')', ',', '3',
+                                                'not', 'i', '..', '=', '<', '>', 'true', '[', ']']))
+        elif kk == 1: toks.insert(q, toks[q])                            # 二度書く
+        elif kk == 2: del toks[q]                                        # 消す
+        elif kk == 3:                                                    # 先頭に `-`
+            w = [x for x in pos if re.match(r'\w', toks[x])]
+            if not w: return None
+            toks.insert(rnd.choice(w), '-')
+        elif kk == 4:                                                    # 丸括弧で包む
+            w = [x for x in pos if re.match(r'\w', toks[x])]
+            if not w: return None
+            a = rnd.choice(w); b = min(len(toks) - 1, a + rnd.randint(0, 4))
+            toks.insert(b + 1, ')'); toks.insert(a, '(')
+        elif kk == 5:                                                    # 演算子を重ねる
+            w = [x for x in pos if toks[x] in '+-*/%']
+            if not w: return None
+            toks.insert(rnd.choice(w) + 1, ' %s' % rnd.choice(['-', '+', '*']))
+        lines[j] = ''.join(toks)
     else: return None
     return '\n'.join(lines)
 
@@ -212,16 +244,24 @@ if __name__ == '__main__':
         s = mutate(s0, rnd)
         if not s or s == s0: continue
         inp = data if rows is None else b''.join(struct.pack('<' + 'q' * len(t), *t) for t in rows)
+        why = ''
         try:
             signal.alarm(20); ref, top = answer(s, data, rows); signal.alarm(0); ok = True
         except _Slow: kinds['解釈実行が遅い（数えない）'] += 1; continue
-        except Exception: signal.alarm(0); ok = False
+        except Exception as ex: signal.alarm(0); ok = False; why = str(ex)
         r = subprocess.run([LATTIX], input=s.encode(), capture_output=True)
         if r.returncode or r.stdout[:4] != b'\x7fELF':
             bad.append((name, s, '焼き手が落ちた %d' % r.returncode)); continue
         exe = os.path.join(tmp, 'm.out'); open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
         try: r2 = subprocess.run([exe], input=inp, capture_output=True, timeout=30)
-        except subprocess.TimeoutExpired: bad.append((name, s, '焼いた側が止まらない')); continue
+        except subprocess.TimeoutExpired:
+            # **昇鎖が止まらない本**（`a[i] <- a[i] + i * 2`）には最小不動点が無い。解釈実行は
+            # 変化の回数の見張りで止めて断り、焼いた側は見張りを持たず回り続ける（progs.py と同じ
+            # 数え方）。答えは出さないので嘘ではないが、**断りでもない** —— 数えて見せる。
+            if not ok and ('fire budget' in why or 'did not converge' in why):
+                kinds['昇鎖が止まらない（両者とも答えない）'] += 1
+            else: bad.append((name, s, '焼いた側が止まらない'))
+            continue
         rc = r2.returncode
         if not ok:
             if rc == 0: bad.append((name, s, '解釈実行は断るのに、焼いた側は答えた'))

@@ -68,7 +68,25 @@ def program(rnd):
         if lat in ('min', 'max') and mono and rnd.random() < 0.3:
             return "%s %s 1" % (read(vs, mono), '+' if lat == 'max' else '-')   # 鎖
         k = rnd.random()
-        if k < 0.35: return a
+        if k < 0.30: return a
+        # **値の式の形も撒く。** 撒く道具はどれも「項 演算子 項」までしか作らず、先頭の `-`
+        # （群0 の符号が消えていた）・丸括弧・演算子の重なり（黙って読み飛ばしていた）・
+        # 2^32 以上の法（`and` の即値が符号拡張で -1 になっていた）を一度も作らなかった。
+        if k < 0.40:                    # 先頭の -
+            b, c = rnd.choice(atoms), rnd.choice(atoms)
+            return rnd.choice(["-%s" % a, "-%s %s %s" % (a, rnd.choice(['+', '-', '*']), b),
+                               "-%s * %s + %s" % (a, b, c)])
+        if k < 0.46:                    # 焼く側が知らない形 —— 断るか、一致するか
+            b = rnd.choice(atoms)
+            return rnd.choice(["(%s %s %s)" % (a, rnd.choice(['+', '-']), b), "-(%s)" % a,
+                               "%s - -%s" % (a, b), "%s * -%s" % (a, b), "%s + (%s)" % (a, b)])
+        if k < 0.54:                    # 大きい二のべき
+            return "%s %s %d" % (a, rnd.choice(['/', '%']), 2 ** rnd.choice([31, 32, 33, 40, 62]))
+        if k < 0.66:                    # 長い鎖（群の境目と優先順位）
+            e = a
+            for _ in range(rnd.randint(2, 4)):
+                e += " %s %s" % (rnd.choice(['+', '-', '*', '*']), rnd.choice(atoms))
+            return e
         op = rnd.choice(['+', '-', '*', '/ 2', '% 4'])
         if op in ('/ 2', '% 4'): return "%s %s" % (a, op)
         return "%s %s %s" % (a, op, rnd.choice(atoms))
