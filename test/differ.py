@@ -138,11 +138,17 @@ for k,c in enumerate(combos):
         latn={f:p.fields[f].name for f in ref_raw}
         hit=[1 for f,d in ref_raw.items() for v in d.values()
              if isinstance(v,int) and not isinstance(v,bool) and (
-                (latn[f] in ('min','flat') and v==2147483647) or
-                (latn[f]=='max' and v==-2147483647) or
-                (latn[f]=='flat' and v==2147483646))]
+                (latn[f]=='min' and v>=2147483647) or
+                (latn[f]=='max' and v<=-2147483647) or
+                (latn[f]=='flat' and v in (2147483646, 2147483647)))]
         if hit: refused+=1; continue
         bad.append((src,'印の無い答えで終了コード 4')); continue
+    # **終了コード 3 は「値が 64 ビットに収まらない」**（解釈実行は多倍長で持つ）。
+    if r2.returncode==3:
+        big=[1 for d in ref_raw.values() for v in d.values()
+             if isinstance(v,int) and not isinstance(v,bool) and not -2**63 <= v < 2**63]
+        if big: refused+=1; continue
+        bad.append((src,'64 ビットに収まる答えで終了コード 3')); continue
     if r2.returncode==7:
         refused+=1
         if not re.search(rb'reason ([0-9A-F]): (.{16})\n', r2.stderr):

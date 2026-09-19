@@ -20,12 +20,12 @@ fw[f,0] <- fwid[f]                  for (f) in 0 .. nfdz[0]
 fw[f,1] <- fwid2[f]                 for (f) in 0 .. nfdz[0]
 
 # ── 種の番号（文に沿った前置きの鎖）────────────────────────────────
-field sdcnt : max bound 4096           # 文 s までに数えた種（s を含む）
+field sdcnt : max bound 8192           # 文 s までに数えた種（s を含む）
 sdcnt[s] <- 0                       for (s) in 0 .. nstz[0]
 sdcnt[s] <- sdcnt[s-1]              for (s) in 1 .. nstz[0]
 sdcnt[s] <- sdcnt[s-1] + 1          for (s) in 1 .. nstz[0] if isseed[s]
 sdcnt[s] <- 1                       for (s) in 0 .. 0 if isseed[s]
-field sdno : max bound 4096            # 種の番号（0 起点）
+field sdno : max bound 8192            # 種の番号（0 起点）
 sdno[s] <- sdcnt[s] - 1             for (s) in 0 .. nstz[0] if isseed[s]
 field nsd : max bound 1
 nsd[z] <- sdno[s] + 1                for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
@@ -35,17 +35,17 @@ nsd[z] <- sdno[s] + 1                for (s) in 0 .. nstz[0] for (z) in 0 .. 0 i
 # 1024 のまま残った —— 1024 本目の種を書いた日に、生成器は黙って
 # 隣を踏み、焼けたプログラムは終了コード 6 で落ちた（知らせは無い）。
 # 気づき34: 同じ判断を二箇所に書くと、片方だけ直る。
-field sdf : max bound 4096
+field sdf : max bound 8192
 sdf[sdno[s]] <- sedf[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdc : max bound 4096
+field sdc : max bound 8192
 sdc[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdc[sdno[s]] <- sedc[s]             for (s) in 0 .. nstz[0] if isseed[s]
-field sdv : max bound 4096
+field sdv : max bound 8192
 sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 
 # ── 規則の番号。**層の昇順**（層ごとに数えて、層の頭を足す）────────────
-field rcnt : max bound 4096 128          # 文 s までに層 k で数えた規則（s を含む）
+field rcnt : max bound 8192 128          # 文 s までに層 k で数えた規則（s を含む）
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
@@ -59,7 +59,7 @@ rtot[k] <- rcnt[s,k]                for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 field rbase : max bound 128              # 層 k の最初の規則番号（前置きの鎖）
 rbase[0] <- 0
 rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
-field rno : max bound 4096             # 文 s の規則番号
+field rno : max bound 8192             # 文 s の規則番号
 rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
       for (s) in 0 .. nstz[0] if isrec[s]
 
@@ -69,15 +69,15 @@ field nrl : max bound 1                        # 規則の数
 # 符号を一つも持たずに segfault した。**無いは 0 である** —— 種で置く。
 nrl[0] <- 0
 nrl[z] <- rno[s] + 1                 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isrec[s]
-field rrst : max bound 2048
+field rrst : max bound 8192
 rrst[rno[s]] <- rst[s]              for (s) in 0 .. nstz[0] if isrec[s]
-field rrlt : max bound 2048
+field rrlt : max bound 8192
 rrlt[rno[s]] <- rlt[s]              for (s) in 0 .. nstz[0] if isrec[s]
-field rrar : max bound 2048
+field rrar : max bound 8192
 rrar[rno[s]] <- rarr[s]             for (s) in 0 .. nstz[0] if isrec[s]
-field rrwf : max bound 2048
+field rrwf : max bound 8192
 rrwf[rno[s]] <- hfz[s]              for (s) in 0 .. nstz[0] if isrec[s]
-field rroo : max bound 2048                       # 書き先の座標を持つ出現
+field rroo : max bound 8192                       # 書き先の座標を持つ出現
 rroo[rsn[o]] <- o              for (o) in 0 .. nocz[0]
       if okk[o] == 2 if isrec[osn[o]]
 
@@ -90,25 +90,25 @@ glno[t] <- glno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgl[t-1]
 glno[t] <- glno[t-1]                for (t,zc) in ch if t >= 1 if not isgl[t-1]
 field ngl : max bound 1
 ngl[z] <- glno[t] + 1               for (t,zc) in ch for (z) in 0 .. 0 if isgl[t]
-field lpr : max bound 2048
+field lpr : max bound 8192
 lpr[glno[t]] <- rno[snum[t]]        for (t,zc) in ch if isgl[t]
-field lpi : max bound 2048
+field lpi : max bound 8192
 lpi[glno[t]] <- lz[t]               for (t,zc) in ch if isgl[t]
-field lpk : max bound 2048
+field lpk : max bound 8192
 lpk[glno[t]] <- lkd[snum[t], lz[t]]      for (t,zc) in ch if isgl[t]
-field lplo : max bound 2048
+field lplo : max bound 8192
 lplo[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lplo[glno[t]] <- llo2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
-field lphi : max bound 2048
+field lphi : max bound 8192
 lphi[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lphi[glno[t]] <- lhi2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
-field lpar : max bound 2048
+field lpar : max bound 8192
 lpar[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lpar[glno[t]] <- lar2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
-field lpbf : max bound 2048                       # 上端が場のとき、その場
+field lpbf : max bound 8192                       # 上端が場のとき、その場
 lpbf[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lpbf[glno[t]] <- lbf2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
-field lpbc : max bound 2048                       # その座標
+field lpbc : max bound 8192                       # その座標
 lpbc[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lpbc[glno[t]] <- lbc2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
 
@@ -133,36 +133,36 @@ isgc2[t] <- true                    for (t,zc) in ch if cbrk[t] if isrec[snum[t]
 field ngg : max bound 1
 ngg[z] <- ggb[gcl[t]] + 1           for (t,zc) in ch for (z) in 0 .. 0 if isgc[t]
 ngg[z] <- ggb[gcl[t]] + 2           for (t,zc) in ch for (z) in 0 .. 0 if isgc2[t]
-field gdr : max bound 4096
+field gdr : max bound 8192
 gdr[gbt[t]] <- rno[snum[t]]         for (t,zc) in ch if isgc[t]
 gdr[gbt[t] + 1] <- rno[snum[t]]     for (t,zc) in ch if isgc2[t]
-field gdi : max bound 4096
+field gdi : max bound 8192
 gdi[gbt[t]] <- gno2[t]              for (t,zc) in ch if isgc[t]
 gdi[gbt[t] + 1] <- gno2[t] + 1      for (t,zc) in ch if isgc2[t]
-field gdk : max bound 4096
+field gdk : max bound 8192
 gdk[gbt[t]] <- gkd[snum[t], gno2[t]]          for (t,zc) in ch if isgc[t]
 gdk[gbt[t] + 1] <- gkd[snum[t], gno2[t] + 1]  for (t,zc) in ch if isgc2[t]
-field gdf : max bound 4096
+field gdf : max bound 8192
 gdf[gbt[t]] <- 0                              for (t,zc) in ch if isgc[t]
 gdf[gbt[t]] <- gfd[snum[t], gno2[t]]          for (t,zc) in ch if isgc[t]
 gdf[gbt[t] + 1] <- 0                          for (t,zc) in ch if isgc2[t]
 gdf[gbt[t] + 1] <- gfd[snum[t], gno2[t] + 1]  for (t,zc) in ch if isgc2[t]
-field gdc1 : max bound 4096
+field gdc1 : max bound 8192
 gdc1[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
 gdc1[gbt[t]] <- gc1[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
 gdc1[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
 gdc1[gbt[t] + 1] <- gc1[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
-field gdgv : max bound 4096
+field gdgv : max bound 8192
 gdgv[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
 gdgv[gbt[t]] <- ggv[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
 gdgv[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
 gdgv[gbt[t] + 1] <- ggv[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
-field gdok : max bound 4096
+field gdok : max bound 8192
 gdok[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
 gdok[gbt[t]] <- gok2[snum[t], gno2[t]]        for (t,zc) in ch if isgc[t]
 gdok[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
 gdok[gbt[t] + 1] <- gok2[snum[t], gno2[t] + 1] for (t,zc) in ch if isgc2[t]
-field gdov : max bound 4096
+field gdov : max bound 8192
 gdov[gbt[t]] <- 0                             for (t,zc) in ch if isgc[t]
 gdov[gbt[t]] <- gov[snum[t], gno2[t]]         for (t,zc) in ch if isgc[t]
 gdov[gbt[t] + 1] <- 0                         for (t,zc) in ch if isgc2[t]
@@ -171,7 +171,7 @@ field ocl : max bound 16384             # 出現 o の属する大域の節
 ocl[o] <- gcl[otok[o]]              for (o) in 0 .. nocz[0] if oin[o]
 field ogn : max bound 16384             # 出現 o の節のガード番号
 ogn[o] <- gno2[otok[o]]             for (o) in 0 .. nocz[0] if oin[o]
-field gdoo : max bound 4096                       # ガードの辺を持つ出現
+field gdoo : max bound 8192                       # ガードの辺を持つ出現
 gdoo[gbo[o]] <- o              for (o) in 0 .. nocz[0]
       if okk[o] == 1 if isrec[osn[o]] if oix[o] == ogn[o]
 gdoo[gbo[o] + 1] <- o          for (o) in 0 .. nocz[0]
@@ -189,22 +189,22 @@ gtno[t] <- gtno[t-1] + 1            for (t,zc) in ch if t >= 1 if isgt[t-1]
 gtno[t] <- gtno[t-1]                for (t,zc) in ch if t >= 1 if not isgt[t-1]
 field ngt : max bound 1
 ngt[z] <- gtno[t] + 1               for (t,zc) in ch for (z) in 0 .. 0 if isgt[t]
-field tmr : max bound 4096
+field tmr : max bound 8192
 tmr[gtno[t]] <- rno[snum[t]]        for (t,zc) in ch if isgt[t]
-field tmi : max bound 4096
+field tmi : max bound 8192
 tmi[gtno[t]] <- tcnt[t]             for (t,zc) in ch if isgt[t]
-field tmk : max bound 4096
+field tmk : max bound 8192
 tmk[gtno[t]] <- trkd[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
-field tmf : max bound 4096
+field tmf : max bound 8192
 tmf[gtno[t]] <- 0                   for (t,zc) in ch if isgt[t]
 tmf[gtno[t]] <- trfl[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
-field tmc1 : max bound 4096
+field tmc1 : max bound 8192
 tmc1[gtno[t]] <- 0                  for (t,zc) in ch if isgt[t]
 tmc1[gtno[t]] <- trcl[snum[t], tcnt[t]]  for (t,zc) in ch if isgt[t]
-field tmv : max bound 4096
+field tmv : max bound 8192
 tmv[gtno[t]] <- 0                   for (t,zc) in ch if isgt[t]
 tmv[gtno[t]] <- trvl[snum[t], tcnt[t]]   for (t,zc) in ch if isgt[t]
-field tmoo : max bound 4096                       # 項の座標を持つ出現
+field tmoo : max bound 8192                       # 項の座標を持つ出現
 tmoo[gtt[o]] <- o            for (o) in 0 .. nocz[0]
       if okk[o] == 0 if isrec[osn[o]]
 
@@ -321,7 +321,7 @@ tlin[t] <- lnum[tstart[t]]           for (t,zc) in ch
 # `rlin[rno[snum[t]]]` は **三段の読み**で書けない —— 名前を一つ置く。
 field snr : max bound 589824                      # トークン t の文の規則番号
 snr[t] <- rno[snum[t]]               for (t,zc) in ch if isrec[snum[t]]
-field rlin : min bound 2048                       # 規則 r の書かれた行
+field rlin : min bound 8192                       # 規則 r の書かれた行
 rlin[snr[t]] <- tlin[t]              for (t,zc) in ch if isrec[snum[t]]
 # **行と理由を別々の min で選ぶと、対が揃わない。** 一方は行の最小、
 # もう一方は理由の最小で、違う場所のものが並びうる。**一つの鍵に畳む**
@@ -332,13 +332,19 @@ rlin[snr[t]] <- tlin[t]              for (t,zc) in ch if isrec[snum[t]]
 # いた —— 焼けた実行ファイルは segfault した（14_iosig / 20_lex_full）。
 # 断片が知っているのは四つの頭（`table` / `field` / `render` / `print`）と
 # **矢印のある文**（種と規則）だけである。それ以外は焼かずに言う。
-field sknown : or bound 4096                      # 文 s は断片が知っている種類
+field sknown : or bound 8192                      # 文 s は断片が知っている種類
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwtbl[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwfld[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwrnd[t]
+# **render は一つだけ**（理由 8）。二つ書くと、場の番号の大きい方だけを黙って描いていた
+# （解釈実行は両方を描く）。二つ目からの行で言う。
+field rnd1 : min bound 1                          # 最初の render の字句
+rnd1[z] <- t   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
+      if t > rnd1[0]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwprn[t]
 sknown[s] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
-field sunk : or bound 4096                        # 知らない種類（否定は層を切る）
+field sunk : or bound 8192                        # 知らない種類（否定は層を切る）
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 
 field badk : min bound 1                          # 最初に焼けなかった (行 * 16 + 理由)
@@ -391,12 +397,12 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
 # 直に置く —— `r[5] <- 7`（r は bound 4）が **隣の場の升に 7 を置いていた**（解釈実行は
 # 広さを見ないので r[5] = 7、焼いた側は s[1] = 7）。種の座標は数なので、焼くときに分かる。
 # 数でない種の座標（`r[k] <- 7` で k が束縛されていない）は解釈実行が断るので、焼かない（理由 8）。
-field sdbad : or bound 4096                       # 種 s の座標が広さの外
+field sdbad : or bound 8192                       # 種 s の座標が広さの外
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if tval[hotok[s] + 2] >= fwid[hfz[s]]
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if h2d[s]
       if tval[hotok[s] + 4] >= fwid2[hfz[s]]
 badk[z] <- tlin[hotok[s]] * 16 + 11   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sdbad[s]
-field sdnum : or bound 4096                       # 種 s の座標は数（一つだけ。`d[0+1]` は式）
+field sdnum : or bound 8192                       # 種 s の座標は数（一つだけ。`d[0+1]` は式）
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if not h2d[s]
       if isclo[hotok[s] + 3]
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if h2d[s]

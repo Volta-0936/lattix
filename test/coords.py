@@ -121,7 +121,7 @@ if __name__ == '__main__':
         except subprocess.TimeoutExpired: bad.append((place, s, '焼いた側が止まらない')); continue
         rc = r2.returncode
         if not ok:
-            if rc in (6, 7): kinds['両者が断る'] += 1
+            if rc in (3, 4, 5, 6, 7): kinds['両者が断る'] += 1
             else: bad.append((place, s, '解釈実行は断る / 焼いた側は終了コード %d' % rc))
             continue
         if rc == 7:
@@ -129,6 +129,15 @@ if __name__ == '__main__':
             if not m: bad.append((place, s, '理由を言わずに 7')); continue
             kinds['焼く側が断る（7 %s）' % m.group(2).decode().strip()] += 1; continue
         if rc == 6: kinds['焼く側が断る（6 広さ）'] += 1; continue
+        if rc in (3, 4):
+            _o, _lat, _off, _t = widths(s)
+            hit = [1 for k, v in ref.items() if not -2**63 <= v < 2**63
+                   or (_lat.get(k[0]) == 'min' and v >= 2147483647)
+                   or (_lat.get(k[0]) == 'max' and v <= -2147483647)
+                   or (_lat.get(k[0]) == 'flat' and v in (2147483646, 2147483647))]
+            if hit: kinds['焼く側が断る（%d 値）' % rc] += 1
+            else: bad.append((place, s, '答えに無い理由で終了コード %d' % rc))
+            continue
         if rc != 0: bad.append((place, s, '終了コード %d %s' % (rc, r2.stderr[:60]))); continue
         order, lat, off, tot = widths(s)
         if len(r2.stdout) != tot:

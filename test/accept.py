@@ -856,6 +856,102 @@ y[i] <- 0 - 2147483646   for (i) in 0 .. 1
 y[2] <- 2147483647
 """)
 
+case("min に印を越える値（言う）", """table ch = (0,32)
+field m : min bound 4
+m[i] <- 2147483647 + i   for (i) in 1 .. 2
+""", exit=4)
+case("max に印を下回る値（言う）", """table ch = (0,32)
+field y : max bound 4
+y[i] <- 0 - 2147483647 - i   for (i) in 1 .. 2
+""", exit=4)
+case("flat は印の外の大きい値を持つ", """table ch = (0,32)
+field g : flat bound 4
+g[i] <- 2147483647 + i   for (i) in 1 .. 2
+""")
+
+# ══ 描く値はバイト（言う）════════════════════════════════════════════════
+# 前は下位の八ビットだけを書いた —— 300 が 44、-1 が 255 になった（解釈実行は 300 を
+# 文字として持ち、負は飛ばす）。0..255 の外で止まる（終了コード 2）。
+case("描く値が 255 を超える（言う）", """table ch = (0,32)
+field out : max bound 8
+out[i] <- i * 100   for (i) in 0 .. 4
+render out
+""", exit=2)
+case("描く値が負（言う）", """table ch = (0,32)
+field out : max bound 8
+out[i] <- 0 - i   for (i) in 0 .. 3
+render out
+""", exit=2)
+
+case("render が二つ（言う）", """table ch = (0,32)
+field a : max bound 4
+field b : max bound 4
+a[i] <- 65   for (i) in 0 .. 1
+b[i] <- 66   for (i) in 0 .. 1
+render a
+render b
+""", exit=7, why=(7,8))
+
+# ══ 入力の口（言う）═════════════════════════════════════════════════════
+# 置き場（生バイトなら 983,040 バイト）を超える入力を **黙って切っていた**（数えると
+# 983040 で止まった）。語の列が行の途中で切れていると、0 で埋めた一行として読んでいた。
+# ちょうどは終了コードだけ見る（解釈実行に百万行は重い）。切られていないことは、
+# 一つ多い入力が 6 で止まることで測る。
+case("入力が置き場ちょうど（通る）", """table ch = (0,32)
+field n : count bound 4
+n[0] <- 1   for (i,c) in ch
+""", data=b"a" * 983040, exit=0)
+case("入力が置き場を超える（言う）", """table ch = (0,32)
+field n : count bound 4
+n[0] <- 1   for (i,c) in ch
+""", data=b"a" * 983041, exit=6)
+case("行の途中で切れる（言う）", """table edges = (0,0,0)
+field n : count bound 4
+n[0] <- 1   for (i,j,w) in edges
+""", data=b"\x01" * 24 + b"\x07" * 6, exit=8)
+
+# ══ 64 ビットの溢れ（言う）═════════════════════════════════════════════
+# 解釈実行は多倍長で持つ。焼いた符号は 64 ビットで持ち、掛け算・足し引き・sum の join の
+# 直後に溢れ（OF）を見て止まる（終了コード 3・場の番号つき）。途中の値が溢れても止まる。
+case("掛けて溢れる（言う）", """table ch = (0,32)
+field x : max bound 64
+x[0] <- 1
+x[i] <- x[i-1] * 3   for (i) in 1 .. 50
+""", exit=3)
+case("足して溢れる（言う）", """table ch = (0,32)
+field x : max bound 64
+field y : max bound 4
+x[0] <- 1
+x[i] <- x[i-1] * 2   for (i) in 1 .. 62
+y[0] <- x[62] + x[62]   for (i) in 0 .. 0
+""", exit=3)
+case("sum が溢れる（言う）", """table ch = (0,32)
+field x : max bound 64
+field s : sum bound 4
+x[0] <- 1
+x[i] <- x[i-1] * 2   for (i) in 1 .. 62
+s[0] <- x[62]   for (i) in 0 .. 1
+""", exit=3)
+case("途中で溢れる（言う）", """table ch = (0,32)
+field x : max bound 64
+field y : max bound 4
+x[0] <- 1
+x[i] <- x[i-1] * 2   for (i) in 1 .. 62
+y[i] <- x[62] * 2 / 4   for (i) in 0 .. 0
+""", exit=3)
+case("2^62 まで（通る）", """table ch = (0,32)
+field x : max bound 64
+x[0] <- 1
+x[i] <- x[i-1] * 2   for (i) in 1 .. 62
+""")
+case("溢れない掛け算（通る）", """table ch = (0,32)
+field x : max bound 64
+field y : max bound 64
+x[0] <- 1
+x[i] <- x[i-1] * 2   for (i) in 1 .. 61
+y[i] <- x[61] * i   for (i) in 0 .. 3
+""")
+
 # ══ 座標の入れ子（test/coords.py が撒いて出した）══════════════════════════
 # 内側の二次元の読みの次元1 は、畳む前にその次元の広さで濾す（前は次の行の升を読んだ）。
 case("内側の次元1 を濾す", """table ch = (0,32)
