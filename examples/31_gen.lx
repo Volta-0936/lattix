@@ -1369,7 +1369,7 @@ glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 7
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
-glen[gg] <- ctot[gdoo[gg]] + 3      for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 glen[gg] <- 1                    for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] >= 1
@@ -1911,9 +1911,19 @@ scb[gc[gg] + 6]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg]] <- frd[gdf[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 imm[gc[gg]]  <- foff[gdf[gg]] + bias[0] for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 scb[gc[gg]]  <- fscb[gdf[gg]] for (gg) in 0 .. nggz[0] if gdk[gg] == 2
-form[gc[gg] + 1] <- 26  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
-form[gc[gg] + 2] <- 22  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
-jt[gc[gg] + 2]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+# **`not f[…]` は ⊥ でも 0 でも立つ**（解釈実行は `not _truthy(v)` —— ⊥ は偽、0 も偽）。
+# ここは長いあいだ `test rax,rax / jnz 次の行へ` の二命令だった —— 立つのは升が 0 の
+# ときだけで、それは **`or` の ⊥ が 0 だから**正しかった。max の ⊥（-2147483647）も
+# flat の ⊥（2147483647）も 0 ではないので、読まれていない升で `not` が立たなかった
+# （`if not seen[i]` で seen が flat / max のとき。`test/mutate.py` が束を替えて出した）。
+# ⊥ と比べて立ち、そうでなければ 0 かを見る。
+form[gc[gg] + 1] <- 12  for (gg) in 0 .. nggz[0] if gdk[gg] == 2      # cmp rax, ⊥
+imm[gc[gg] + 1]  <- fbot[gdf[gg]]  for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+form[gc[gg] + 2] <- 13  for (gg) in 0 .. nggz[0] if gdk[gg] == 2      # je → ガードの後ろ（立つ）
+jt[gc[gg] + 2]   <- gpos[gg] + glen[gg] + 1   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
+form[gc[gg] + 3] <- 26  for (gg) in 0 .. nggz[0] if gdk[gg] == 2      # test rax,rax
+form[gc[gg] + 4] <- 22  for (gg) in 0 .. nggz[0] if gdk[gg] == 2      # jnz → 次の行へ
+jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 
 # 種3: 比較の左辺 → rsi。**辺は場の読みとは限らない**（ok が種を言う）——
 #   ok 0 場の読み / 1 表の列 / 2 区間の計数器 / 3 定数
@@ -2874,7 +2884,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #       4 宣言の無い場を読んだ / 5 二のべきでない除数 / 6 表が無い・二つ以上 /
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）
-#       9 or の値は true か or の読み / A 同じ名前を二度宣言した
+#       9 or の値は true か or の読み / A 同じ名前を二度宣言した / B 種の座標が宣言の広さの外
 #
 # **十進の桁は割り算なしで出す。** 二のべきでしか割れないので、
 # 逆数を掛けて 2^32 で寄せる（`v * 429496730 / 2^32` が `v / 10`）——
@@ -3243,6 +3253,23 @@ rtx[9,12] <- 101
 rtx[9,13] <- 32
 rtx[9,14] <- 32
 rtx[9,15] <- 32
+# 11 (B): bound too small
+rtx[11,0] <- 98
+rtx[11,1] <- 111
+rtx[11,2] <- 117
+rtx[11,3] <- 110
+rtx[11,4] <- 100
+rtx[11,5] <- 32
+rtx[11,6] <- 116
+rtx[11,7] <- 111
+rtx[11,8] <- 111
+rtx[11,9] <- 32
+rtx[11,10] <- 115
+rtx[11,11] <- 109
+rtx[11,12] <- 97
+rtx[11,13] <- 108
+rtx[11,14] <- 108
+rtx[11,15] <- 32
 # 10 (A): field redeclared
 rtx[10,0] <- 102
 rtx[10,1] <- 105
@@ -3276,6 +3303,7 @@ out[msgo[j]] <- rtx[7,j-44]          for (j) in 44 .. 59 if brz[0] == 7 if bad[0
 out[msgo[j]] <- rtx[8,j-44]          for (j) in 44 .. 59 if brz[0] == 8 if bad[0]
 out[msgo[j]] <- rtx[9,j-44]          for (j) in 44 .. 59 if brz[0] == 9 if bad[0]
 out[msgo[j]] <- rtx[10,j-44]         for (j) in 44 .. 59 if brz[0] == 10 if bad[0]
+out[msgo[j]] <- rtx[11,j-44]         for (j) in 44 .. 59 if brz[0] == 11 if bad[0]
 out[mbz[z] + 27] <- dgt[k] + 48      for (k) in 5 .. 5 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 28] <- dgt[k] + 48      for (k) in 4 .. 4 for (z) in 0 .. 0 if bad[0]
 out[mbz[z] + 29] <- dgt[k] + 48      for (k) in 3 .. 3 for (z) in 0 .. 0 if bad[0]

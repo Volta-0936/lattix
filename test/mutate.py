@@ -18,6 +18,11 @@
 `true` の値・or の式・頭の無い矢印・閉じない括弧・次元の混在・否定と広さの外・
 内側の添字の濾し）。
 
+種には `work/t` の本も入れる（表は源に書いてあるので、口から渡す形に直す）。
+本を足した日、**壊す前の本が二冊、黙って違う答えを出していた** —— 区間の上端が式の
+`z_depint`（`0 .. n[i] - 1` を `n[?]` と読んだ）と、三次元の場の `z_dim2rd`
+（三つ目の添字を落とした）。種そのものも、壊す前に一度比べる価値がある。
+
    使い方:  python3 test/mutate.py [本数] [種]
 """
 import os, re, struct, subprocess, sys, io, random, tempfile, collections, signal
@@ -33,6 +38,32 @@ _ns = {'__name__': 'mutate', '__file__': os.path.join(ROOT, 'test', 'accept.py')
 exec(compile(_src[:_src.index("tmp=tempfile.mkdtemp()")], 'accept', 'exec'), _ns)
 SEEDS = [c for c in _ns['CASES'] if c[4] is None and 'render ' not in c[1]]
 widths, BOT = _ns['widths'], _ns['BOT']
+
+
+def _book_seeds():
+    """`work/t` の本も種にする。表は源に書いてあるので、それを口から渡す形に直す
+    （二列は生バイト、三列以上は 8 バイト小端の列）。"""
+    import glob
+    out = []
+    for path in sorted(glob.glob(os.path.join(ROOT, 'work', 't', '*.lx'))):
+        src = open(path, encoding='utf-8').read()
+        if 'render ' in src or 'use ' in src or 'include ' in src: continue
+        try: p = L.parse(src)
+        except Exception: continue
+        if len(p.tables) != 1: continue
+        (tn, rows), = p.tables.items()
+        if not rows: continue
+        if any(not isinstance(x, int) for r in rows for x in r): continue
+        if len(rows[0]) == 2:
+            if [r[0] for r in rows] != list(range(len(rows))): continue
+            if any(not (0 <= r[1] <= 255) for r in rows): continue
+            out.append((os.path.basename(path), src, bytes(r[1] for r in rows), None, None, False, None))
+        else:
+            out.append((os.path.basename(path), src, b'', [tuple(r) for r in rows], None, False, None))
+    return out
+
+
+SEEDS += _book_seeds()
 LATS = ['min', 'max', 'or', 'flat', 'sum', 'count']
 
 

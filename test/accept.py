@@ -737,6 +737,49 @@ field z : or bound 64
 z[i] <- true   for (i,c) in ch if not f[g[i]]
 """, data=b"the quick brown fox")
 
+case("not は ⊥ で立つ（flat / max / min）", """table ch = (0,32)
+field sf : flat bound 16
+sf[i] <- 1   for (i,c) in ch if c >= 98
+field sm : max bound 16
+sm[i] <- 1   for (i,c) in ch if c >= 98
+field sn : min bound 16
+sn[i] <- 1   for (i,c) in ch if c >= 98
+field v : max bound 16
+v[i] <- c - 98   for (i,c) in ch
+field mf : or bound 16
+mf[i] <- true   for (i,c) in ch if not sf[i]
+field mm : or bound 16
+mm[i] <- true   for (i,c) in ch if not sm[i]
+field mn : or bound 16
+mn[i] <- true   for (i,c) in ch if not sn[i]
+field m0 : or bound 16
+m0[i] <- true   for (i,c) in ch if not v[i]
+""", data=b"abc")
+case("種が広さの外（言う）", """table ch = (0,32)
+field r : max bound 4
+r[5] <- 7
+field s : max bound 4
+s[0] <- 1
+""", data=b"ab", exit=7, why=(3,11))
+case("種が式（言う）", """table ch = (0,32)
+field t : max bound 16
+t[0] <- 1 + 2
+""", data=b"ab", exit=7, why=(3,8))
+case("or の種が 1（言う）", """table ch = (0,32)
+field t : or bound 16
+t[0] <- 1
+""", data=b"ab", exit=7, why=(3,9))
+case("区間の上端が式（言う）", """table ch = (0,32)
+field n : max bound 4
+n[0] <- 3
+field t : max bound 8
+t[j] <- j   for (j) in 0 .. n[0] - 1
+""", data=b"ab", exit=7, why=(5,8))
+case("三次元の場（言う）", """table ch = (0,32)
+field w : max bound 8
+w[i, j, k] <- i + j + k   for (i) in 0 .. 1 for (j) in 0 .. 1 for (k) in 0 .. 1
+""", data=b"ab", exit=7, why=(3,8))
+
 case("広さを超える（言う）", """table ch = (0,32)
 field s : max bound 4
 s[i] <- i   for (i) in 0 .. 9
