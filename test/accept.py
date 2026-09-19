@@ -892,6 +892,76 @@ render a
 render b
 """, exit=7, why=(7,8))
 
+# ══ 同じ升の種は join する（test/progs.py が撒いて出した）════════════════
+# 種は升に値を直に置くので、後の種が前の種を上書きしていた —— min の 7 と 9 が 9、
+# flat の 1 と 2 が 2（解釈実行は ⊤）、count の二つが一つ、sum の二つが後の値。
+case("同じ升の種（六つの束）", """table ch = (0,32)
+field m : min bound 4
+field x : max bound 4
+field g : flat bound 4
+field s : sum bound 4
+field c : count bound 4
+m[1] <- 7
+m[1] <- 9
+x[1] <- 3
+x[1] <- 8
+x[1] <- 5
+g[1] <- 3
+g[1] <- 3
+g[2] <- 1
+g[2] <- 2
+s[1] <- 5
+s[1] <- 6
+s[1] <- 5
+c[1] <- 1
+c[1] <- 1
+c[2] <- 1
+""")
+case("同じ升の種が ⊤ を作り、数として読まれる（言う）", """table ch = (0,32)
+field g : flat bound 4
+field y : max bound 4
+g[2] <- 1
+g[2] <- 2
+y[i] <- g[i] + 1   for (i) in 0 .. 3
+""", exit=5)
+
+# ══ 区間の上端（上端が ⊥ なら回らない・広さは言語の上限まで）══════════════
+# 上端が min / flat の ⊥（2147483647）を数として読んで二十億回まわり segfault した。
+# sum / count の ⊥（0）では `0 .. 0` を一度回して答えを一つ多くした。解釈実行は回さない。
+case("上端が ⊥ の区間（min）は回らない", """table ch = (0,32)
+field n : min bound 4
+field x : count bound 4
+x[0] <- 1   for (i) in 0 .. n[0]
+""")
+case("上端が ⊥ の区間（count）は回らない", """table ch = (0,32)
+field n : count bound 4
+field x : count bound 4
+x[0] <- 1   for (i) in 0 .. n[0]
+""")
+case("上端が場の区間（min）", """table ch = (0,32)
+field n : min bound 4
+field x : count bound 4
+n[0] <- 10
+x[0] <- 1   for (i) in 3 .. n[0]
+""")
+# 区間の広さは言語の上限（RANGE_CAP = 4,194,304）まで。解釈実行は超えた区間を断る。
+case("数の区間が上限より広い（言う）", """table ch = (0,32)
+field n : count bound 4
+n[0] <- 1   for (i) in 0 .. 5000000
+""", exit=7, why=(3,15))
+case("場の区間が上限より広い（言う）", """table ch = (0,32)
+field n : max bound 4
+field x : count bound 4
+n[0] <- 5000000
+x[0] <- 1   for (i) in 0 .. n[0]
+""", exit=10)
+case("場の置き場が 2 GB を超える（言う）", """table ch = (0,32)
+field x : or bound 50000 50000
+field y : max bound 4
+y[i] <- i + 1   for (i) in 0 .. 3
+x[i,j] <- true   for (i) in 0 .. 2 for (j) in 0 .. 1
+""", exit=7, why=(0,14))
+
 # ══ 入力の口（言う）═════════════════════════════════════════════════════
 # 置き場（生バイトなら 983,040 バイト）を超える入力を **黙って切っていた**（数えると
 # 983040 で止まった）。語の列が行の途中で切れていると、0 で埋めた一行として読んでいた。

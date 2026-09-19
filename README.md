@@ -52,15 +52,17 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 # lattix: cannot bake - line 000003 reason 5: divisor not 2^n
 ```
 
-理由は十三（`name too long` / `nesting too deep` / `too many terms` /
+理由は十五（`name too long` / `nesting too deep` / `too many terms` /
 `no such field` / `divisor not 2^n` / `need one table` / `unstratifiable` /
 `unsupported form` / `or takes true` / `field redeclared` /
-`bound too small` / `number too big` / `reserved value`）。一覧は [SPEC.md](SPEC.md) にある。
+`bound too small` / `number too big` / `reserved value` / `fields too big` /
+`range too wide`）。一覧は [SPEC.md](SPEC.md) にある。
 
 焼けた実行ファイルが **走っている途中で**止まることもある —— そのときも黙らない。
 描く値がバイトでない（2）、値が 64 ビットに収まらない（3）、値が ⊥ / ⊤ の印に届いた（4）、
-`flat` の ⊤ が数として読まれる（5）、宣言した広さを超えた・入力が大きすぎる（6）。どれも
-一行と場の番号を標準エラーに出す。入力が読めない・行の途中で切れているときは 8。
+`flat` の ⊤ が数として読まれる（5）、宣言した広さを超えた・入力が大きすぎる（6）、区間が
+言語の上限（4,194,304）より広い（10）。どれも一行と場の番号を標準エラーに出す。入力が
+読めない・行の途中で切れているときは 8、出す先に書けないときは 9。
 
 この一行が標準エラーの **すべて**である（証人は fd 3 なので混ざらない）。
 
@@ -107,6 +109,7 @@ python3 test/mutate.py 300                           # 通る本を一か所壊�
 python3 test/coords.py 300                           # 座標の入れ子を撒く
 python3 test/values.py 300                           # 値の幅（印の近く・64 ビットの近く）を撒く
 python3 test/mouths.py                               # 口を打つ（大きい入力・読めない入力・書けない出す先）
+python3 test/progs.py 300                            # 本を丸ごと撒く（場・種・規則・層・集約を混ぜる）
 ```
 
 ### 処理系に問う

@@ -6,6 +6,7 @@
 大きさ、読めない入力、閉じた出す先は撒かれない。ここで打つのは、黙ると嘘になる所だけ:
 
     置き場ちょうど → 答える / 一バイト多い → 6        （前は黙って切った）
+    詰め直しの置き場より大きい render → 答える          （前は segfault）
     ディレクトリを読む → 8                              （前は空の入力として答えた）
     語の列が行の途中で切れる → 8 / 割り切れる → 答える  （前は 0 で埋めた一行）
     出す先が /dev/full → 9 / 開けない出す先 → 9          （前は 0）
@@ -33,6 +34,7 @@ CNT = bake('cnt', "table ch = (0,32)\nfield n : count bound 4\nn[0] <- 1   for (
 ROWS = bake('rows', "table e = (0,0,0)\nfield n : count bound 4\nfield s : sum bound 4\n"
                     "n[0] <- 1   for (i,j,w) in e\ns[0] <- w   for (i,j,w) in e\n")
 BIG = bake('big', "table ch = (0,32)\nfield x : max bound 262144\nx[i] <- i   for (i) in 0 .. 262143\n")
+WIDE = bake('wide', "table ch = (0,32)\nfield o : max bound 2000000\no[i] <- 65   for (i) in 0 .. 1999999\nrender o\n")
 
 CAP = 983040      # 生バイトの置き場（rcap）
 
@@ -60,6 +62,7 @@ def case(name, got, want):
 rc, out = run(CNT, b'a' * CAP); case('置き場ちょうど（答える）', (rc, n0(out)), (0, CAP))
 rc, out = run(CNT, b'a' * (CAP + 1)); case('一バイト多い（6）', rc, 6)
 rc, out = run(CNT, b''); case('空の入力（答える）', (rc, n0(out)), (0, 0))
+rc, out = run(WIDE); case('二百万升を描く（答える）', (rc, len(out), set(out)), (0, 2000000, {65}))
 rc, out = run(CNT, args=(tmp,)); case('ディレクトリを読む（8）', rc, 8)
 rc, out = run(CNT, args=(os.path.join(tmp, 'nope'),)); case('無い源（8）', rc, 8)
 row = struct.pack('<qqq', 1, 2, 5)
