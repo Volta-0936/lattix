@@ -45,6 +45,7 @@ run "why         ask the answer" test/why.py 600
 run "topwitness  cyclic top proved" test/topwitness.py 600
 run "attest_lx   .lx checker vs reference" test/attest_lx.py 1800
 run "forge       every small answer, every rank" test/forge.py 3000
+run "rankwrap    witness rank past 2^32 - 1" test/rankwrap.py 600
 run "build       real directory" test/build.py 600
 run "retract     delete facts" test/retract.py
 echo "-- expressiveness ---------------------------------------"

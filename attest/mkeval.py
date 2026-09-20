@@ -532,6 +532,10 @@ okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0 if not w
 # 表の頭か表の中に持てない語（-2147483646 より下）があるときも、表を読み違えるので判定しない（wbd）
 field okbk : or bound 1                         # 源は焼ける（前段が断っていない）
 okbk[0] <- true   for (z) in 0 .. 0 if badk[0] < 0
+# 在る升の階数 0 は「導出を与えていない」。偽った階数か、焼いた本の階数が 2^32 - 1 を越えて 0 に
+# 戻ったもの（焼いた本は階数を符号なし 32 ビットで溜め、0xFFFFFFFF の次は 0）。どちらでも示せない
+field rk0 : or bound 1
+rk0[0] <- true   for (c) in 0 .. nclz[0] if sp[c] if sk[c] == 0
 """.replace("NIV", str(NI)))
 # 描く数: 0 実例 / 1 升 / 2 (A) / 3 (B) / 4 外 / 5 最初の場 / 6 最初の升 / 7 閉路の ⊤ / 8 断りの行 / 9 断りの理由 / 10 入力のバイト数 / 11 出した答えの違うバイト
 r("""field pn : max bound 16                         # 描く数
@@ -649,6 +653,10 @@ for line, k, s in [(4, 0, "  a chain of reads deeper than 3, or top read in a co
     nl(line, UNS + f" if un1[{k}]")
 text(9, 0, "  a value that needs what a flat field held before it became top", UNS + " if un1[5]")
 nl(9, UNS + " if un1[5]")
+# 行 4〜8 は UNSUPPORTED の理由の行。REJECTED のときは空いているので、階数 0 の注をここに置く
+text(4, 0, "  a present cell with rank 0: no derivation given (a forged rank, or one past 2^32 - 1)",
+     REJ + " if rk0[0]")
+nl(4, REJ + " if rk0[0]")
 MISS = REJA + " if not rjb[0] if not rjo[0]"
 text(9, 0, "  every value is grounded, so facts are missing: the answer is below it", MISS)
 nl(9, MISS)

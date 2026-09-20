@@ -464,17 +464,17 @@ encb[88,0] <- 71
 encb[88,1] <- 59
 encb[88,2] <- 156
 encb[88,3] <- 138
-encb[89,0] <- 71
-encb[89,1] <- 15
-encb[89,2] <- 76
+encb[89,0] <- 71                     # 47 0F 42 9C 8A d32  cmovb r11d,[r10+r9*4+d32]
+encb[89,1] <- 15                     # **階数は符号なしで比べる**（cmovb。前は cmovl —— 2^31 から
+encb[89,2] <- 66                     # 上の階数を負と読み、読む側が小さい階数を書いて順序が壊れた）
 encb[89,3] <- 156
 encb[89,4] <- 138
 encb[90,0] <- 77
 encb[90,1] <- 49
 encb[90,2] <- 219
-encb[91,0] <- 73
-encb[91,1] <- 131
-encb[91,2] <- 195
+encb[91,0] <- 65                     # 41 83 C3 01  add r11d,1（32 ビット。0xFFFFFFFF の次は 0 ——
+encb[91,1] <- 131                    # 在る升の階数 0 は「導出を与えていない」ので、検査器は示せないと
+encb[91,2] <- 195                    # 言う。黙って小さい階数を書いて順序を壊すことはもう無い）
 encb[91,3] <- 1
 encb[92,0] <- 69
 encb[92,1] <- 137
@@ -2156,7 +2156,7 @@ jt[gc[gg] + 4]   <- av[gdr[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 form[gc[gg] + 5] <- 88  for (gg) in 0 .. nggz[0] if gdk[gg] == 9      # cmp r11d,[K]
 imm[gc[gg] + 5]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 scb[gc[gg] + 5]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
-form[gc[gg] + 6] <- 89  for (gg) in 0 .. nggz[0] if gdk[gg] == 9      # cmovl r11d,[K]
+form[gc[gg] + 6] <- 89  for (gg) in 0 .. nggz[0] if gdk[gg] == 9      # cmovb r11d,[K]
 imm[gc[gg] + 6]  <- koff[gdf[gg]] + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 scb[gc[gg] + 6]  <- kscb[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 
@@ -2399,7 +2399,7 @@ form[ccp[gc] - 1] <- 99   for (gc) in 0 .. ngcz[0] if csd[gc] > 0      # mov r9,
 
 # ── 項の発行。**値も式である** —— 定数・列・場の読みが行として並ぶ ─────
 # 一つの規則にいくつでも並ぶ。最初の項が置き、あとの項が足す。
-# 場の読みは ⊥ で次の行へ飛び、階数の最大を r11 に溜める（cmovl。分岐しない）。
+# 場の読みは ⊥ で次の行へ飛び、階数の最大を r11 に溜める（cmovb —— 符号なしで比べる。分岐しない）。
 form[bb[r]] <- 90   for (r) in 0 .. nrlz[0]      # xor r11,r11（階数の最大。**ガードより前**）
 
 # 種1: 定数
@@ -2645,12 +2645,16 @@ form[jlp[r] + 1] <- 191  for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # jo → �
 jt[jlp[r] + 1]   <- osf[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 8
 
 # ── 階数。読みの階数の最大 + 1（集約は 1。印が数えるので深さを持たない）───
+# 階数は **符号なしの 32 ビット**。最大は符号なしで取り（cmovb）、+1 は 32 ビットで足す。
+# 0xFFFFFFFF の次は 0 に戻る —— 在る升の階数 0 は「導出を与えていない」で、検査器は
+# 示せない（REJECTED、(B)）と言う。前は符号つき（cmovl と 64 ビットの add）で、
+# 2^31 を越えた階数を読む側が負と見て小さい階数を書き、証人の順序が **黙って** 壊れた。
 
 # 階数を書く所（飛びの後ろ）
 field jpos : max bound 8192
 # 見張りの命令は join の手前（`jb` の前）に入るので、終わりは jb から見ると vchk だけ手前
 jpos[r] <- jb[r] + jlen[r] - vchk[r]   for (r) in 0 .. nrlz[0]
-form[jpos[r] - 2] <- 91  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # add r11,1
+form[jpos[r] - 2] <- 91  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # add r11d,1
 form[jpos[r] - 1] <- 92  for (r) in 0 .. nrlz[0] if rrlt[r] < 8      # mov [K+rdx*4],r11d
 imm[jpos[r] - 1]  <- koff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 8
 scb[jpos[r] - 1]  <- kscb[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 8
