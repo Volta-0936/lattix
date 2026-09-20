@@ -875,7 +875,12 @@ def emit_rule(a, prog, r, arity, indexed=None, push=False, only_new=False, row0=
             v = "1" if lat == 'count' else cexpr(r.value, V)
             a(f"{ind}  mput(&FVAL_{r.id}, {idx}, {v});")
             a(f"{ind}  JOINS++; if(mjoin_{r.target}({ks}{',' if ks else ''} {v}))"
-              f" changed = 1; }}")
+              f" changed = 1;")
+            # **集約の升にも階数を書く**（密な道と同じ: 撃った寄与の読みの階数 + 1 の最大）。
+            # 前は疎な道だけ書かず、在る集約の升が階数 0 のまま証人に出た —— 検査器は「在る升の
+            # 階数は 1 以上」で示せないと言う（2026-09-20、33_self の tlen で見つけた）
+            a(f"{ind}  if(_rk{r.id} + 1 > rget_{r.target}({ks}))"
+              f" rset_{r.target}({ks}{',' if ks else ''} _rk{r.id} + 1); }}")
             a(f"{ind}else if(mget(&FVAL_{r.id}, {idx}, 0) != ({v})){{")
             a(f"{ind}  if(mtop_{r.target}({ks})) changed = 1; }}")
         else:
@@ -1242,7 +1247,11 @@ static void load(const char *p){ load_into(p, 0); }
         for c in groups_:
             try: anyplan = anyplan or (fuse_plan(prog, groups_[c]) is not None)
             except Exception: pass
-        if anyplan or len(groups_) > 1: SPLIT.add(si)
+        # **ヒープで一掃する層は割らない。** その層は `sweep0(); solve_heap();` で回る —— 素朴な
+        # 一掃を一度撃って種（`dist[0] <- 0`）を置き、残りをヒープが運ぶ。割ると sweep0 が空になり、
+        # 種が一度も撃たれずに答えが空のまま終わった（01_shortest の dist が全部 ⊥。2026-09-04 の
+        # 「SCC ごとに掃く」から。2026-09-20 に runtimeattest が COMPLETE ✗ と言って見つけた）
+        if (anyplan or len(groups_) > 1) and not (si == 0 and shape): SPLIT.add(si)
     for si, rules in enumerate(prog.strata):
         # **一つの関数に全規則を書くと cc1 が記憶で死ぬ**（3,800 規則の
         # run.lx で 24 万行の C になり、-O0 でも OOM）。規則の塊ごとに
@@ -1271,6 +1280,7 @@ static void load(const char *p){ load_into(p, 0); }
     FUSED.clear()
     for si, rules in enumerate(prog.strata):
         if not rules: continue
+        if si == 0 and shape: continue          # ヒープの層は sweep0 が持つ（上の SPLIT）
         groups = defaultdict(list)
         for r in rules: groups[r.scc].append(r)
         order = sorted(groups, key=lambda c: getattr(prog, 'scc_rank', {}).get(c, c))
