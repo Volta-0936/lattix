@@ -131,6 +131,7 @@ python3 test/values.py 300                           # 値の幅（印の近く�
 python3 test/mouths.py                               # 口を打つ（大きい入力・読めない入力・書けない出す先）
 python3 test/progs.py 300                            # 本を丸ごと撒く（場・種・規則・層・集約・値の式の形を混ぜる）
 python3 test/attest_lx.py                            # .lx の検査器を答えと壊した証明書にかける
+python3 test/forge.py                                # 小さい本のあらゆる答えと階数を検査器にかける（偽物の数え上げ）
 ```
 
 ### 処理系に問う

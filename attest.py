@@ -85,6 +85,7 @@ class Report:
         self.extra = []
         self.closure = []       # 領域検査でのみ使う: 祖先が scope の外にある
         self.cyclic_top = []    # 閉路で押し上げられた ⊤（影でも証人が出なかったもの）
+        self.unproven = []      # 小さい階数から来ない寄与に支えられた集約（示せない）
         self.top_witness = []   # 影の店で証人が出た ⊤: (f, key, 二つの確定値)
         self.scope = None       # None = 大域。集合なら「そのセルについての主張」
     @property
@@ -96,7 +97,7 @@ class Report:
         では本物（f <- f + 1 で 1 と 2 が届いた ⊤）と偽物（恒等 f <- f で 1 しか来ないのに
         ⊤ と書いたもの）を見分けられない。前はこれを「破れではない」として健全に数え、
         恒等の偽物に ATTESTED と言っていた（2026-09-19 に測って直した）。"""
-        return not (self.grounded or self.extra or self.cyclic_top)
+        return not (self.grounded or self.extra or self.cyclic_top or self.unproven)
     @property
     def complete(self):
         """(A) 安定性: どの寄与も吸収済み  ⟹  lfp ⊑ S
@@ -138,9 +139,10 @@ def shadow(prog, sh, S, pre, prerank, R=None):
     S2 = {f: {} for f in FL}
     R2 = {f: {} for f in FL}
     contrib = {}
+    AX = _axioms(prog)                    # 種だけの場は下の層と同じ（_axioms）
     for si, rules in enumerate(prog.strata):
         if not rules: continue
-        here = {r.target for r in rules}
+        here = {r.target for r in rules} - AX
         St, Rt = {}, {}
         for f in prog.fields:
             if f in FL and f in here:
@@ -225,6 +227,8 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
     # 正当化はどの規則から来てもよい（`brk` が層0と層1の両方で書かれて露見した）。
     all_contrib, all_total, all_here = {}, {}, set()
     _sh = [None]                 # 影の店は ⊤ が出たときだけ作る（遅延）
+    # 階数を比べる読みは **書き先と同じ強連結成分の場** の読みだけ（_sccs）
+    SCC = _sccs(prog)
     for si, rules in enumerate(prog.strata):
         if not rules: continue
         here = {r.target for r in rules}
@@ -269,12 +273,13 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
                 if v is None and lat.name not in ('flat', 'fourv'): continue
                 if lat.name in IDEM and v == lat.bot: continue
                 key = tuple(L.ev(x, env, S, sh) for x in r.keys)
-                # この寄与が読んだ同層セルの最大階数 / 祖先閉性
+                # この寄与が読んだ、書き先と同じ成分のセルの最大階数
                 mr = 0
                 for f, ix in reads_of:
+                    if SCC.get(f) != SCC.get(r.target): continue
                     try: kk = tuple(L.ev(x, env, S, sh) for x in ix)
                     except Exception: continue
-                    if f in here: mr = max(mr, R[f].get(kk, 0))
+                    mr = max(mr, R[f].get(kk, 0))
                 contrib.setdefault((r.target, key), []).append((v, mr))
                 if lat.name in ACCUM:
                     total[(r.target, key)] = total.get((r.target, key), 0) + \
@@ -314,6 +319,15 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
                     elif claimed < total.get((f, key), 0) and \
                          (scope is None or (f, key) in scope):
                         rep.stability.append((f, key, total.get((f, key), 0), claimed))
+                    # 在る升の階数は 1 以上（集約でも。階数 0 は「一度も導かれていない」）
+                    elif R[f].get(key, 0) <= 0:
+                        rep.grounded.append((f, key, claimed, "rank 0 (unjustified)"))
+                    # **集約の寄与にも階数の規律が要る。** `c <- 1 if c`（count）に c = 1 と書くと、
+                    # その 1 が寄与を立て、寄与が 1 を作る（最小不動点は ⊥）。和の一致だけ見ていた間は
+                    # ATTESTED と言った（2026-09-20、偽物を数え上げて見つけた）。小さい階数から来ない
+                    # 寄与に支えられた集約は **示せない**（unproven —— SOUND に数えない）
+                    elif any(mr >= R[f].get(key, 0) for _v, mr in contrib.get((f, key), ())):
+                        rep.unproven.append((f, key))
                     continue
                 if claimed == lat.bot: continue
                 if isinstance(claimed, L._Top) and lat.name in ('flat', 'fourv'):
@@ -392,6 +406,68 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
     return rep
 
 
+def _axioms(prog):
+    """**種だけの場** —— 書く規則がどれも `for` を持たず、場を一つも読まない（定数の升に定数を置く）場。
+
+    焼き手の前段は `for` の無い矢印の文を種として規則の表から外し、層に数えない（`for` の無い文が
+    場を読むか定数でない値を持てば、理由 8 で断る）。種の升は何にも寄りかからずに決まるので、
+    読む側から見れば **下の層と同じ** —— 読みの階数に数えない。焼いた本の階数もそう数えている
+    （種は 1、種を読んで立つ和も 1）。前は lattix.py の成層が種の場を読む側と同じ層に入れ、
+    正直な証明書を「示せない」と言っていた（2026-09-20、撒いた本で表の上の参照と食い違って見つけた）。
+    種の升そのものは、他の升と同じく (A) と (B) で確かめる。
+    （いまは影の店で使う。本の検査は強連結成分で比べる —— _sccs。種だけの場はひとりで一つの成分）"""
+    oks = {}
+    for r in prog.rules:
+        reads = (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
+                 + [x for k in r.keys for x in _frefs(k)])
+        oks.setdefault(r.target, []).append(not r.sources and not reads)
+    return {f for f, xs in oks.items() if all(xs)}
+
+
+def _sccs(prog):
+    """場の依存の **強連結成分**（場 → 成分の番号）。辺は「規則が読む場 → 規則が書く場」。
+
+    有基性の帰納に要るのは「支えの読みが、先に示したセルである」ことだけである。先の成分の場は
+    （同じ層でも）書き先に寄りかからないので、その升は階数を問わずに先に示せる —— 帰納の順は
+    （成分の位相順, 階数）の辞書順でよく、階数を比べる読みは **同じ成分の場** の読みだけになる。
+    前は lattix.py の層で比べていた。層は単調な読みを一つの層にまとめるので、`c <- 1 if h[i] >= 2`
+    （c は count、h は同じ層の max）の正直な証明書を示せなかった —— 焼いた本は集約の階数を 1 に
+    置く（印が数えるので深さを持たない）ので、同じ層の h の階数 1 が c の支えに数えられて、集約の
+    階数の規律（2026-09-20）に掛かった。成分なら c は h と別で、c が自分を読むとき（`c <- 1 if c`）
+    だけ規律が要る。種だけの場（_axioms）は読みを持たないので、ひとりで一つの成分になる。"""
+    succ = {f: set() for f in prog.fields}
+    for r in prog.rules:
+        for x in (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
+                  + [x for k in r.keys for x in _frefs(k)]):
+            succ.setdefault(x[0], set()).add(r.target)
+            succ.setdefault(r.target, set())
+    # Tarjan（反復）
+    index, low, onst, comp = {}, {}, set(), {}
+    st, n, c = [], 0, 0
+    for root in sorted(succ):
+        if root in index: continue
+        work = [(root, iter(sorted(succ[root])))]
+        index[root] = low[root] = n; n += 1; st.append(root); onst.add(root)
+        while work:
+            v, it = work[-1]
+            w = next(it, None)
+            if w is not None:
+                if w not in index:
+                    index[w] = low[w] = n; n += 1; st.append(w); onst.add(w)
+                    work.append((w, iter(sorted(succ[w]))))
+                elif w in onst:
+                    low[v] = min(low[v], index[w])
+                continue
+            work.pop()
+            if work: low[work[-1][0]] = min(low[work[-1][0]], low[v])
+            if low[v] == index[v]:
+                while True:
+                    w = st.pop(); onst.discard(w); comp[w] = c
+                    if w == v: break
+                c += 1
+    return comp
+
+
 def _frefs(e, out=None):
     out = [] if out is None else out
     k = e[0]
@@ -425,10 +501,12 @@ if __name__ == '__main__':
         print("          the C compiler was not trusted, examined, or executed by this checker.")
     elif rep.sound:
         print("PARTIAL : SOUND ✓  COMPLETE ✗   every claimed fact is true, some are missing.")
-    elif rep.cyclic_top and not (rep.grounded or rep.extra or rep.stability):
-        print("UNPROVEN: a flat ⊤ is supported only by a cycle — the final answer alone cannot")
-        print("          tell it from a forged ⊤. give the store before ⊤ (pre / prerank) to prove it.")
+    elif (rep.cyclic_top or rep.unproven) and not (rep.grounded or rep.extra or rep.stability):
+        print("UNPROVEN: a flat ⊤ supported only by a cycle, or an aggregate supported by reads")
+        print("          of its own stratum at an equal or higher rank — the final answer alone")
+        print("          cannot tell these from forgeries.")
         for v in rep.cyclic_top[:5]: print("  unproven ⊤  :", v)
+        for v in rep.unproven[:5]:   print("  unproven agg:", v)
     else:
         print("REJECTED")
         for v in rep.stability[:5]: print("  not stable  :", v)

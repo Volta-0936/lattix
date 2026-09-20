@@ -60,7 +60,9 @@ def decode(tab, vals, ranks):
         for c in range(L['cells']):
             if L['wb'] == 1: v = vals[L['vo'] + c]
             else: v = struct.unpack_from('<q', vals, L['vo'] + 8 * c)[0]
-            r = struct.unpack_from('<i', ranks, L['ko'] + 4 * c)[0]
+            # 階数は **符号なし** の 32 ビット（.lx の attest と同じ読み。階数は順序でしかないので、
+            # 2^31 を越えても順序は保たれる —— 符号つきに読むと、そこで順序が裏返る）
+            r = struct.unpack_from('<I', ranks, L['ko'] + 4 * c)[0]
             if v != bot: d[c] = v
             if r: k[c] = r
         S[f], K[f] = d, k
@@ -306,6 +308,14 @@ class Checker:
                     tt = total.get((f, c), 0)
                     if claimed > tt: rep['grounded'].append((f, c, claimed, tt))
                     elif claimed < tt: rep['stability'].append((f, c, tt, claimed))
+                    # 在る升の階数は 1 以上（集約でも。階数 0 は「一度も導かれていない」）
+                    elif self.rank(f, c) <= 0: rep['grounded'].append((f, c, claimed, 'rank 0'))
+                    # **集約の寄与にも階数の規律が要る。** 集約が同じ層の升を（単調に）読むと、寄与が
+                    # 答えそのものに支えられる輪が組める —— `c <- 1 if c`（count）に c = 1 と書くと、
+                    # その 1 が寄与を立て、寄与が 1 を作る（最小不動点は ⊥）。和の一致だけ見ていた
+                    # 間は通った（2026-09-20、偽物を数え上げて見つけた）。小さい階数から来ない寄与は示せない
+                    elif any(mr >= self.rank(f, c) for _v, mr, _rt in contrib.get((f, c), ())):
+                        raise Unsupported('集約が同じ層の、階数の小さくない読みに支えられている（場 %d 升 %d）' % (f, c))
                     continue
                 cs = contrib.get((f, c), [])
                 if lt == 'flat' and claimed == TOPV:

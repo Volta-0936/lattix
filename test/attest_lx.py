@@ -98,7 +98,7 @@ def corrupt(tab, vals0, ranks0):
     if not lay: return None
     for _ in range(20):
         Lf = rnd.choice(lay); c = rnd.randrange(Lf['cells'])
-        kind = rnd.choice(['bump', 'drop', 'add', 'top', 'rank0', 'rank1'])
+        kind = rnd.choice(['bump', 'drop', 'add', 'top', 'rank0', 'rank1', 'rankhi'])
         vals, ranks = bytearray(vals0), bytearray(ranks0)
         bot = A.BOT[Lf['lat']]; off = Lf['vo'] + Lf['wb'] * c
         cur = vals[off] if Lf['wb'] == 1 else struct.unpack_from('<q', vals, off)[0]
@@ -116,6 +116,10 @@ def corrupt(tab, vals0, ranks0):
         elif kind in ('rank0', 'rank1') and rk > 0:
             nv = cur
             struct.pack_into('<i', ranks, Lf['ko'] + 4 * c, 0 if kind == 'rank0' else rk - 1)
+        elif kind == 'rankhi' and rk > 0:
+            # 2^31 を越える階数: 符号つきに読めば負、符号なしなら大きい。三つの検査器が同じ読みか
+            nv = cur
+            struct.pack_into('<I', ranks, Lf['ko'] + 4 * c, rnd.choice([0x80000000, 0xFFFFFFFF]))
         else:
             continue
         if Lf['wb'] == 1: vals[off] = nv
@@ -148,7 +152,8 @@ def src_verdict(src, tab, vals, ranks, data):
         return 'py-error'
 
 
-src_tally = collections.Counter(); src_bad = []
+src_tally = collections.Counter(); src_bad = []; src_gran = collections.Counter()
+RANKONLY = ('rank0', 'rank1', 'rankhi')      # 値は正直な答えのまま、階数だけを変えたもの
 
 
 def check(label, tab, vals, ranks, data, out=None, src=None):
@@ -158,9 +163,17 @@ def check(label, tab, vals, ranks, data, out=None, src=None):
     if src is not None:
         v0 = src_verdict(src, tab, vals, ranks, data)
         src_tally[(v0, v1)] += 1
-        # 表の上で ATTESTED なら源の上でも、源の上で ATTESTED なら表の上でも（UNSUPPORTED は除く）
+        # 表の上で ATTESTED なら源の上でも、源の上で ATTESTED なら表の上でも（UNSUPPORTED は除く）。
+        # ただし **階数だけを変えた** 証明書で、源の上だけが ATTESTED と言うのは食い違いではない ——
+        # 値は正直な答え（最小不動点）のままなので、どちらの判定も嘘ではなく、階数を比べる読みの粒度が
+        # 違うだけである（attest.py は強連結成分で比べ、表の上は前段の層で比べる。成分は層より細かい）。
+        # 逆向き（表の上だけが ATTESTED）は、前段の層が成分を割っている —— 破れとして数える
+        kind = label.split(':')[1] if ':' in label else label
         if (v1 == 'attested') != (v0 == 'attested') and v1 != 'unsupported':
-            src_bad.append((label, v0, v1, src[:200]))
+            if kind in RANKONLY and v0 == 'attested' and v1 == 'rejected':
+                src_gran[kind] += 1
+            else:
+                src_bad.append((label, v0, v1, src[:200]))
     v2, info = verdict(tab + vals + ranks + (vals if out is None else out) + data)
     tally[(label, v1, v2)] += 1
     if v2 == 'unsupported' and isinstance(info, str):
@@ -222,6 +235,11 @@ b[i] <- 3 + i   for (i) in 0 .. 3
 field v : max bound 16
 v[i] <- a[i] + b[i]   for (i) in 0 .. 3
 """, {'a': (2, 5, 1), 'v': (2, 10, 3)}),
+    # 集約が自分を読む輪: 和の一致だけ見ていた間は三つとも通した（偽物を数え上げて見つけた）
+    ("集約が自分を支える（`c <- 1 if c` に c = 1。最小不動点は ⊥）", """table ch = (0,32)
+field c : count bound 1
+c[z] <- 1   for (z) in 0 .. 0 if c[z]
+""", {'c': (0, 1, 1)}),
 ]
 print("-" * W)
 for label, src, forge in FORGE:
@@ -239,6 +257,38 @@ for label, src, forge in FORGE:
     good = v2 != 'attested' and v1 != 'attested' and v0 != 'attested'
     if not good: bad.append(('偽物', v1, v2, label + ' attest.py=' + v0))
     print(f"  {label:<58}{'通らない ✓' if good else '通った ✗'}")
+
+# ── 正直な証明書（三つとも ATTESTED と言うこと）────────────────────────────────
+# 種だけの場（f0）は焼き手の前段では層に入らないが、lattix.py の成層では読む和（f2）と同じ層に
+# 入る。前は attest.py が種の階数 1 を和の支えの読みに数え、和の階数 1 を「示せない」と言った
+# （2026-09-20、撒いた本で見つけた。焼いた本は種を下の層と同じに数えて階数を付ける）
+HONEST = [
+    ("種だけの場を読む和（種は下の層）", """table ch = (0,32)
+field f0 : sum bound 16
+field f1 : flat bound 16
+field f2 : sum bound 16
+f0[1] <- 3
+f0[4] <- 8
+f2[i] <- 5 * i   for (i,c) in ch   if f0[i-1] >= 8
+f1[i] <- f1[j+1]   for (i) in 0 .. 3 for (j) in 0 .. 3   if f0[i] <= f0[j]
+""", b'ab1 cd23'),
+    # attest は入力ぜんぶの語の上の 32 ビットを符号つきにしていた —— プログラムの入力に 01 00 00 80 が
+    # 語の上半分に並ぶと -2147483647（max の ⊥ の印）になり、正直な証明書で attest が終了コード 4 で
+    # 止まった（2026-09-20、階数を 2^31 より上にした証明書で見つけた）。四つのずれを全部並べる
+    ("プログラムの入力に 01 00 00 80 が並ぶ", """table ch = (0,32)
+field n : max bound 1
+n[z] <- p   for (p,c) in ch for (z) in 0 .. 0
+""", b''.join(b'a' * k + b'\x01\x00\x00\x80' * 3 for k in range(4))),
+]
+for label, src, data in HONEST:
+    got = make(src, data)
+    tab, out, wit = got
+    vals, ranks = planes(tab, wit)
+    v1, v2 = check('正直', tab, vals, ranks, data, out)
+    v0 = src_verdict(src, tab, vals, ranks, data)
+    good = v0 == v1 == v2 == 'attested'
+    if not good: bad.append(('正直', v1, v2, label + ' attest.py=' + v0))
+    print(f"  {label:<58}{'三つとも通る ✓' if good else '通らない ✗ ' + v0 + '/' + v1 + '/' + v2}")
 
 # ── 撒いた本（test/progs.py の組み方）────────────────────────────────────
 import progs as P
@@ -289,6 +339,14 @@ got = make(FORGE[0][1], b'')
 v, info3 = verdict(got[0] + got[2][:len(got[2]) // 2])
 short_ok = v == 'other' and info3.startswith('attest: NOT AN ATTEST INPUT (the answer and the ranks are shorter')
 
+# 表の中に持てない語（-2147483646 より下。-2147483647 は attest の max の場の ⊥ の印そのもの）:
+# 前は印に当たって終了コード 4 で止まりえた。表を読み違えるので判定せずに、入力でないと言う
+wbad_ok, info5 = True, ''
+for wv in (-2147483647, -(1 << 62)):
+    tb = bytearray(got[0]); struct.pack_into('<q', tb, 8 * 17, wv)
+    v, info5 = verdict(bytes(tb) + got[2] + got[1])
+    wbad_ok = wbad_ok and v == 'other' and info5.startswith('attest: NOT AN ATTEST INPUT (a table word below')
+
 print("-" * W)
 groups = collections.Counter()
 for (label, v1, v2), n in tally.items():
@@ -305,13 +363,15 @@ if why_uns:
 print(f"  {'attest の入力でないもの':<52}{'言う ✓' if junk_ok else '✗'}")
 print(f"  {'焼けない源（行 3、理由 4）':<52}{'言う ✓' if unbk_ok else '✗ ' + info2[:40]}")
 print(f"  {'答えと階数の面が欠けた入力':<52}{'言う ✓' if short_ok else '✗ ' + info3[:40]}")
+print(f"  {'表の中に持てない語（-2147483647 と -2^62）':<52}{'言う ✓' if wbad_ok else '✗ ' + str(info5)[:40]}")
 print(f"  {'描く本 ' + str(n_rnd) + ' 本、出した答えを変えた ' + str(out_seen) + ' 本':<52}{'言う ✓' if out_ok else '✗'}")
 print(f"  {'場の面を出す本の、出した答えだけを変えた':<52}{'言う ✓' if dump_ok else '✗ ' + info4[:60]}")
 print("  源で読み直す検査器（attest.py）と表の上の参照（ir）:", dict(sorted(src_tally.items())))
+print(f"  {'階数だけ変えた証明書で、源の上だけが示せた（粒度の違い）':<52}{sum(src_gran.values())}")
 print(f"  {'前段を共有しない検査器と、表の上の判定の食い違い':<52}{len(src_bad)}")
 for b in src_bad[:4]: print("  食い違い:", b[0], b[1], b[2], b[3].replace('\n', ' | ')[:120])
 for b in bad[:8]: print("  破れ:", b[0], b[1], b[2], str(b[3])[:160].replace('\n', ' | '))
-ok = not bad and not src_bad and junk_ok and unbk_ok and short_ok and out_ok and dump_ok
+ok = not bad and not src_bad and junk_ok and unbk_ok and short_ok and wbad_ok and out_ok and dump_ok
 print("-" * W)
 if ok:
     print("  **破れ無し** —— attest.lx は、参照が ATTESTED と言わない証明書に一度も ATTESTED と")

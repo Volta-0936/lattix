@@ -373,6 +373,12 @@ a(f"gmx[ncel[n]] <- cval[n] / 4   {I} if nlt[n] == 2 if cval[n] > k4n[0] if nmr[
 a(f"cor[ncel[n]] <- true   {I} if nlt[n] == 3")
 a(f"gor[ncel[n]] <- true   {I} if nlt[n] == 3 if nmr[n] < sk[ncel[n]]")
 a(f"csm[ncel[n]] <- cval[n]   {I} if nlt[n] >= 8")
+# **集約の寄与にも階数の規律が要る。** `c <- 1 if c`（count）に c = 1 と書くと、その 1 が寄与を立て、
+# 寄与が 1 を作る（最小不動点は ⊥）。和の一致だけ見ていた間は ATTESTED と言った（2026-09-20、偽物を
+# 数え上げて見つけた）。小さい階数から来ない寄与に支えられた集約は示せない（UNSUPPORTED）。
+# 階数 0 の在る升は、どの束でも (B) の破れとして下（vgh）で言う
+a("field agr : or bound 262144                    # 集約の升に、階数の小さくない読みの寄与がある")
+a(f"agr[ncel[n]] <- true   {I} if nlt[n] >= 8 if nmr[n] >= sk[ncel[n]] if sk[ncel[n]] >= 1")
 a(f"chs[ncel[n]] <- true   {I}")
 a(f"ggp[ncel[n]] <- true   {I} if nmr[n] < sk[ncel[n]]")
 a(f"ctp[ncel[n]] <- true   {I} if nlt[n] == 6 if ntop[n]")
@@ -459,8 +465,12 @@ vgr[c] <- true   {C} if glt[c] == 6 if stop[c] if not gdif[c] if not gtp[c] if n
 field vgh : or bound 262144
 vgh[c] <- true   {C} if vgr[c] if not cnt[c]
 vgh[c] <- true   {C} if glt[c] <= 6 if sp[c] if sk[c] == 0      # 階数 0 は前の値でも支えられない
-# 階数 0 の答え（sum / count を除く）
+# 階数 0 の答え。**在る升の階数は 1 以上 —— 集約でも。** 前は sum / count を除いていたので、種だけの
+# 和の升を階数 0 にした証明書を、表の上の参照（寄与の読みの階数 0 が升の階数 0 を下回らない）と違って
+# 通していた（2026-09-20、撒いた本の階数を 0 にして見つけた。値は正しいので嘘ではないが、証明書としては
+# 何も示していない）
 vgr[c] <- true   {C} if glt[c] <= 6 if sp[c] if sk[c] == 0
+vgh[c] <- true   {C} if glt[c] >= 8 if sp[c] if sk[c] == 0
 """)
 src += "\n".join(L) + "\n"
 open(OUT, 'w', encoding='utf-8').write(src)
@@ -510,14 +520,16 @@ un1[3] <- true   for (z) in 0 .. 0 if ninx[z] > NIV                   # 実例�
 un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が言語の上限より広い
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
+un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 7 if un1[k]
 field okhd : or bound 1                         # 表の印がある
 okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919
 field okin : or bound 1                         # 入力は attest の入力（表の印があり、値と階数の面が欠けていない）
-okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0
+okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0 if not wbd[0]
 # 面が欠けていると、読めない位置の升は ⊥ の印と比べられずに「在る升」になり、階数も読めない —— 判定せずに
-# 入力でないと言う（前は「示せない（余計な値か、違う階数）」と偽の理由で REJECTED にしていた）
+# 入力でないと言う（前は「示せない（余計な値か、違う階数）」と偽の理由で REJECTED にしていた）。
+# 表の頭か表の中に持てない語（-2147483646 より下）があるときも、表を読み違えるので判定しない（wbd）
 field okbk : or bound 1                         # 源は焼ける（前段が断っていない）
 okbk[0] <- true   for (z) in 0 .. 0 if badk[0] < 0
 """.replace("NIV", str(NI)))
@@ -555,7 +567,7 @@ field pc : max bound 16 11                      # i 桁目の文字（上の桁�
 pc[k, i] <- pd[k, i] + 48   for (k) in 0 .. 15 for (i) in 0 .. 9 if pq[k, i] >= 1
 pc[k, i] <- 48   for (k) in 0 .. 15 for (i) in 0 .. 0 if pq[k, i] == 0
 pc[k, i] <- 32   for (k) in 0 .. 15 for (i) in 1 .. 9 if pq[k, i] == 0
-field out : max bound 1100
+field out : max bound 1200
 """)
 # 描く行の種類ごとに一つの印（dw）を立て、文字ごとの規則はその印だけを見る —— 文字ごとに条件を
 # 全部書くと、焼き手のガードの面（8,192 行）を越える（2026-09-19 に越えた）
@@ -591,8 +603,9 @@ REJO = REJ + " if not rja[0] if not rjb[0]"     # 広さの外へ書く —— �
 UNS = " if okin[0] if okbk[0] if anyun[0]"
 OK2 = " if okin[0] if okbk[0]"
 NOTIN = " if not okhd[0]"
-SHORT = " if okhd[0] if okbk[0] if not okin[0]"
-UNBK = " if okhd[0] if not okbk[0]"               # 源が焼けないなら、答えの面は無くてよい
+WBAD = " if okhd[0] if wbd[0]"                    # 表の語が持てない（前段はそんな語を出さない）
+SHORT = " if okhd[0] if okbk[0] if not okin[0] if not wbd[0]"
+UNBK = " if okhd[0] if not okbk[0] if not wbd[0]"  # 源が焼けないなら、答えの面は無くてよい
 text(0, 0, "attest: ATTESTED -- the answer is the least fixed point of the source", ATT)
 text(0, 0, "attest: REJECTED -- the answer is NOT the least fixed point", REJA)
 text(0, 0, "attest: REJECTED -- a rule writes outside its field's bound: the source has no answer", REJO)
@@ -601,11 +614,12 @@ text(0, 0, "attest: REJECTED -- the output is not the answer that was checked", 
 text(0, 0, "attest: UNSUPPORTED -- attest cannot check this answer", UNS)
 text(0, 0, "attest: NOT AN ATTEST INPUT (no table header)", NOTIN)
 text(0, 0, "attest: NOT AN ATTEST INPUT (the answer and the ranks are shorter than the table says)", SHORT)
+text(0, 0, "attest: NOT AN ATTEST INPUT (a table word below -2147483646)", WBAD)
 text(0, 0, "attest: THE SOURCE CANNOT BE BAKED -- line ", UNBK)
 num(0, 44, 8, UNBK)
 text(0, 54, " reason ", UNBK)
 num(0, 62, 9, UNBK)
-nl(0, OK2); nl(0, NOTIN); nl(0, SHORT); nl(0, UNBK)
+nl(0, OK2); nl(0, NOTIN); nl(0, SHORT); nl(0, UNBK); nl(0, WBAD)
 text(1, 0, "  rule instances ", OK2)
 num(1, 17, 0, OK2)
 text(1, 27, "   cells ", OK2)
@@ -638,6 +652,8 @@ nl(9, UNS + " if un1[5]")
 MISS = REJA + " if not rjb[0] if not rjo[0]"
 text(9, 0, "  every value is grounded, so facts are missing: the answer is below it", MISS)
 nl(9, MISS)
+text(11, 0, "  an aggregate supported by reads of its own stratum at an equal or higher rank", UNS + " if un1[6]")
+nl(11, UNS + " if un1[6]")
 OBAD = OK2 + " if obad[0]"
 text(10, 0, "  the output differs from the answer in the witness at byte ", OBAD)
 num(10, 61, 11, OBAD)
