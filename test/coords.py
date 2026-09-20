@@ -121,7 +121,7 @@ if __name__ == '__main__':
         except subprocess.TimeoutExpired: bad.append((place, s, '焼いた側が止まらない')); continue
         rc = r2.returncode
         if not ok:
-            if rc in (3, 4, 5, 6, 7): kinds['両者が断る'] += 1
+            if rc in (3, 4, 5, 6, 7, 11): kinds['両者が断る'] += 1
             else: bad.append((place, s, '解釈実行は断る / 焼いた側は終了コード %d' % rc))
             continue
         if rc == 7:

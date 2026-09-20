@@ -195,14 +195,17 @@ if __name__ == '__main__':
         exe = os.path.join(tmp, 'p.out'); open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
         try: r2 = subprocess.run([exe], input=data, capture_output=True, timeout=30)
         except subprocess.TimeoutExpired:
-            # **昇鎖が止まらない本**（`f[i] <- f[i] + 1`）には最小不動点が無い。解釈実行は
-            # 変化の回数の見張り（400 万回）で止めて断る。焼いた側は見張りを持たず回り続ける
-            # —— 嘘ではない（答えを出さない）が、止まらない。両者が「答えない」なら数えるだけ。
-            if not ok and ('fire budget' in why or 'did not converge' in why):
-                kinds['昇鎖が止まらない（両者とも答えない）'] += 1
-            else: bad.append((s, '焼いた側が止まらない'))
-            continue
+            # 焼いた側は周回に上限（16,777,216）を持つので、止まらないことはもう無いはず
+            bad.append((s, '焼いた側が止まらない')); continue
         rc = r2.returncode
+        # **昇鎖が止まらない本**（`f[i] <- f[i] + 1`）には最小不動点が無い。解釈実行は変化の回数の
+        # 見張り（400 万回）で断り、焼いた側は周回の上限で断る（終了コード 11）。前は焼いた側が
+        # 回り続けた（答えないが、断りもしない）。
+        if rc == 11:
+            if not ok and ('fire budget' in why or 'did not converge' in why):
+                kinds['昇鎖が止まらない（両者が断る。焼いた側は 11）'] += 1
+            else: bad.append((s, '解釈実行は答える / 焼いた側は周回の上限（11）'))
+            continue
         if not ok:
             if rc in (2, 3, 4, 5, 6, 7, 10): kinds['両者が断る'] += 1
             else: bad.append((s, '解釈実行は断る / 焼いた側は終了コード %d' % rc))

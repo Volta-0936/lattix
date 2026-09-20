@@ -1086,10 +1086,18 @@ encb[197,2] <- 224
 encb[198,0] <- 72                    # 48 C1 E8 ib  shr rax, imm8
 encb[198,1] <- 193
 encb[198,2] <- 232
+encb[199,0] <- 73                    # 49 81 FF id  cmp r15, imm32（周回の見張り）
+encb[199,1] <- 129
+encb[199,2] <- 255
+encb[200,0] <- 72                    # 48 C7 C6 ?? ?? ?? ??  mov rsi, 周回の知らせ
+encb[200,1] <- 199
+encb[200,2] <- 198
 shp[33] <- 4096
 shp[195] <- 4096                     # 長さ1・穴なし
 shp[197] <- 16577                    # 長さ4・穴 3 は imm8
 shp[198] <- 16577
+shp[199] <- 28868                    # 長さ7・穴3・imm32   cmp r15, imm32
+shp[200] <- 28672                    # 長さ7・穴なし（周回の知らせの番地）
 # 形 35: pop rdx
 encb[35,0] <- 90
 shp[35] <- 4096
@@ -1103,7 +1111,10 @@ shp[173] <- 28868
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
 field nfm : max bound 1              # 形の番号の上限
-nfm[0] <- 198
+# **表から導く。** 前は 198 と書いてあった —— 形を足した日（199・200）、足した形の長さが
+# 無いまま命令の位置の鎖が途切れ、そこから後ろの符号が **全部 0 のまま**の実行ファイルを
+# 黙って出した（走らせると segfault）。形の番号の上限は、形の表が言う。
+nfm[z] <- f   for (f) in 0 .. 207 for (z) in 0 .. 0 if encb[f, 0] >= 0
 field shln : max bound 208           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
 field shho : max bound 208           # 穴の位置
@@ -1732,8 +1743,8 @@ fst[r] <- 1          for (r) in 0 .. nrlz[0] if r == 0
 fst[r] <- 1          for (r) in 0 .. nrlz[0] if r > 0 if stf[r-1] < rrst[r]
 field lst : max bound 8192                     # この規則が層の末尾か
 lst[r] <- 0          for (r) in 0 .. nrlz[0]
-field lst2 : max bound 8192                    # 層の切れ目（尻尾で三命令）
-lst2[r] <- lst[r] * 3               for (r) in 0 .. nrlz[0]
+field lst2 : max bound 8192                    # 層の切れ目（尻尾で五命令）
+lst2[r] <- lst[r] * 5               for (r) in 0 .. nrlz[0]
 # **ガードの辺は「計数器」か「場の読み」か「定数」である。** `r + 1` は
 # そのどれでもない —— 足し算は辺ではない（焼くと `r` だけを見て黙って外れる）。
 # 一つ手前の場（nrlz = 規則数 - 1）で言い換えれば、ただの計数器と場になる。
@@ -1775,14 +1786,15 @@ field ebase : max bound 1
 ebase[0] <- sbase[0]   for (z) in 0 .. 0
 field ebz : max bound 1                     # ebase を計数器で引ける形に
 ebz[z] <- ebase[0]                   for (z) in 0 .. 0
-ebase[z] <- rend[r] + 3      for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if lst[r] == 1
+ebase[z] <- rend[r] + 5      for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if lst[r] == 1
 field nins : max bound 1
 # 何も導けなくても **三命令ぶんは要る**（出口の三命令が入る場所）
 # 知らせの八命令が 0..7 に入るので、**八命令ぶんは要る**
 nins[z] <- 8                          for (z) in 0 .. 0
 field nfl2 : max bound 1                      # 踏み台のぶん（場 × 2。はみ出し・値・溢れで三組）
 nfl2[z] <- nfl[0] * 2   for (z) in 0 .. 0
-nins[0] <- ebase[0] + pklen[0] + 127 + nfl2[0] + nfl2[0] + nfl2[0] + 10 + nfl2[0]   for (z) in 0 .. 0
+# 127（書き出しと出口）+ 10（入力と書きの踏み台）+ 14（周回の出口）= 151。項は八つまで（理由 3）
+nins[0] <- ebase[0] + pklen[0] + 151 + nfl2[0] + nfl2[0] + nfl2[0] + nfl2[0]   for (z) in 0 .. 0
 field ninz : max bound 1                      # nins の一つ手前（区間の上端に書ける形）
 ninz[0] <- nins[0] - 1   for (z) in 0 .. 0
 
@@ -2005,10 +2017,19 @@ scb[sdp[s] + 2]  <- kscb[0]   for (s) in 0 .. nsdz[0] if sdf[s] < nfld[0]
 
 # ── 層の頭と尻尾 ─────────────────────────────────────────────────
 form[hd[r]] <- 9                    for (r) in 0 .. nrlz[0] if fst[r] == 1     # xor r8,r8
+# **周回に上限を置く**（RUN_CAP = 16,777,216）。昇鎖の終わらない本（`f[i] <- f[i] + 1`）は
+# 最小不動点を持たない。解釈実行は変化の回数の見張り（400 万回）で断るが、焼いた符号は
+# 見張りを持たず回り続けた —— 嘘ではない（答えを出さない）が、**断りもしない**。周回ごとに
+# 少なくとも一升は動くので、周回が上限を越える本は変化が 400 万回を越え、解釈実行も断る
+# （焼いた側が断るのは、解釈実行も断る本だけ）。越えたら止まって言う（終了コード 11）。
 form[rend[r]]     <- 163    for (r) in 0 .. nrlz[0] if lst[r] == 1     # add r15,1
-form[rend[r] + 1] <- 21     for (r) in 0 .. nrlz[0] if lst[r] == 1     # test r8,r8
-form[rend[r] + 2] <- 22     for (r) in 0 .. nrlz[0] if lst[r] == 1     # jne -> 層の頭
-jt[rend[r] + 2]   <- hd[r]  for (r) in 0 .. nrlz[0] if lst[r] == 1
+form[rend[r] + 1] <- 199    for (r) in 0 .. nrlz[0] if lst[r] == 1     # cmp r15, RUN_CAP
+imm[rend[r] + 1]  <- 16777216 + bias[0]   for (r) in 0 .. nrlz[0] if lst[r] == 1
+form[rend[r] + 2] <- 194    for (r) in 0 .. nrlz[0] if lst[r] == 1     # ja -> 周回の出口
+jt[rend[r] + 2]   <- cpx[0] for (r) in 0 .. nrlz[0] if lst[r] == 1
+form[rend[r] + 3] <- 21     for (r) in 0 .. nrlz[0] if lst[r] == 1     # test r8,r8
+form[rend[r] + 4] <- 22     for (r) in 0 .. nrlz[0] if lst[r] == 1     # jne -> 層の頭
+jt[rend[r] + 4]   <- hd[r]  for (r) in 0 .. nrlz[0] if lst[r] == 1
 
 # ── ループの頭。**番号 0 が rcx、1 が r13**（入れ子は行が言う）───────
 
@@ -3164,6 +3185,28 @@ form[rsf[f]] <- 162                 for (f) in 0 .. nflz[0]   # mov r15d, 場番
 imm[rsf[f]]  <- f + bias[0]         for (f) in 0 .. nflz[0]
 form[rsf[f] + 1] <- 78              for (f) in 0 .. nflz[0]   # jmp -> 区間の出口
 jt[rsf[f] + 1]   <- gpx[0]          for (f) in 0 .. nflz[0]
+# ── 周回が上限を越えたときの出口（十四命令、終了コード 11）—— 区間の踏み台の後ろ ──────────
+# 番号の枠には周回の番号（r15）を落とす
+field cpx : max bound 1                     # 周回の出口
+cpx[z] <- wst[0] + 8 + nfl2[0]       for (z) in 0 .. 0
+field cpz : max bound 1
+cpz[z] <- cpx[0]                     for (z) in 0 .. 0
+form[cpz[z]]      <- 180   for (z) in 0 .. 0# mov [枠], r15（周回の番号）
+form[cpz[z] + 1]  <- 165   for (z) in 0 .. 0# mov eax, 1  (sys_write)
+form[cpz[z] + 2]  <- 166   for (z) in 0 .. 0# mov edi, 2  (stderr)
+form[cpz[z] + 3]  <- 200   for (z) in 0 .. 0# mov rsi, 周回の知らせ
+form[cpz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
+form[cpz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
+form[cpz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
+form[cpz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
+form[cpz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
+form[cpz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[cpz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
+form[cpz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
+imm[cpz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
+form[cpz[z] + 12] <- 38   for (z) in 0 .. 0# mov rdi, 11（**周回が上限を越えた**）
+imm[cpz[z] + 12]  <- 11 + bias[0]   for (z) in 0 .. 0
+form[cpz[z] + 13] <- 25   for (z) in 0 .. 0
 
 
 
@@ -4297,6 +4340,78 @@ encb[196,3] <- mad8[0] % 256   for (z) in 0 .. 0
 encb[196,4] <- mad8[0] / 256 % 256   for (z) in 0 .. 0
 encb[196,5] <- mad8[0] / 65536 % 256   for (z) in 0 .. 0
 encb[196,6] <- mad8[0] / 16777216 % 256   for (z) in 0 .. 0
+# **周回の知らせ**（終了コード 11）。周回の番号を同じ枠に落として四バイトで続ける。
+field cmsg : max bound 64
+cmsg[0] <- 108
+cmsg[1] <- 97
+cmsg[2] <- 116
+cmsg[3] <- 116
+cmsg[4] <- 105
+cmsg[5] <- 120
+cmsg[6] <- 58
+cmsg[7] <- 32
+cmsg[8] <- 109
+cmsg[9] <- 111
+cmsg[10] <- 114
+cmsg[11] <- 101
+cmsg[12] <- 32
+cmsg[13] <- 116
+cmsg[14] <- 104
+cmsg[15] <- 97
+cmsg[16] <- 110
+cmsg[17] <- 32
+cmsg[18] <- 49
+cmsg[19] <- 54
+cmsg[20] <- 55
+cmsg[21] <- 55
+cmsg[22] <- 55
+cmsg[23] <- 50
+cmsg[24] <- 49
+cmsg[25] <- 54
+cmsg[26] <- 32
+cmsg[27] <- 114
+cmsg[28] <- 111
+cmsg[29] <- 117
+cmsg[30] <- 110
+cmsg[31] <- 100
+cmsg[32] <- 115
+cmsg[33] <- 32
+cmsg[34] <- 45
+cmsg[35] <- 32
+cmsg[36] <- 97
+cmsg[37] <- 32
+cmsg[38] <- 99
+cmsg[39] <- 104
+cmsg[40] <- 97
+cmsg[41] <- 105
+cmsg[42] <- 110
+cmsg[43] <- 32
+cmsg[44] <- 109
+cmsg[45] <- 97
+cmsg[46] <- 121
+cmsg[47] <- 32
+cmsg[48] <- 110
+cmsg[49] <- 111
+cmsg[50] <- 116
+cmsg[51] <- 32
+cmsg[52] <- 101
+cmsg[53] <- 110
+cmsg[54] <- 100
+cmsg[55] <- 32
+cmsg[56] <- 32
+cmsg[57] <- 32
+cmsg[58] <- 32
+cmsg[59] <- 32
+cmsg[60] <- 10
+field cmso : max bound 64
+cmso[j] <- total[0] - 516 + j        for (j) in 0 .. 60
+out[cmso[j]] <- cmsg[j]              for (j) in 0 .. 60 if cmsg[j] >= 1
+field mad9 : max bound 1                    # 周回の知らせの番地
+mad9[z] <- total[0] + 4194304 - 516  for (z) in 0 .. 0
+encb[200,3] <- mad9[0] % 256   for (z) in 0 .. 0
+encb[200,4] <- mad9[0] / 256 % 256   for (z) in 0 .. 0
+encb[200,5] <- mad9[0] / 65536 % 256   for (z) in 0 .. 0
+encb[200,6] <- mad9[0] / 16777216 % 256   for (z) in 0 .. 0
 field mad5 : max bound 1                    # 値の知らせの番地
 mad5[z] <- total[0] + 4194304 - 260  for (z) in 0 .. 0
 encb[187,3] <- mad5[0] % 256   for (z) in 0 .. 0

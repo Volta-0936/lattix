@@ -265,7 +265,7 @@ if __name__ == '__main__':
         rc = r2.returncode
         if not ok:
             if rc == 0: bad.append((name, s, '解釈実行は断るのに、焼いた側は答えた'))
-            elif rc in (3, 4, 5, 6, 7): kinds['両者が断る'] += 1
+            elif rc in (3, 4, 5, 6, 7, 11): kinds['両者が断る'] += 1
             else: bad.append((name, s, '解釈実行は断る / 焼いた側は終了コード %d' % rc))
             continue
         if rc in (6, 7): kinds['焼く側が断る（%d）' % rc] += 1; continue
