@@ -12,7 +12,7 @@
 
    使い方:  python3 test/progs.py [本数] [種]
 """
-import os, re, struct, subprocess, sys, io, random, tempfile, collections, signal
+import os, re, struct, subprocess, sys, io, random, tempfile, collections, signal, zlib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import lattix as L
@@ -166,6 +166,28 @@ def reaches(lat, v):
             (lat == 'flat' and v in (2147483646, 2147483647)))
 
 
+def respace(s, rnd):
+    """**空白を撒く** —— 角括弧のまわり（名前と `[` の間、`[` の後ろ、`]` の手前、座標の `,` の前後）に
+    空白を置く。解釈実行は空白を捨てるので同じ本である。焼いた側も同じバイトを出さねばならない
+    （前段が添字を「`[` の二つ後ろ」と数で引いていた日は、理由 8 や理由 4 で断っていた）"""
+    out = []; depth = 0
+    for ch in s:
+        if ch == '[':
+            if rnd.random() < 0.4: out.append(' ')
+            out.append('['); depth += 1
+            if rnd.random() < 0.5: out.append(' ')
+        elif ch == ']':
+            if rnd.random() < 0.5: out.append(' ')
+            out.append(']'); depth -= 1
+        elif ch == ',' and depth > 0:
+            if rnd.random() < 0.4: out.append(' ')
+            out.append(',')
+            if rnd.random() < 0.5: out.append(' ')
+        else:
+            out.append(ch)
+    return ''.join(out)
+
+
 class _Slow(Exception): pass
 def _alarm(*a): raise _Slow()
 
@@ -237,7 +259,18 @@ if __name__ == '__main__':
             for i in range(cells):
                 v = struct.unpack_from('<q' if wb == 8 else '<B', r2.stdout, o + wb * i)[0]
                 if v != bot: got[(f,) + ((i // w1, i % w1) if w1 > 1 else (i,))] = v
-        if got == ref: kinds['一致'] += 1
+        if got == ref:
+            kinds['一致'] += 1
+            # 同じ本に空白を撒いても、焼いた側は同じバイトを出す
+            s2 = respace(s, random.Random(zlib.crc32(s.encode())))   # 撒き方は本から決める（本の並びは変えない）
+            r3 = subprocess.run([LATTIX], input=s2.encode(), capture_output=True)
+            if r3.returncode or r3.stdout[:4] != b'\x7fELF':
+                bad.append((s2, '空白を撒いたら焼き手が落ちた %d' % r3.returncode)); continue
+            open(exe, 'wb').write(r3.stdout); os.chmod(exe, 0o755)
+            r4 = subprocess.run([exe], input=data, capture_output=True, timeout=30)
+            if r4.returncode != 0 or r4.stdout != r2.stdout:
+                bad.append((s2, '空白を撒いたら答えが変わった（終了コード %d %s）' % (r4.returncode, r4.stderr[:60])))
+            else: kinds['空白を撒いても同じバイト'] += 1
         else:
             dv = [(x, ref.get(x), got.get(x)) for x in sorted(set(got) | set(ref)) if got.get(x) != ref.get(x)][:3]
             bad.append((s, '値が違う %s' % dv))

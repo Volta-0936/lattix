@@ -109,8 +109,9 @@ def program2d():
                                 for n, lat, b in F]
     for _ in range(rnd.randint(1, 3)):             # 種
         n, lat, b = rnd.choice(F)
-        # 種の座標は `,` の後に空白を置かない（`f[0, 1] <- 2` は焼き手の前段が理由 8 で断る。規則なら通る）
-        L.append("%s[%s] <- %s" % (n, ",".join(str(rnd.randrange(x)) for x in b),
+        # 種の座標は `,` の後ろに空白を置く（前は焼き手の前段が `f[0, 1] <- 2` を理由 8 で断っていた ——
+        # 空白を跨いで引くように直した。test/spaces.py）
+        L.append("%s[%s] <- %s" % (n, ", ".join(str(rnd.randrange(x)) for x in b),
                                    'true' if lat == 'or' else rnd.randint(0, 2)))
 
     def rd(m, tb):

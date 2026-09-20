@@ -255,7 +255,9 @@ cdcf[csb[o] + 1] <- c1cf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
 field d1to : max bound 16384            # 出現 o の次元1 の索引トークン
 d1to[o] <- d1t[otok[o]]             for (o) in 0 .. nocz[0] if hasc2[o]
 field in2a : max bound 16384            # 次元0 の索引が指す内側の出現
-in2a[o] <- oseq[otok[o] + 2]        for (o) in 0 .. nocz[0] if hasc[o]
+field oob1 : max bound 16384            # 出現 o の次元0 の添字の語（空白を跨ぐ —— ob1）
+oob1[o] <- ob1[otok[o]]             for (o) in 0 .. nocz[0] if hasc[o]
+in2a[o] <- oseq[oob1[o]]            for (o) in 0 .. nocz[0] if hasc[o]
       if c0sr[o] >= 2 if c0sr[o] <= 3
 field in2b : max bound 16384            # 次元1 の索引が指す内側の出現
 in2b[o] <- oseq[d1to[o]]            for (o) in 0 .. nocz[0] if hasc2[o]
@@ -417,9 +419,9 @@ ubrp[u] <- opos[ustp[u], tdep[u]]   for (u,zc) in ch if tdep[u] >= 1
 field ibr : max bound 589824            # その括弧の語
 ibr[u] <- tnum[ubrp[u]]   for (u,zc) in ch if tdep[u] >= 1
 field crdok : or bound 589824           # 座標の語として読めた
-crdok[t+2] <- true               for (t,zc) in ch if obk[t]
-crdok[ixop[t+2]] <- true         for (t,zc) in ch if obk[t] if ixhf[t+2]
-crdok[ixnm[t+2]] <- true         for (t,zc) in ch if obk[t] if ixhf[t+2]
+crdok[ob1[t]] <- true            for (t,zc) in ch if obk[t]
+crdok[ixop[ob1[t]]] <- true      for (t,zc) in ch if obk[t] if ixhf[ob1[t]]
+crdok[ixnm[ob1[t]]] <- true      for (t,zc) in ch if obk[t] if ixhf[ob1[t]]
 crdok[d0cm[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d0cm[t]]
 crdok[d1t[t]] <- true            for (t,zc) in ch if obk[t] if iscom[d0cm[t]]
 field d1op : max bound 589824           # 次元1 のずれの演算子（書き座標の読みは一段まで）
@@ -428,8 +430,8 @@ field d1nm : max bound 589824           # 次元1 のずれの数
 d1nm[t] <- ixnm[d1t[t]]        for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
 crdok[d1op[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
 crdok[d1nm[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
-crdok[tclos[t+1]] <- true        for (t,zc) in ch if obk[t]
-crdok[t+1] <- true               for (t,zc) in ch if obk[t]
+crdok[tclos[obr[t]]] <- true     for (t,zc) in ch if obk[t]
+crdok[obr[t]] <- true            for (t,zc) in ch if obk[t]
 badk[z] <- tlin[u] * 16 + 8   for (u,zc) in ch for (z) in 0 .. 0 if tdep[u] >= 1
       if tch[ibr[u], 0] == 91 if tkind[u] != 3 if not tcom[u] if not crdok[u]
 # **ガードの語も数える**（理由 8）。ガードは「読み一つ」「not と読み一つ」「辺 比較 辺」の
@@ -447,12 +449,12 @@ gdok2[nextw[t]] <- true   for (t,zc) in ch if iscmp2[t] if opc2[t] >= 1 if opc2[
 field lbr : max bound 589824            # 比較の左辺が読みなら、その `[`
 lbr[t] <- tmatch[oppv[t]]   for (t,zc) in ch if iscmp2[t] if isclo[oppv[t]]
 gdok2[lbr[t]] <- true     for (t,zc) in ch if iscmp2[t] if isclo[oppv[t]]
-gdok2[lbr[t] - 1] <- true for (t,zc) in ch if iscmp2[t] if isclo[oppv[t]]
+gdok2[prevw[lbr[t]]] <- true for (t,zc) in ch if iscmp2[t] if isclo[oppv[t]]   # 読みの名前（空白を跨ぐ）
 gdok2[oppv[t]] <- true    for (t,zc) in ch if iscmp2[t] if not isclo[oppv[t]]
 gdok2[opnx[t]] <- true    for (t,zc) in ch if iscmp2[t]
-gdok2[opnx[t] + 1] <- true   for (t,zc) in ch if iscmp2[t] if isocc[opnx[t]]
+gdok2[obr[opnx[t]]] <- true  for (t,zc) in ch if iscmp2[t] if isocc[opnx[t]]
 gdok2[t] <- true          for (t,zc) in ch if greg[t] if isgrd[t] if not cmpcl[gcl[t]]
-gdok2[t+1] <- true        for (t,zc) in ch if greg[t] if isgrd[t] if not cmpcl[gcl[t]]
+gdok2[obr[t]] <- true     for (t,zc) in ch if greg[t] if isgrd[t] if not cmpcl[gcl[t]]
 gdok2[t] <- true          for (t,zc) in ch if greg[t] if kwnot[t] if isgrd[nextw[t]]
       if not cmpcl[gcl[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if greg[t] if not gdok2[t]
@@ -476,7 +478,7 @@ field freg : or bound 589824             # for 節の、意味を持つ語（深
 freg[t] <- true   for (t,zc) in ch if cnum[t] >= 1 if tdep[t] == 0 if isrec[snum[t]]
       if clfor[snum[t], cnum[t]] if tkind[t] != 3 if not tcom[t]
 field int4k : max bound 589824           # 上端の読みの `[`
-int4k[t] <- int4[t] + 1   for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+int4k[t] <- obr[int4[t]]  for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
 field fok : or bound 589824              # for 節の語として読めた
 fok[t] <- true          for (t,zc) in ch if freg[t] if kwfor[t]
 fok[nextw[t]] <- true   for (t,zc) in ch if freg[t] if kwfor[t] if tch[nextw[t], 0] == 40
@@ -546,8 +548,8 @@ hreg[t] <- true   for (t,zc) in ch if cnum[t] == 0 if tdep[t] == 0 if t <= arw3[
       if tkind[t] != 3 if not tcom[t]
 field hdok : or bound 589824
 hdok[hotok[s]] <- true       for (s) in 0 .. nstz[0] if arrowt[s] >= 0 if hasr[s]
-field hotk1 : max bound 8192            # 頭の出現の `[`
-hotk1[s] <- hotok[s] + 1     for (s) in 0 .. nstz[0] if arrowt[s] >= 0 if hasr[s]
+field hotk1 : max bound 8192            # 頭の出現の `[`（空白を跨ぐ —— obr）
+hotk1[s] <- obr[hotok[s]]    for (s) in 0 .. nstz[0] if arrowt[s] >= 0 if hasr[s]
 hdok[hotk1[s]] <- true       for (s) in 0 .. nstz[0] if arrowt[s] >= 0 if hasr[s]
 hdok[arrowt[s]] <- true      for (s) in 0 .. nstz[0] if arrowt[s] >= 0
 hdok[arw3[s]] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
@@ -575,7 +577,7 @@ badk[z] <- lnum[lastc[z]] * 16 + 8   for (z) in 0 .. 0 if pre[lastc[z]] != 0
 # `q[i,k]` を別の鍵として持つが、焼く側の置き場は場ごとに次数が一つしか無く、
 # 一次元の書き込みを二次元の面に黙って畳んでいた。
 field obk : or bound 589824                       # `[` の付いた出現（描画・print の名は除く）
-obk[t] <- true   for (t,zc) in ch if isocc[t] if tch[t+1,0] == 91
+obk[t] <- true   for (t,zc) in ch if isocc[t] if obr[t] >= 0
 field fuse1 : or bound 1024                       # 場 f を一次元で使った
 fuse1[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if not iscom[d0cm[t]]
 field fuse2 : or bound 1024                       # 場 f を二次元で使った
@@ -587,15 +589,15 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
 # 広さを見ないので r[5] = 7、焼いた側は s[1] = 7）。種の座標は数なので、焼くときに分かる。
 # 数でない種の座標（`r[k] <- 7` で k が束縛されていない）は解釈実行が断るので、焼かない（理由 8）。
 field sdbad : or bound 8192                       # 種 s の座標が広さの外
-sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if tval[hotok[s] + 2] >= fwid[hfz[s]]
+sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if tval[sdt0[s]] >= fwid[hfz[s]]
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if h2d[s]
-      if tval[hotok[s] + 4] >= fwid2[hfz[s]]
+      if tval[sdt2[s]] >= fwid2[hfz[s]]
 badk[z] <- tlin[hotok[s]] * 16 + 11   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sdbad[s]
 field sdnum : or bound 8192                       # 種 s の座標は数（一つだけ。`d[0+1]` は式）
-sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if not h2d[s]
-      if isclo[hotok[s] + 3]
-sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[hotok[s] + 2] if h2d[s]
-      if iscom[hotok[s] + 3] if isnum[hotok[s] + 4] if isclo[hotok[s] + 5]
+sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[sdt0[s]] if not h2d[s]
+      if isclo[sdt1[s]]
+sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[sdt0[s]] if h2d[s]
+      if iscom[sdt1[s]] if isnum[sdt2[s]] if isclo[sdt3[s]]
 badk[z] <- tlin[hotok[s]] * 16 + 8   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
       if hasr[s] if not sdnum[s]
 # **種の値は数か `true` 一つ**（理由 8）。種は矢印の次の語だけを置く（`sedvt`）ので、
