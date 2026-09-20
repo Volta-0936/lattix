@@ -12,6 +12,9 @@ attest.py と表で読む ir）は「互いに同じことを言う」しか測�
     源で読み直す検査器（attest.py）      —— 同じ
     .lx の検査器（attest/attest.lx）     —— ir が ATTESTED と言った偽物があれば、それを（遅いので）
 
+本の四割は二次元の場を混ぜる（program2d。升の番号は c1 * 広さ1 + c2 —— 一次元の本だけでは、
+検査器が升の番号と座標を取り違えても見えない）。
+
     使い方:  python3 test/forge.py [本の数（既定 40）] [種]
 """
 import os, sys, struct, subprocess, tempfile, random, itertools, collections, shutil, atexit, re, io
@@ -90,6 +93,55 @@ def program():
     return "\n".join(L) + "\n"
 
 
+def program2d():
+    """**二次元の場を混ぜる**（升の番号は c1 * 広さ1 + c2）。読みは書き先の束縛で引く —— 一次元の場は
+    [z] か [w]、二次元の場は [z, w]（書き先が一次元なら [z, 0]）。検査器が升の番号と座標を取り違えれば
+    （一次元の本だけでは見えない）、ここで出る"""
+    nf = rnd.randint(2, 3)
+    F = []
+    for k in range(nf):
+        lat = rnd.choice(LATS)
+        b = (rnd.choice([1, 2]), rnd.choice([1, 2])) if rnd.random() < 0.5 else (rnd.choice([1, 2]),)
+        F.append(('f%d' % k, lat, b))
+    if not any(len(b) == 2 for _n, _l, b in F):
+        n0, l0, b0 = F[0]; F[0] = (n0, l0, (b0[0], 2))
+    L = ["table ch = (0,32)"] + ["field %s : %s bound %s" % (n, lat, " ".join(map(str, b)))
+                                for n, lat, b in F]
+    for _ in range(rnd.randint(1, 3)):             # 種
+        n, lat, b = rnd.choice(F)
+        # 種の座標は `,` の後に空白を置かない（`f[0, 1] <- 2` は焼き手の前段が理由 8 で断る。規則なら通る）
+        L.append("%s[%s] <- %s" % (n, ",".join(str(rnd.randrange(x)) for x in b),
+                                   'true' if lat == 'or' else rnd.randint(0, 2)))
+
+    def rd(m, tb):
+        n, _l, bm = m
+        if len(bm) == 2: return "%s[z, %s]" % (n, "w" if len(tb) == 2 else "0")
+        return "%s[%s]" % (n, rnd.choice(["z", "w"]) if len(tb) == 2 else "z")
+    for _ in range(rnd.randint(2, 4)):             # 規則
+        h = rnd.randrange(nf); n, lat, b = F[h]
+        src = rnd.choice(F); low = F[:h]
+        if lat == 'or': val = 'true'
+        elif lat == 'count': val = '1'
+        else:
+            k = rnd.random()
+            if k < 0.25 or src[1] == 'or': val = str(rnd.randint(0, 2))
+            elif k < 0.5: val = rd(src, b)
+            elif k < 0.65: val = rd(src, b) + " + 1"
+            elif k < 0.8: val = rd(src, b) + " - 1"
+            else: val = rd(src, b) + " * 2"
+        g = ""
+        r = rnd.random()
+        if r < 0.3: g = " if " + rd(rnd.choice(F), b)
+        elif r < 0.45 and low: g = " if not " + rd(rnd.choice(low), b)
+        elif r < 0.6 and [x for x in low if x[1] != 'or']:
+            gs = rnd.choice([x for x in low if x[1] != 'or'])
+            g = " if %s %s %d" % (rd(gs, b), rnd.choice(['>', '<', '==']), rnd.randint(0, 2))
+        loops, key = "for (z) in 0 .. %d" % (b[0] - 1), "z"
+        if len(b) == 2: loops += " for (w) in 0 .. %d" % (b[1] - 1); key = "z, w"
+        L.append("%s[%s] <- %s   %s%s" % (n, key, val, loops, g))
+    return "\n".join(L) + "\n"
+
+
 def make(src):
     p = os.path.join(tmp, 's.lx'); open(p, 'w').write(src)
     prog, tab, wit = os.path.join(tmp, 'prog'), os.path.join(tmp, 'tab'), os.path.join(tmp, 'w')
@@ -134,11 +186,12 @@ def src_ok(src, names, lay, vals, ranks):
     store, rank = {}, {}
     for f, L in enumerate(lay):
         d, k = {}, {}
+        key = (lambda c: (c,)) if L['ar'] != 2 else (lambda c, w=L['w1']: (c // w, c % w))
         for c in range(L['cells']):
             v = vals.get((f, c))
             if v is None: continue
-            d[(c,)] = True if L['lat'] == 'or' else (LX.TOP if v == 'T' else v)
-            if ranks.get((f, c)): k[(c,)] = ranks[(f, c)]
+            d[key(c)] = True if L['lat'] == 'or' else (LX.TOP if v == 'T' else v)
+            if ranks.get((f, c)): k[key(c)] = ranks[(f, c)]
         store[names[f]] = d; rank[names[f]] = k
     try: return ATT.attest(src, store, rank).ok
     except Exception: return False
@@ -150,7 +203,7 @@ print("=" * W)
 tally = collections.Counter(); lies = []; seen = set(); nprog = 0
 for _ in range(N * 4):
     if nprog >= N: break
-    s = program()
+    s = program2d() if rnd.random() < 0.4 else program()
     if s in seen: continue
     seen.add(s)
     got = make(s)
