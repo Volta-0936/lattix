@@ -1,0 +1,9 @@
+# 0/1 ナップサック（容量 10）
+table item = (0,3,4),(1,4,5),(2,2,3),(3,5,8)
+field best : max bound 5 11
+best[0, c] <- 0   for (c) in 0 .. 10
+best[k+1, c] <- best[k, c]   for (k,w,v) in item for (c) in 0 .. 10
+best[k+1, c] <- best[k, c - w] + v   for (k,w,v) in item for (c) in 0 .. 10 if c >= w
+field ans : max bound 1
+ans[0] <- best[4, 10]
+print ans

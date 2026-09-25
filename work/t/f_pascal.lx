@@ -1,0 +1,8 @@
+# パスカルの三角形（二次元の再帰）
+field p : max bound 10 10
+p[n, 0] <- 1   for (n) in 0 .. 9
+p[n, n] <- 1   for (n) in 0 .. 9
+p[n, k] <- p[n-1, k-1] + p[n-1, k]   for (n) in 2 .. 9 for (k) in 1 .. 8 if k < n
+field row : max bound 10
+row[k] <- p[9, k]   for (k) in 0 .. 9
+print row

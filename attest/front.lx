@@ -387,12 +387,17 @@ tailok[t] <- true for (t,zc) in ch if isstar[nopt[t]] if isnum[nxat[t]]
       if tailok[nxat[t]]
 tailok[t] <- true for (t,zc) in ch if isdiv[nopt[t]] if isnum[nxat[t]]
       if tval[nxat[t]] >= 1 if tailok[nxat[t]]
+# **計数器を掛けても向きは保たれる**（14f。`fact[n] <- fact[n-1] * n`）—— 区間の下端が数一つなら
+# 計数器は負にならない（下の `cnn`）
+tailok[t] <- true for (t,zc) in ch if isstar[nopt[t]] if cnn[nxat[t]] if tailok[nxat[t]]
 # 保たれるのは群の頭か、`数 * f[x]` の二つ目（`2 * 3 * f[x]` は保たない ——
 # 答えの定義がそう読む。左が式なら証が無い）
 field keep : or bound 589824
 keep[t] <- true for (t,zc) in ch if tailok[t] if lead[t]
 keep[t] <- true for (t,zc) in ch if tailok[t] if isstar[lopt[t]]
       if isnum[lopa[t]] if lead[lopa[t]]
+keep[t] <- true for (t,zc) in ch if tailok[t] if isstar[lopt[t]]
+      if cnn[lopa[t]] if lead[lopa[t]]
 field sdn : or bound 16384               # 文 s の書き先は下へ動く（min）
 sdn[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 1
 # **書き先の側にも向きがある。** max / or / count の join は上へ動く値を、
@@ -759,6 +764,30 @@ scnt[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if flatt[hfz[s]] == 9
 sedv[s] <- tval[sedvt[s]] for (s) in 0 .. nstz[0] if isseed[s] if not scnt[s]
 sedv[s] <- 1 for (s) in 0 .. nstz[0] if isseed[s] if kwtru[sedvt[s]] if not scnt[s]
 sedv[s] <- 1 for (s) in 0 .. nstz[0] if isseed[s] if scnt[s]
+# **負の数の種**（`f[1] <- -3`）。解釈実行は単項の `-` を `0 - 3` と読む。字句では `-` と `3` の
+# 二語で、矢印の次の語は `-` —— 前は「種の値は数か true 一つ」（fold.lx）が理由 8 で断っていた。
+# 下ろしが表の負の升（`(1,-3)`）を種にするようになって、自由に書いた本が当たった。
+# `tval` は数の語にしか無いので、上の `tval[sedvt]` の規則は `-` の種では黙る（max が混ざらない）。
+# **読みは二段まで**（`isnum[nextw[sedvt[s]]]` と書かない）。自己検査の古い道（21_lex → 32_shape → 31_gen。
+# test/selfbyte.py）は三段の読みを導けず、ガードが一つ導けないまま「箱が足りない」と断った（14j の一周で見つけた）
+field sedv2 : max bound 16384            # 種 s の値の二つ目の語
+sedv2[s] <- nextw[sedvt[s]]  for (s) in 0 .. nstz[0] if isseed[s]
+field sneg : or bound 16384              # 種 s の値は `-` 数
+sneg[s] <- true for (s) in 0 .. nstz[0] if isseed[s] if ismin[sedvt[s]] if isnum[sedv2[s]]
+field sedvn : max bound 16384            # 種 s の値の **最後の**語（ふつうは sedvt、`-` 数なら数の語）
+sedvn[s] <- sedvt[s]         for (s) in 0 .. nstz[0] if isseed[s] if not sneg[s]
+sedvn[s] <- sedv2[s]         for (s) in 0 .. nstz[0] if sneg[s]
+# 印に届く負の種（-2147483647 以下）は **値にしない**。sedv も sdv も max の場で、そこへ置くと
+# 焼き手（と下ろし）**自身**の見張りが止まる（終了コード 4 —— 行も理由も言えない）。語で見て断る（fold.lx、理由 D）。
+sedv[s] <- 0 - tval[sedvn[s]] for (s) in 0 .. nstz[0] if sneg[s] if not scnt[s] if tval[sedvn[s]] <= 2147483646
+# 種の値が **ある**（数・`true`・`-` 数・count）。fold.lx の `sdv` は max の場で、値の無い種にも
+# 0 を置いて ⊥ を避けていた —— それを全部の種に置くと、負の種が 0 に負ける（max(0, -7) = 0）。
+# 表の負の升 → 種 → 和で、-7 の寄与が黙って消えた（下ろしの s2 で見つけた）。0 は値の無い種にだけ。
+field svok : or bound 16384
+svok[s] <- true for (s) in 0 .. nstz[0] if isseed[s] if isnum[sedvt[s]]
+svok[s] <- true for (s) in 0 .. nstz[0] if isseed[s] if kwtru[sedvt[s]]
+svok[s] <- true for (s) in 0 .. nstz[0] if sneg[s]
+svok[s] <- true for (s) in 0 .. nstz[0] if isseed[s] if scnt[s]
 
 # ── 変数はどの列か。**束縛点の座標がそのまま答えである** ────────────
 # `for (i,j,w) in edge` の i,j,w は組の 0/1/2 番目。使う側はその綴りを持つ
@@ -853,6 +882,22 @@ lkd[snum[t], lz[t]] <- 2 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
 field llo2 : max bound 16384 8           # 区間の下端（数のとき）
 llo2[snum[t], lz[t]] <- tval[int1[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if irng[t] if isnum[int1[t]]
+# **負の数の下端**（`for (j) in -1 .. 3`。14k）。字句では `-` と `1` の二語。区間は符号つきで比べる
+# （13i）ので、焼く側は下端を負の即値にするだけでよい。動的計画法の縁（`d[-1, j]` を `-1 ..` で回す）に要る
+field in1n : max bound 589824             # 下端の二つ目の語（読みは二段まで —— 上の sedv2 の註）
+in1n[t] <- nextw[int1[t]] for (t,zc) in ch if kwin[t] if irng[t]
+field in1nn : max bound 589824            # 三つ目の語
+in1nn[t] <- nextw[in1n[t]] for (t,zc) in ch if kwin[t] if irng[t]
+field ilng : or bound 589824             # 下端は `-` 数
+ilng[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if ismin[int1[t]] if isnum[in1n[t]]
+      if in1nn[t] == int2[t]
+llo2[snum[t], lz[t]] <- 0 - tval[in1n[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
+      if ilng[t]
+field ilngm : or bound 589824            # その `-` の語（for 節の「括弧の外の演算子」から除く —— fold.lx）
+ilngm[int1[t]] <- true for (t,zc) in ch if ilng[t]
+field llhv : or bound 16384 8            # 文 s のループ L の下端は数（llo2 に値がある）—— fold.lx の既定の 0 は
+llhv[snum[t], lz[t]] <- true for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t] if isnum[int1[t]]
+llhv[snum[t], lz[t]] <- true for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if ilng[t]
 # **下端の種**（13i）: 0 数 / 1 `(f[数])` / 2 `(f[外の区間の変数])` / 3 裸の外の区間の変数（`i ..`）。
 # 解釈実行の文法では、`in` の次が **名前で `..` が続かない** なら表の名である（`in lo[0] .. 9` は断られる）。
 # だから場の読みの下端は **丸括弧で包む**（`in (lo[0]) .. 9`）。名前は `..` が直に続くときだけ下端になる。
@@ -884,6 +929,51 @@ llc2[snum[t], lz[t]] <- tval[ilb[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 
       if irng[t] if ilo[t] >= 0 if isnum[ilb[t]]
 llc2[snum[t], lz[t]] <- ivl2[t] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if irng[t] if ivl2[t] >= 0
+# ── 計数器は負にならないか（14f）─────────────────────────────────────
+# 解釈実行は `x * y` の y が **規則の束縛の上で 0 以上**だと証せれば単調と読む（`_nonneg`: 束縛を数えて
+# 最小を見る。ただし束縛が 20,000 を超えると数えずに証さない）。焼き手は同じことを **区間の端だけで**言う:
+# 文のループが全部「数一つ .. 数一つ」の区間で、広さの積が 2^14 = 16,384 以下（20,000 の手前 —— 積は
+# 二の対数の和で言う。掛けると八重の積が 64 ビットを越え、頭を打たせる比較は自分の鎖と輪になる）なら、
+# 解釈実行も束縛を数え切り、下端が数（0 以上）の計数器の最小は下端である。表のループがあれば言わない
+# （行の数は焼くときに分からない —— 下ろした本では区間になる）。**控えめな側にだけ倒す**: 焼き手が
+# 単調と読んで解釈実行が読まなければ、解釈実行が断る本に焼き手が答えてしまう。
+field i4n : max bound 589824            # 区間の上端の次の語
+i4n[t] <- nextw[int4[t]] for (t,zc) in ch if kwin[t] if irng[t]
+field i4e : or bound 589824             # 上端は数一つ
+i4e[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if isnum[int4[t]] if cbrk[i4n[t]]
+i4e[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if isnum[int4[t]] if tcom[i4n[t]]
+i4e[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if isnum[int4[t]] if snum[i4n[t]] != snum[t]
+# **上端がファイルの最後の語でも「数一つ」である。** 上の三つは「上端の **次の語** が何か」で言う
+# —— 最後の文では次の語が無い（`nextw` が ⊥）ので三つとも黙り、最後の文の計数器だけが
+# 負になりうると読まれていた（accept の「計数器を掛ける再帰（通る）」が断られて見つけた）。
+# 終わりは「次が無い」ではなく **最後の語の番号** で言う（無いことは単調な規則では書けない）。
+field wend : max bound 1                # 最後の非空白トークン
+wend[z] <- t for (t,zc) in ch for (z) in 0 .. 0 if tkind[t] != 3
+i4e[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if isnum[int4[t]] if int4[t] == wend[0]
+field i1e : or bound 589824             # 下端は数一つ（`..` が直に続く）
+i1e[t] <- true for (t,zc) in ch if kwin[t] if irng[t] if isnum[int1[t]] if nextw[int1[t]] == int2[t]
+field lpos : or bound 16384 8           # 文 s のループ L の計数器は負にならない（下端が数一つ）
+lpos[snum[t], lz[t]] <- true for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if i1e[t]
+field lpwd : max bound 16384 8           # 文 s のループ L の広さ（数 .. 数 の区間。空なら 0）
+lpwd[snum[t], lz[t]] <- tval[int4[t]] - tval[int1[t]] + 1   for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7
+      if i1e[t] if i4e[t] if tval[int4[t]] >= tval[int1[t]]
+lpwd[snum[t], lz[t]] <- 0   for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7
+      if i1e[t] if i4e[t] if tval[int4[t]] < tval[int1[t]]
+field pw2 : max bound 32                # 2^k
+pw2[0] <- 1
+pw2[k] <- pw2[k-1] * 2   for (k) in 1 .. 23
+field lgw : min bound 16384 8           # その広さの二の対数（切り上げ。2^23 を越える広さは持たない）
+lgw[s, l] <- k   for (s) in 0 .. nstz[0] for (l) in 0 .. 7 for (k) in 0 .. 23 if lpwd[s, l] <= pw2[k]
+field lgs : max bound 16384 8           # ループ 0..L の広さの二の対数の和（鎖 —— 全部が数の区間の間だけ続く）
+lgs[s, 0] <- lgw[s, 0]   for (s) in 0 .. nstz[0]
+lgs[s, l] <- lgs[s, l-1] + lgw[s, l]   for (s) in 0 .. nstz[0] for (l) in 1 .. 7
+field lnf : max bound 16384             # 文 s の最後のループの番号
+lnf[snum[t]] <- lz[t]   for (t,zc) in ch if kwin[t] if lz[t] >= 0 if lz[t] <= 7
+field lpok : or bound 16384             # 文 s の束縛は数え切れる（全部が数の区間で、積が 2^14 以下）
+lpok[s] <- true   for (s) in 0 .. nstz[0] if lgs[s, lnf[s]] <= 14
+field cnn : or bound 589824             # 語 t は負にならない計数器
+cnn[t] <- true for (t,zc) in ch if tkind[t] == 1 if not isnum[t] if vbnd[t] >= 0
+      if lkd[snum[t], vlpz[t]] >= 1 if lpos[snum[t], vlpz[t]] if lpok[snum[t]]
 field lhi2 : max bound 16384 8           # 区間の上端（定数のとき）
 lhi2[snum[t], lz[t]] <- tval[int4[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
       if irng[t] if isnum[int4[t]]
@@ -983,7 +1073,9 @@ tcnt[t] <- tcnt[t-1]     for (t,zc) in ch if t >= 1 if not istm[t-1] if not sbrk
 # **焼き手自身が寄りかかっていた**（座標に濾しを入れたら自分が止まった）。
 # 数は別に数えているので、席に書かなくても「項が九つ」は言える。
 field trkd : max bound 16384 8           # 1 定数 / 2 列 / 3 場 / 4 計数器
-                                       # 5 引く / 6 掛ける / 7 割る / 8 余り
+                                       # 5 引く / 6 掛ける / 7 割る / 8 余り（定数で）
+                                       # 9 場を引く / 10 場を掛ける / 15 場で割る / 16 場で余り
+                                       # 17 列で割る / 18 列で余り / 19 計数器で割る / 20 計数器で余り
 # **`/` と `%` は場の読みには付けていなかった。** 付いていないのに素の
 # 「場の読み」（種3）に落ちるので、`a[i] / a[i-1]` が **足し算**になって
 # いた（97/98 が 195 になる）。列の側は最初から除いてあった（種2/4）——
@@ -996,6 +1088,11 @@ trkd[snum[t], tcnt[t]] <- 9 for (t,zc) in ch if istrm[t] if pminus[t] if tcnt[t]
 # 種10: 場の読みを **掛ける**。`8 * f[x]` は左からの畳み込みでは書けないが、
 # `f[x] * 8` は書ける —— では `f[x] * g[y]` は？ 同じ穴がもう一つあった。
 trkd[snum[t], tcnt[t]] <- 10 for (t,zc) in ch if istrm[t] if pstar[t] if tcnt[t] <= 7
+# 種15 / 16: 場の読みで **割る / 余りを取る**（14f。床。割る数が 0 なら ⊥ —— 撃たない）。
+# 長いあいだ「場で割る」は理由 8 だった（種が付かないまま足し算に落ちていた穴を、断ることで塞いでいた）。
+# 自由に書いた本（平均 `tot[0] / cnt[0]`、桁 `x / pw[k] % 2`）が二本ここで止まった
+trkd[snum[t], tcnt[t]] <- 15 for (t,zc) in ch if istrm[t] if pdiv[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 16 for (t,zc) in ch if istrm[t] if pmod[t] if tcnt[t] <= 7
 trkd[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if not pminus[t] if tcnt[t] <= 7
       if not pstar[t] if not pdiv[t] if not pmod[t]
 trkd[snum[t], tcnt[t]] <- 5 for (t,zc) in ch if istrmn[t] if pminus[t] if tcnt[t] <= 7
@@ -1017,6 +1114,17 @@ trkd[snum[t], tcnt[t]] <- 12 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t
 trkd[snum[t], tcnt[t]] <- 13 for (t,zc) in ch if istrmv[t] if pminus[t] if tcnt[t] <= 7
       if lkd[snum[t], vlpz[t]] >= 1
 trkd[snum[t], tcnt[t]] <- 14 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t] <= 7
+      if lkd[snum[t], vlpz[t]] >= 1
+# 種17〜20: 変数で **割る / 余りを取る**（14j。列 17 / 18、計数器 19 / 20）。種15 / 16 と同じく床で、
+# 割る数が 0 なら ⊥（撃たない）。前は理由 8 —— 下ろしは表の列を場の読みにするので種15 で通ったが、
+# 計数器は変数のまま残り、`100 / d` や、ガードを持ち上げた `_g[n, d] <- n % d`（約数を数える本）が止まった。
+trkd[snum[t], tcnt[t]] <- 17 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 7
+      if lkd[snum[t], vlpz[t]] == 0
+trkd[snum[t], tcnt[t]] <- 18 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 7
+      if lkd[snum[t], vlpz[t]] == 0
+trkd[snum[t], tcnt[t]] <- 19 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 7
+      if lkd[snum[t], vlpz[t]] >= 1
+trkd[snum[t], tcnt[t]] <- 20 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 7
       if lkd[snum[t], vlpz[t]] >= 1
 field trfl : max bound 16384 8           # 場（種3）
 trfl[snum[t], tcnt[t]] <- ofl[oseq[t]] - 1 for (t,zc) in ch if istrm[t] if tcnt[t] <= 7
@@ -1409,7 +1517,7 @@ field sdc : max bound 16384
 sdc[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
 sdc[sdno[s]] <- sedc[s]             for (s) in 0 .. nstz[0] if isseed[s]
 field sdv : max bound 16384
-sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s]
+sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s] if not svok[s]   # 値の無い種だけ（負の種が 0 に負ける）
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 
 # ── 規則の番号。**層の昇順**（層ごとに数えて、層の頭を足す）────────────
@@ -1465,7 +1573,9 @@ lpi[glno[t]] <- lz[t]               for (t,zc) in ch if isgl[t]
 field lpk : max bound 16384
 lpk[glno[t]] <- lkd[snum[t], lz[t]]      for (t,zc) in ch if isgl[t]
 field lplo : max bound 16384
-lplo[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+# 既定の 0 は **下端が数でないループにだけ**（14k）。lplo は max の場なので、全部に 0 を置くと
+# 負の下端（`-3 .. 2`）が 0 に負け、**黙って 0 から回った**（sum が -3 でなく 3）
+lplo[glno[t]] <- 0                       for (t,zc) in ch if isgl[t] if not llhv[snum[t], lz[t]]
 lplo[glno[t]] <- llo2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
 field lphi : max bound 16384
 lphi[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
@@ -1898,6 +2008,8 @@ fok[t] <- true          for (t,zc) in ch if freg[t] if kwfor[t]
 fok[nextw[t]] <- true   for (t,zc) in ch if freg[t] if kwfor[t] if tch[nextw[t], 0] == 40
 fok[t] <- true          for (t,zc) in ch if freg[t] if kwin[t]
 fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isnum[int1[t]]
+fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if ilng[t]            # `-` 数 の下端（14k）
+fok[in1n[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if ilng[t]
 # 下端の読みは丸括弧で包んだもの（13i。中身は下で数える）と、`..` が直に続く名前だけ ——
 # `in lo[0] .. 9` は解釈実行が表の名と読んで断る形なので、読めた語に入れない（理由 8）
 fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isopn[int1[t]]
@@ -1978,6 +2090,15 @@ field sreg : or bound 589824            # 種の、矢印の後ろの意味を�
 sreg[t] <- true   for (t,zc) in ch if isseed[snum[t]] if tdep[t] == 0 if t > arw3[snum[t]]
       if tkind[t] != 3 if not tcom[t]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sreg[t] if t != sedvt[snum[t]]
+      if t != sedvn[snum[t]]      # `-` 数 の種は二語（33_self の sneg）
+# **表のループは段 0 だけ**（理由 8。14j）。生成器は表の行を rcx に置き、列を `[rcx+d8]` で引く ——
+# 表のループが段 1 から先に居ると、内側の `mov rcx, データの先頭` が外の計数器を潰す。前段の註は
+# 「表のループは一番外側に置く」と **書き手に**頼んでいただけで、見張りが無かった: 同じ表を二重に回す
+# 本（順位 —— 自分より小さい値を数える）は **何も書かずに終了コード 0**、表を内側に書いた本は
+# 「広さを超えた」と嘘の理由で止まった（mutate が work/t の f_rank を壊して見つけた）。
+# 下ろした本は表を場にする（区間のループになる）ので、この形は下ろせば焼ける。
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if lz[t] >= 1 if lz[t] <= 7
+      if lkd[snum[t], lz[t]] == 0
 # **集約の規則はループ一つまで**（理由 8）。sum / count の「一度だけ数える印」は
 # 外側の表の行（rcx）でしか引いていない —— 二重のループでは内側の実例が同じ印を
 # 踏み、`for (i,c) in ch for (k) in 0 .. 2` の count が 12 でなく 4 になっていた。
@@ -2034,8 +2155,11 @@ badk[z] <- tlin[hotok[s]] * 16 + 8   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 i
 # **種の値は数か `true` 一つ**（理由 8）。種は矢印の次の語だけを置く（`sedvt`）ので、
 # `t[0] <- 1 + 2` は 1、`t[0] <- u[0]` は何も置かず、黙って違う答えになっていた。
 badk[z] <- tlin[hotok[s]] * 16 + 8   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
-      if hasr[s] if not isnum[sedvt[s]] if not kwtru[sedvt[s]]
+      if hasr[s] if not isnum[sedvt[s]] if not kwtru[sedvt[s]] if not sneg[s]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if vop[t] if isseed[snum[t]]
+      if t != sedvt[snum[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if vop[t] if isseed[snum[t]]
+      if not sneg[snum[t]]        # 値の頭の `-` は `-` 数 の種だけが持てる
 # **or の種も `true`**（理由 9）。規則の値は見ていたが、種は見ていなかった。
 badk[z] <- tlin[hotok[s]] * 16 + 9   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
       if sor[s] if not kwtru[sedvt[s]]
@@ -2044,7 +2168,7 @@ badk[z] <- tlin[hotok[s]] * 16 + 9   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 i
 # `work/t/z_depint.lx` —— 変異の種に本を足したら出た）。for 節の、括弧の外の演算子と、
 # 上端の場の添字が数でないものを断る。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isop[t] if tdep[t] == 0
-      if cnum[t] >= 1 if not clif2[snum[t], cnum[t]]
+      if cnum[t] >= 1 if not clif2[snum[t], cnum[t]] if not ilngm[t]      # 負の数の下端の `-` は除く（14k）
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
       if isocc[int4[t]] if not isnum[int4b[t]] if not lbv[t]
 # **種3: 上端の添字が外の区間の変数**なら焼ける（13g。`for (j) in 0 .. len[i]`）。
@@ -2117,6 +2241,11 @@ badk[z] <- tlin[hotok[s]] * 16 + 13   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 
       if sdn[s] if sedv[s] == 2147483647
 badk[z] <- tlin[hotok[s]] * 16 + 13   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
       if flatt[hfz[s]] == 6 if sedv[s] >= 2147483646
+# 種が負になれるようになったので（`f[1] <- -3`）、max の ⊥ の印（-2147483647）にも届く（上の括弧書きは
+# もう言えない）。**値ではなく語で見る** —— 値にすると焼き手自身の max の場（sedv / sdv）が印に届き、
+# 焼き手の見張りが終了コード 4 で止まって、行も理由も言えない。束に依らず断る（焼き手の中を通れない）。
+badk[z] <- tlin[hotok[s]] * 16 + 13   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sneg[s]
+      if tval[sedvn[s]] >= 2147483647
 # **焼けない束は宣言の行で言う**（理由 8）。断片の束は六つ（min / max / or /
 # flat / sum / count）。set / and / fourv / bag を宣言の行で断らないと、その場を
 # 読む規則で **別の理由が先に出る** —— fourv の `not` は Belnap の否定で単調なのに、

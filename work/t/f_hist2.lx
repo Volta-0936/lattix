@@ -1,0 +1,10 @@
+# 文字の出現回数と最頻の文字
+table s = (0,98),(1,97),(2,110),(3,97),(4,110),(5,97)
+field cnt : count bound 128
+cnt[c] <- i   for (i,c) in s
+field top : max bound 1
+top[0] <- cnt[c]   for (c) in 0 .. 127
+field mode : min bound 1
+mode[0] <- c   for (c) in 0 .. 127 if cnt[c] == top[0]
+print cnt
+print mode

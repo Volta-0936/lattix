@@ -1,0 +1,7 @@
+# 負の数の下端（`-3 .. 2`）—— 14k
+field s : sum bound 1
+s[0] <- j   for (j) in -3 .. 2
+field q : min bound 8
+q[j + 3] <- j * j   for (j) in -3 .. 4
+print s
+print q

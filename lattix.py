@@ -2742,7 +2742,13 @@ def run(prog, seed=None, engine='auto', out=None, budget=None, ranks=False,
 
     for f in prog.prints:
         lat = prog.fields[f]
-        items = sorted(store[f].items(), key=lambda kv: _sortkey(kv[0]))
+        # **⊥ の升は書かない —— 観測が ⊥ なら、店に鍵があっても ⊥ である。** sum の升は寄与の
+        # 辞書で持つので、7 と -7 が届くと鍵が残り、値 0 を書いていた。だが 0 は ⊥ である
+        # （上の is_bot。SPEC「⊥ が 0 の束では、0 は ⊥」）。読む側は is_bot を見ていたのに、
+        # 書き出す側だけが見ていなかった —— 同じ判断が二箇所にあって片方だけ直っていた（気づき34）。
+        # 焼いた側は升の 0 を ⊥ と読むので黙って答えが割れていた（2026-09-24、表の負の升を下ろして見つけた）。
+        items = sorted(((k, v) for k, v in store[f].items() if not lat.is_bot(v)),
+                       key=lambda kv: _sortkey(kv[0]))
         if not items:
             print(f"{f}: ⊥ everywhere (no coordinate reached a definite value)",
                   file=out)
@@ -2760,6 +2766,7 @@ def render_text(prog, store, f):
     lat = prog.fields[f]
     out = []
     for k, v in sorted(store[f].items(), key=lambda kv: _sortkey(kv[0])):
+        if lat.is_bot(v): continue          # sum の 0 も ⊥（print と同じ判断）
         c = lat.observe(v)
         if c is None or isinstance(c, _Top): continue
         try: out.append(chr(int(c)))

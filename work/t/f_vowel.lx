@@ -1,0 +1,13 @@
+# 文字列の母音を数え、大文字にして描く
+table s = (0,104),(1,101),(2,108),(3,108),(4,111),(5,32),(6,119),(7,111),(8,114),(9,108),(10,100)
+field nv : count bound 1
+nv[0] <- i   for (i,c) in s if c == 97
+nv[0] <- i   for (i,c) in s if c == 101
+nv[0] <- i   for (i,c) in s if c == 105
+nv[0] <- i   for (i,c) in s if c == 111
+nv[0] <- i   for (i,c) in s if c == 117
+field up : flat bound 11
+up[i] <- c - 32   for (i,c) in s if c >= 97 if c <= 122
+up[i] <- c   for (i,c) in s if c == 32
+print nv
+render up

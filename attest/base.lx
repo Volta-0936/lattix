@@ -334,7 +334,12 @@ field rls : max bound 2048 4               # 枠 i の広さ（無い枠は 1）
 rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0] if li[g] <= 2
 rls[r, i] <- 1   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlh[r, i]
 field rlo : max bound 2048 4               # 枠 i の下端（表・無い枠は 0）
-rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2
+# 既定の 0 は **区間でない枠にだけ**（14k）。rlo は max の場なので、全部に 0 を置くと負の下端
+# （`for (j) in -3 .. 2`）が 0 に負け、attest.lx が実例を 0 から数え直して「最小不動点ではない」と
+# 嘘の REJECTED を言った（attest_lx.py が見つけた。焼き手の lplo と同じ穴の五度目）
+field rlr : or bound 2048 4                # 枠 i は区間
+rlr[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
+rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlr[r, i]
 rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
 field rtb : or bound 2048 4                # 枠 i は表
 rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0 if li[g] <= 2

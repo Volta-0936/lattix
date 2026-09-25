@@ -1,0 +1,6 @@
+# 負の座標の場を print する（原点をずらした場は `座標 - k` を書く —— 14k）
+field t : max bound 6
+t[-2] <- 5
+t[-1] <- 7
+t[k] <- t[k-1] + t[k-2]   for (k) in 0 .. 3
+print t

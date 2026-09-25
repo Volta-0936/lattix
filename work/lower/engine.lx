@@ -18,10 +18,14 @@ field _Pz : max bound 1
 field _bt : max bound 64
 field _pst : or bound 64                     # print p は集合
 field _pea : or bound 64                     # 集合の要素は原子
+field _psh1 : max bound 64                   # print p の座標0 の原点のずれ（下ろしが負の座標をずらした場 —— 14k）
+field _psh2 : max bound 64                   # 座標1 のずれ
 _pp[r] <- p   for (r) in 0 .. _Rz[0] for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _pv[r] == _pv[r]
 _pp[r] <- p   for (r) in 0 .. _Rz[0] for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _ptp[r]
 _pn[_pp[r]] <- true   for (r) in 0 .. _Rz[0]
-_pk1[r] <- r - _pbs[_pp[r]] - 1   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]
+_psh1[p] <- 0   for (p) in 0 .. _Pz[0]
+_psh2[p] <- 0   for (p) in 0 .. _Pz[0]
+_pk1[r] <- r - _pbs[_pp[r]] - 1 - _psh1[_pp[r]]   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]
 _gf[_pgs[r]] <- r   for (r) in 0 .. _Rz[0] if _pst[_pp[r]]
 _gl[_pgs[r]] <- r   for (r) in 0 .. _Rz[0] if _pst[_pp[r]]
 _ph[r] <- true   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pst[_pp[r]]
@@ -29,14 +33,18 @@ _ph[r] <- true   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if _gf[_pgs[r]] == r
 _o[r, j] <- _pnm[_pp[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 31 if _ph[r]
 _o[r, 32] <- 91   for (r) in 0 .. _Rz[0] if _ph[r]
 _o[r, j + 33] <- _an[_pk1[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 23 if _ph[r] if _pa1[_pp[r]]
-_dk1[r, 9] <- _pk1[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa1[_pp[r]]
+_o[r, 46] <- 45   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa1[_pp[r]] if _pk1[r] < 0
+_dk1[r, 9] <- 0 - _pk1[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa1[_pp[r]] if _pk1[r] < 0
+_dk1[r, 9] <- _pk1[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa1[_pp[r]] if _pk1[r] >= 0
 _dk1[r, e] <- _dk1[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 47] <- 48 + _dk1[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dk1[r, e] >= 1
 _o[r, 56] <- 48 + _dk1[r, 9] % 10   for (r) in 0 .. _Rz[0]
 _o[r, 57] <- 44   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
 _o[r, 58] <- 32   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
 _o[r, j + 59] <- _an[_pk2[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 23 if _ph[r] if _pa2[_pp[r]]
-_dk2[r, 9] <- _pk2[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa2[_pp[r]]
+_o[r, 72] <- 45   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa2[_pp[r]] if _pk2[r] < 0
+_dk2[r, 9] <- 0 - _pk2[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa2[_pp[r]] if _pk2[r] < 0
+_dk2[r, 9] <- _pk2[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa2[_pp[r]] if _pk2[r] >= 0
 _dk2[r, e] <- _dk2[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 73] <- 48 + _dk2[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dk2[r, e] >= 1
 _o[r, 82] <- 48 + _dk2[r, 9] % 10   for (r) in 0 .. _Rz[0]

@@ -1,0 +1,9 @@
+# 行列の冪で道の数を数える（長さ 3 の道）
+table e = (0,0,1),(1,1,2),(2,2,0),(3,0,2),(4,2,1)
+field a : sum bound 3 3
+a[x, y] <- 1   for (i,x,y) in e
+field a2 : sum bound 3 3
+a2[x, z] <- a[x, y] * a[y, z]   for (x) in 0 .. 2 for (y) in 0 .. 2 for (z) in 0 .. 2
+field a3 : sum bound 3 3
+a3[x, z] <- a2[x, y] * a[y, z]   for (x) in 0 .. 2 for (y) in 0 .. 2 for (z) in 0 .. 2
+print a3

@@ -1,0 +1,6 @@
+# 和が打ち消し合って 0 になった升は ⊥（print も書かない）
+table t = (0,7),(1,-7),(2,5)
+field d : sum bound 3
+d[0] <- x for (i,x) in t if i <= 1
+d[1] <- x for (i,x) in t
+print d

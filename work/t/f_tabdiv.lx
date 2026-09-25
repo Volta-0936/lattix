@@ -1,0 +1,8 @@
+# 表の列で割る
+table p = (0,17,3),(1,100,7),(2,9,9),(3,50,4)
+field q : max bound 4
+q[i] <- a / b   for (i,a,b) in p
+field m : max bound 4
+m[i] <- a % b   for (i,a,b) in p
+print q
+print m

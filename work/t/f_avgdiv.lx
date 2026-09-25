@@ -1,0 +1,12 @@
+# 組ごとの平均（場で場を割る）
+table sc = (0,0,70),(1,0,80),(2,1,90),(3,1,60),(4,1,75),(5,2,50)
+field tot : sum bound 3
+tot[g] <- s   for (i,g,s) in sc
+field cnt : count bound 3
+cnt[g] <- i   for (i,g,s) in sc
+field avg : max bound 3
+avg[g] <- tot[g] / cnt[g]   for (g) in 0 .. 2
+field rem : max bound 3
+rem[g] <- tot[g] % cnt[g]   for (g) in 0 .. 2
+print avg
+print rem

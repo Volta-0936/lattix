@@ -51,12 +51,17 @@ field _Rz : max bound 1
 field _Pz : max bound 1
 field _bt : max bound 64
 field _pst : or bound 64                     # print p は集合
-field _pea : or bound 64                     # 集合の要素は原子"""
+field _pea : or bound 64                     # 集合の要素は原子
+field _psh1 : max bound 64                   # print p の座標0 の原点のずれ（下ろしが負の座標をずらした場 —— 14k）
+field _psh2 : max bound 64                   # 座標1 のずれ"""
 L += decl.split("\n")
 L.append(f"_pp[r] <- p   {R} for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _pv[r] == _pv[r]")
 L.append(f"_pp[r] <- p   {R} for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _ptp[r]")
 L.append(f"_pn[_pp[r]] <- true   {R}")
-L.append(f"_pk1[r] <- r - _pbs[_pp[r]] - 1   {R} if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]")
+L.append(f"_psh1[p] <- 0   for (p) in 0 .. _Pz[0]")
+L.append(f"_psh2[p] <- 0   for (p) in 0 .. _Pz[0]")
+# 座標は **ずらしを引いて**書く（14k。二次元は型紙 20 / 21 が引く）
+L.append(f"_pk1[r] <- r - _pbs[_pp[r]] - 1 - _psh1[_pp[r]]   {R} if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]")
 L.append(f"_gf[_pgs[r]] <- r   {R} if _pst[_pp[r]]")
 L.append(f"_gl[_pgs[r]] <- r   {R} if _pst[_pp[r]]")
 L.append(f"_ph[r] <- true   {R} if _pp[r] >= 0 if not _pst[_pp[r]]")
@@ -71,8 +76,14 @@ def digits(q, src, end, cond):
     L.append(f"_o[r, e + {end-9}] <- 48 + {q}[r, e] % 10   {R} for (e) in 0 .. 8 if {q}[r, e] >= 1")
     L.append(f"_o[r, {end}] <- 48 + {q}[r, 9] % 10   {R}")
 def key(fld, flag, end, cond, q):
+    """座標の字。**座標は負になれる**（14k）—— 下ろしは負の座標を書く場の原点を k ずらし（14c / 14e）、
+    print の行はずらした座標で並ぶので、鍵には `座標 - k` を置く（上の `_pk1` と型紙 20 / 21）。
+    負なら `-` を桁の一つ左に置く（桁は右寄せで、上の桁の ⊥ は幅 0 なので、`-` は最上位の桁のすぐ左に出る）"""
+    c = f"if {cond} if _pp[r] >= 0 if not {flag}[_pp[r]]"
     L.append(f"_o[r, j + {end-23}] <- _an[{fld}[r], j]   {R} for (j) in 0 .. 23 if {cond} if {flag}[_pp[r]]")
-    digits(q, f"{fld}[r]", end, f"if {cond} if _pp[r] >= 0 if not {flag}[_pp[r]]")
+    L.append(f"_o[r, {end-10}] <- 45   {R} {c} if {fld}[r] < 0")
+    L.append(f"{q}[r, 9] <- 0 - {fld}[r]   {R} {c} if {fld}[r] < 0")
+    digits(q, f"{fld}[r]", end, f"{c} if {fld}[r] >= 0")
 key("_pk1", "_pa1", 56, "_ph[r]", "_dk1")
 L.append(f"_o[r, 57] <- 44   {R} if _pd2[_pp[r]]")
 L.append(f"_o[r, 58] <- 32   {R} if _pd2[_pp[r]]")

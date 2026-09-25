@@ -1,0 +1,18 @@
+# 点数の分布と平均（十の位で桶に分ける）
+table score = (0,72),(1,85),(2,91),(3,64),(4,78),(5,88),(6,95),(7,59)
+field bucket : count bound 10
+bucket[s / 10] <- i   for (i,s) in score
+field tot : sum bound 1
+tot[0] <- s   for (i,s) in score
+field cnt : count bound 1
+cnt[0] <- i   for (i,s) in score
+field mean : max bound 1
+mean[0] <- tot[0] / cnt[0]
+field best : max bound 1
+best[0] <- s   for (i,s) in score
+field worst : min bound 1
+worst[0] <- s   for (i,s) in score
+print bucket
+print mean
+print best
+print worst

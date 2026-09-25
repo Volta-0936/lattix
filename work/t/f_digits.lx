@@ -1,0 +1,16 @@
+# 十進の桁の和と、桁を逆に並べた数
+table n = (0,12345),(1,907),(2,5)
+field pw : max bound 8
+pw[0] <- 1
+pw[k] <- pw[k-1] * 10   for (k) in 1 .. 7
+field dg : max bound 3 8
+dg[i, k] <- x / pw[k] % 10   for (i,x) in n for (k) in 0 .. 7 if x >= pw[k]
+field ds : sum bound 3
+ds[i] <- dg[i, k]   for (i) in 0 .. 2 for (k) in 0 .. 7
+field len : max bound 3
+len[i] <- k + 1   for (i) in 0 .. 2 for (k) in 0 .. 7 if dg[i, k] >= 0
+field rv : sum bound 3
+rv[i] <- dg[i, k] * pw[len[i] - 1 - k]   for (i) in 0 .. 2 for (k) in 0 .. 7 if k < len[i]
+print ds
+print len
+print rv

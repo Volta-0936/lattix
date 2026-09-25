@@ -1,0 +1,17 @@
+# 数列: フィボナッチ・階乗・平方の和・コラッツの歩数
+field fib : max bound 40
+fib[0] <- 0
+fib[1] <- 1
+fib[n] <- fib[n-1] + fib[n-2]   for (n) in 2 .. 30
+field fact : max bound 21
+fact[0] <- 1
+fact[n] <- fact[n-1] * n   for (n) in 1 .. 20
+field sq : sum bound 1
+sq[0] <- k * k   for (k) in 1 .. 100
+field col : min bound 30
+col[1] <- 0
+col[n] <- col[n / 2] + 1   for (n) in 2 .. 29 if n % 2 == 0
+print fib
+print fact
+print sq
+print col

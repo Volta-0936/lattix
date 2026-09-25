@@ -1,0 +1,7 @@
+# 試し割りで約数を数える（割る数が計数器）
+field ndiv : count bound 61
+ndiv[n] <- d   for (n) in 1 .. 60 for (d) in 1 .. 60 if d <= n if n % d == 0
+field prime : or bound 61
+prime[n] <- true   for (n) in 2 .. 60 if ndiv[n] == 2
+print ndiv
+print prime

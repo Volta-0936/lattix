@@ -530,18 +530,57 @@ abcdefghijklmnopq[i] <- 1 for (i,c) in ch
 # **`/` と `%` は場の読みには種が付いていなかった。** 付いていないのに素の
 # 「場の読み」に落ちるので、`a[i] / a[i-1]` が **足し算**になっていた
 # （97/98 が 195）—— 解釈実行は 1 と言う。同じ源が二つの答えを持っていた。
-case("場で割る（焼けない）", """table ch = (0,32)
+# 長いあいだ理由 8 で断って塞いでいた。14f で種15 / 16 を足した（idiv の床の商・割る数の符号の余り）
+case("場で割る（通る）", """table ch = (0,32)
 field a : max bound 8
 a[i] <- c   for (i,c) in ch
 field b : max bound 8
 b[i] <- a[i] / a[i-1]   for (i,c) in ch if i >= 1
-""", data=b"ab", exit=7, why=(5,8))
-case("場で余り（焼けない）", """table ch = (0,32)
+""", data=b"abz")
+case("場で余り（通る）", """table ch = (0,32)
 field a : max bound 8
 a[i] <- c   for (i,c) in ch
 field b : max bound 8
 b[i] <- a[i] % a[i-1]   for (i,c) in ch if i >= 1
-""", data=b"ab", exit=7, why=(5,8))
+""", data=b"abz")
+# 床と符号: 解釈実行は Python の `//` と `%`（商は床へ、余りは割る数の符号）。四つの符号の組を撒く
+case("場で割る・余り（符号の四つの組）", """table ch = (0,32)
+field a : max bound 8
+a[i] <- 17 - i * 9   for (i) in 0 .. 3
+field b : max bound 8
+b[i] <- 5 - i % 2 * 10   for (i) in 0 .. 3
+field q : max bound 8
+q[i] <- a[i] / b[i]   for (i) in 0 .. 3
+field r : max bound 8
+r[i] <- a[i] % b[i]   for (i) in 0 .. 3
+field m : max bound 8
+m[i] <- 1 + a[i] / b[i] * 2 - a[i] % b[i]   for (i) in 0 .. 3
+""", data=b"a")
+# 零で割るのは誤りではなく ⊥（式が消える —— 撃たない）
+case("場の零で割る（⊥）", """table ch = (0,32)
+field z : max bound 4
+z[i] <- i % 2   for (i) in 0 .. 3
+field q : max bound 4
+q[i] <- 12 / z[i]   for (i) in 0 .. 3
+field r : max bound 4
+r[i] <- 12 % z[i]   for (i) in 0 .. 3
+""", data=b"a")
+# ⊤ は ⊥ より強い（解釈実行は ⊤ を先に見る）: `⊤ / 0` は ⊤、`6 / 0` は ⊥、`12 / ⊤` は ⊤
+case("⊤ を割る・⊤ で割る", """table ch = (0,32)
+field t : flat bound 4
+t[0] <- 3   for (i,c) in ch if c == 97
+t[0] <- 4   for (i,c) in ch if c == 98
+t[2] <- 6   for (i,c) in ch if c == 97
+field z : flat bound 4
+z[0] <- 0   for (i,c) in ch if c == 97
+z[1] <- 2   for (i,c) in ch if c == 97
+field o : flat bound 8
+o[0] <- 12 / t[0]   for (i,c) in ch if c == 97
+o[2] <- t[0] / z[0]   for (i,c) in ch if c == 97
+o[3] <- t[2] / z[0]   for (i,c) in ch if c == 97
+o[4] <- t[2] % z[1]   for (i,c) in ch if c == 97
+o[5] <- t[0] % t[2]   for (i,c) in ch if c == 97
+""", data=b"ab")
 # 引く・掛けるは通る（種9/10）——「通る一つ隣」を対で置く
 case("場を引く・掛ける（通る）", """table ch = (0,32)
 field a : max bound 8
@@ -600,10 +639,152 @@ v[i] <- a[i] + i * 2   for (i) in 0 .. 3
 case("群 a + b / 2（割る）", P + """field v : max bound 16
 v[i] <- a[i] + b[i] / 2   for (i) in 0 .. 3
 """, data=b"ab")
-case("変数で割る（焼けない）", """table edges = (0,0,0)
+# **計数器を掛ける再帰**（14f）。解釈実行は計数器の最小（下端）が 0 以上なら掛け算を単調と読む ——
+# 焼き手も区間の端だけで同じことを言う（全部のループが数の区間で、広さの積が 2^14 以下）
+case("計数器を掛ける再帰（通る）", """table ch = (0,32)
+field f : max bound 16
+f[0] <- 1
+f[n] <- f[n-1] * n   for (n) in 1 .. 12
+field g : max bound 16
+g[0] <- 3
+g[n] <- n * g[n-1] + 1   for (n) in 1 .. 12
+""", data=b"a")
+# 束縛が数え切れない（積が 2^14 を越える）なら証さない —— 解釈実行も 20,000 で数えるのをやめる
+# （そのあと解釈実行は軸に沿った成層で受け取ることがあるが、焼き手はそれを持たないので断る —— 黙らない）。
+# 焼き手だけが単調と読めば、解釈実行が単調と読まない本を単調として焼いてしまう（控えめな側にだけ倒す）
+case("計数器を掛ける再帰（多すぎる。言う）", """table ch = (0,32)
+field f : max bound 30000
+f[0] <- 1
+f[n] <- f[n-1] * n   for (n) in 1 .. 29999
+""", data=b"a", exit=7, why=(4,7))
+# **負の数の種**（14h）。`f[1] <- -3` は解釈実行では `0 - 3` の種。前は焼き手が理由 8 で断っていた ——
+# 下ろしが表の負の升を種にするようになって当たった。種の値は max の場を通るので、0 の既定値
+# （値の無い種のため）に負けないこと、sum の鎖が負の和を max で落とさないことも見る。
+case("負の種（通る）", """table ch = (0,32)
+field a : max bound 3
+a[0] <- -3
+a[1] <- -5
+a[1] <- 2
+field b : min bound 2
+b[0] <- -3
+b[0] <- -7
+field c : flat bound 2
+c[0] <- -3
+c[1] <- -3
+c[1] <- -3
+field d : sum bound 3
+d[0] <- -3
+d[0] <- 5
+d[1] <- -3
+d[1] <- -4
+d[2] <- 7
+d[2] <- -7
+field g : max bound 3
+g[i] <- a[i] + 1   for (i) in 0 .. 1
+""", data=b"a")
+# 印（max の ⊥ は -2147483647）に届く負の種は、束に依らず語で見て断る —— 値にすると焼き手自身の
+# max の場が印に届き、焼き手の見張りが止まって行も理由も言えない（理由 D）
+case("印に届く負の種（言う）", """table ch = (0,32)
+field a : min bound 1
+a[0] <- -2147483647
+""", data=b"a", exit=7, why=(3,13))
+case("負の種の値が式（言う）", """table ch = (0,32)
+field a : max bound 1
+a[0] <- -3 + 1
+""", data=b"a", exit=7, why=(3,8))
+# **升の無い場**（`bound 0`）。⊥ を敷く輪が一升書いて地図の外で落ちていた（mutate が撒いた）。
+# 書けば広さの見張りが言う（終了コード 6）
+case("升の無い場（言う）", """table ch = (0,32)
+field up : max bound 0
+up[i] <- c - 32   for (i,c) in ch if c >= 97 if c <= 122
+""", data=b"abc", exit=6)
+case("負になりうる計数器を掛ける（言う）", """table ch = (0,32)
+field f : max bound 16
+f[0] <- 1
+f[n] <- f[n-1] * m   for (n) in 1 .. 12 for (m) in 0 - 1 .. 1
+""", data=b"a", exit=7, why=(4,7))
+# **変数で割る**（14j。種17〜20）。長いあいだ「焼けない」の例だった（理由 8）。列（17 / 18）と
+# 計数器（19 / 20）で、床・負の割る数・0 で割る（⊥ —— 撃たない）を解釈実行と升まで比べる。
+case("列で割る・余り（通る）", """table edges = (0,0,0)
 field q : max bound 16
 q[i] <- j / w   for (i,j,w) in edges
-""", rows=[(0,4,2)], exit=7, why=(3,8))
+field m : max bound 16
+m[i] <- j % w   for (i,j,w) in edges
+field s : max bound 16
+s[i] <- j / w + j % w * 100   for (i,j,w) in edges
+""", rows=[(0,4,2),(1,7,-2),(2,-7,2),(3,-7,-2),(4,9,0),(5,0,5),(6,100,7)])
+case("計数器で割る・余り（通る）", """table ch = (0,32)
+field q : max bound 16
+q[d] <- 100 / d   for (d) in 0 .. 10
+field r : max bound 16
+r[d] <- 100 % d   for (d) in 0 .. 10
+field n : min bound 16
+n[d] <- 0 - 7 / d + 0 - 7 % d   for (d) in 1 .. 4
+field g : count bound 61
+g[n] <- d   for (n) in 1 .. 60 for (d) in 1 .. 60 if d <= n if hd[n, d] == 0
+field hd : flat bound 61 61
+hd[n, d] <- n % d   for (n) in 1 .. 60 for (d) in 1 .. 60
+""", data=b"a")
+# **-1 で割る**（14j）。idiv は INT64_MIN / -1 で落ちていた（SIGFPE —— 答えも断りも出ない。14f の場で割るから在った穴）。
+# -1 なら割らずに符号を裏返し（INT64_MIN は溢れと言う）、余りは 0
+case("-1 で割る（INT64_MIN は溢れと言う）", """table edges = (0,0,0)
+field q : max bound 8
+q[i] <- j / w   for (i,j,w) in edges
+field m : max bound 8
+m[i] <- j % w   for (i,j,w) in edges
+field v : max bound 8
+v[i] <- w   for (i,j,w) in edges
+field fq : max bound 8
+fq[i] <- j / v[i]   for (i,j,w) in edges
+""", rows=[(1,7,-1),(2,-7,-1),(3,-9223372036854775807,-1),(4,-9223372036854775808,-1)], exit=3)
+case("-1 で割る・余り（大きさの内。通る）", """table edges = (0,0,0)
+field q : max bound 8
+q[i] <- j / w   for (i,j,w) in edges
+field m : max bound 8
+m[i] <- j % w   for (i,j,w) in edges
+""", rows=[(1,7,-1),(2,-7,-1),(3,-9223372036854775807,-1),(4,-9223372036854775808,-2)])
+# **表のループは段 0 だけ**（14j）。同じ表を二重に回す本は何も書かずに 0 で終わり、表を内側に書いた本は
+# 「広さを超えた」と嘘の理由で止まっていた。どちらも焼き手は断る（下ろせば表は場になって焼ける）
+case("同じ表を二重に回す（言う）", """table a = (0,0)
+field c : max bound 3
+c[i] <- y   for (i,x) in a for (j,y) in a if y < x
+""", data=bytes([5,3,7]), exit=7, why=(3,8))
+case("表のループを内側に（言う）", """table a = (0,0)
+field c : max bound 3
+c[k] <- x   for (k) in 0 .. 1 for (i,x) in a
+""", data=bytes([5,3,7]), exit=7, why=(3,8))
+# **負の数の下端**（14k）。`for (j) in -3 .. 2` は `-` と `3` の二語。前は理由 8 で断っていた。区間は符号つきで
+# 比べるので焼く側は負の即値を置くだけ —— ただし下端の既定の 0（max の場）に負の下端が負け、**黙って 0 から
+# 回った**（sum が -3 でなく 3）。既定は下端が数でないループにだけ置く
+case("負の数の下端（通る）", """table ch = (0,32)
+field s : sum bound 1
+s[0] <- j   for (j) in -3 .. 2
+field c : count bound 1
+c[0] <- j   for (j) in -3 .. 2
+field m : min bound 1
+m[0] <- j * 10   for (j) in -3 .. 2
+field q : max bound 8
+q[j + 3] <- j * j   for (j) in -3 .. 4
+""", data=b"a")
+case("負の数の上端（言う）", """table ch = (0,32)
+field s : sum bound 1
+s[0] <- j   for (j) in -3 .. -1
+""", data=b"a", exit=7, why=(3,8))
+# 計数器の三つ目から先は register ではなく升に居る（形213）。四重の入れ子で割る
+case("四つ目の計数器で割る（通る）", """table ch = (0,32)
+field q : min bound 2 2 2
+q[a, b, c] <- 7 / d + a * 100 + b * 10 + c   for (a) in 0 .. 1 for (b) in 0 .. 1 for (c) in 0 .. 1 for (d) in 2 .. 3
+field r : max bound 2 2 2
+r[a, b, c] <- 8 % d + a * 100 + b * 10 + c   for (a) in 0 .. 1 for (b) in 0 .. 1 for (c) in 0 .. 1 for (d) in 2 .. 3
+""", data=b"a")
+# flat の書き先で ⊤ を読んだ値を 0 で割る —— ⊤ は ⊥ より強い（⊤ / 0 は ⊤）
+case("⊤ を計数器の 0 で割る（通る）", """table ch = (0,32)
+field t : flat bound 2
+t[0] <- 3
+t[0] <- 4
+field u : flat bound 4
+u[d] <- t[0] / d   for (d) in 0 .. 2
+""", data=b"a")
 # **三段は焼ける。** 長いあいだ「焼けない」の例だった —— 座標の源が
 # 「列・計数器・場の値・定数」の四つだと思い込んでいて、添字が **読み** の
 # ときに源が出ず、黙って座標が消えていたからである。鎖（源5）は

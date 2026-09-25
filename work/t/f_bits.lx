@@ -1,0 +1,13 @@
+# 二進の桁と、立っている桁の数
+table n = (0,13), (1,255), (2,1024), (3,0)
+field bit : max bound 4 12
+bit[i, k] <- x / 1 % 2   for (i,x) in n for (k) in 0 .. 0
+bit[i, k] <- x / 2 % 2   for (i,x) in n for (k) in 1 .. 1
+field pw : max bound 12
+pw[0] <- 1
+pw[k] <- pw[k - 1] * 2   for (k) in 1 .. 11
+field b2 : max bound 4 12
+b2[i, k] <- x / pw[k] % 2   for (i,x) in n for (k) in 0 .. 11
+field ones : sum bound 4
+ones[i] <- b2[i, k]   for (i) in 0 .. 3 for (k) in 0 .. 11
+print ones

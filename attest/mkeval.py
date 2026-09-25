@@ -531,6 +531,7 @@ un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の�
 field tspw : or bound 8192                      # 項 g の除数は二のべき
 tspw[g] <- true   for (g) in 0 .. ngtz[0] for (k) in 0 .. 62 if tk[g] >= 7 if tk[g] <= 8 if pw[k] == tvl[g]
 un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 7 if tk[g] <= 8 if not tspw[g]
+un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 15 if tk[g] <= 20   # 場・列・計数器で割る・余り（14f / 14j）
 un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 8 if un1[k]
@@ -673,7 +674,7 @@ text(9, 0, "  every value is grounded, so facts are missing: the answer is below
 nl(9, MISS)
 text(11, 0, "  an aggregate supported by reads of its own stratum at an equal or higher rank", UNS + " if un1[6]")
 nl(11, UNS + " if un1[6]")
-text(12, 0, "  a divisor that is not a power of two, or more than one render", UNS + " if un1[7]")
+text(12, 0, "  a divisor that is not a power of two, or two renders", UNS + " if un1[7]")
 nl(12, UNS + " if un1[7]")
 text(13, 0, "  a range whose lower bound is read from a field", UNS + " if un1[8]")
 nl(13, UNS + " if un1[8]")

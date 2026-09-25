@@ -1,0 +1,12 @@
+# 編集距離（縁は -1。区間は 0 から）
+table a = (0,107),(1,105),(2,116)
+table b = (0,115),(1,105),(2,116),(3,116)
+field d : min bound 3 4
+d[-1, -1] <- 0
+d[-1, j] <- j + 1   for (j) in 0 .. 3
+d[i, -1] <- i + 1   for (i) in 0 .. 2
+d[i, j] <- d[i-1, j-1]   for (i,x) in a for (j,y) in b if x == y
+d[i, j] <- d[i-1, j-1] + 1   for (i,x) in a for (j,y) in b
+d[i, j] <- d[i-1, j] + 1   for (i,x) in a for (j,y) in b
+d[i, j] <- d[i, j-1] + 1   for (i,x) in a for (j,y) in b
+print d

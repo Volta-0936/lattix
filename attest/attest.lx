@@ -334,7 +334,12 @@ field rls : max bound 2048 4               # 枠 i の広さ（無い枠は 1）
 rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0] if li[g] <= 2
 rls[r, i] <- 1   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlh[r, i]
 field rlo : max bound 2048 4               # 枠 i の下端（表・無い枠は 0）
-rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2
+# 既定の 0 は **区間でない枠にだけ**（14k）。rlo は max の場なので、全部に 0 を置くと負の下端
+# （`for (j) in -3 .. 2`）が 0 に負け、attest.lx が実例を 0 から数え直して「最小不動点ではない」と
+# 嘘の REJECTED を言った（attest_lx.py が見つけた。焼き手の lplo と同じ穴の五度目）
+field rlr : or bound 2048 4                # 枠 i は区間
+rlr[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
+rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlr[r, i]
 rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
 field rtb : or bound 2048 4                # 枠 i は表
 rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0 if li[g] <= 2
@@ -1754,6 +1759,7 @@ un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の�
 field tspw : or bound 8192                      # 項 g の除数は二のべき
 tspw[g] <- true   for (g) in 0 .. ngtz[0] for (k) in 0 .. 62 if tk[g] >= 7 if tk[g] <= 8 if pw[k] == tvl[g]
 un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 7 if tk[g] <= 8 if not tspw[g]
+un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 15 if tk[g] <= 20   # 場・列・計数器で割る・余り（14f / 14j）
 un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 8 if un1[k]
@@ -3416,26 +3422,17 @@ out[z] <- 32   for (z) in 1239 .. 1239 if dw[22]
 out[z] <- 111   for (z) in 1240 .. 1240 if dw[22]
 out[z] <- 114   for (z) in 1241 .. 1241 if dw[22]
 out[z] <- 32   for (z) in 1242 .. 1242 if dw[22]
-out[z] <- 109   for (z) in 1243 .. 1243 if dw[22]
-out[z] <- 111   for (z) in 1244 .. 1244 if dw[22]
-out[z] <- 114   for (z) in 1245 .. 1245 if dw[22]
-out[z] <- 101   for (z) in 1246 .. 1246 if dw[22]
-out[z] <- 32   for (z) in 1247 .. 1247 if dw[22]
-out[z] <- 116   for (z) in 1248 .. 1248 if dw[22]
-out[z] <- 104   for (z) in 1249 .. 1249 if dw[22]
-out[z] <- 97   for (z) in 1250 .. 1250 if dw[22]
-out[z] <- 110   for (z) in 1251 .. 1251 if dw[22]
-out[z] <- 32   for (z) in 1252 .. 1252 if dw[22]
-out[z] <- 111   for (z) in 1253 .. 1253 if dw[22]
-out[z] <- 110   for (z) in 1254 .. 1254 if dw[22]
-out[z] <- 101   for (z) in 1255 .. 1255 if dw[22]
-out[z] <- 32   for (z) in 1256 .. 1256 if dw[22]
-out[z] <- 114   for (z) in 1257 .. 1257 if dw[22]
-out[z] <- 101   for (z) in 1258 .. 1258 if dw[22]
-out[z] <- 110   for (z) in 1259 .. 1259 if dw[22]
-out[z] <- 100   for (z) in 1260 .. 1260 if dw[22]
-out[z] <- 101   for (z) in 1261 .. 1261 if dw[22]
-out[z] <- 114   for (z) in 1262 .. 1262 if dw[22]
+out[z] <- 116   for (z) in 1243 .. 1243 if dw[22]
+out[z] <- 119   for (z) in 1244 .. 1244 if dw[22]
+out[z] <- 111   for (z) in 1245 .. 1245 if dw[22]
+out[z] <- 32   for (z) in 1246 .. 1246 if dw[22]
+out[z] <- 114   for (z) in 1247 .. 1247 if dw[22]
+out[z] <- 101   for (z) in 1248 .. 1248 if dw[22]
+out[z] <- 110   for (z) in 1249 .. 1249 if dw[22]
+out[z] <- 100   for (z) in 1250 .. 1250 if dw[22]
+out[z] <- 101   for (z) in 1251 .. 1251 if dw[22]
+out[z] <- 114   for (z) in 1252 .. 1252 if dw[22]
+out[z] <- 115   for (z) in 1253 .. 1253 if dw[22]
 out[z] <- 10   for (z) in 1299 .. 1299 if dw[22]
 dw[z] <- true   for (z) in 23 .. 23 if okin[0] if okbk[0] if anyun[0] if un1[8]
 out[z] <- 32   for (z) in 1300 .. 1300 if dw[23]

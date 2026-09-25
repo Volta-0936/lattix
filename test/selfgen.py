@@ -362,8 +362,10 @@ def _readback(flds, rules, blob, exe, data, trow):
         F = array.array('B' if wb == 1 else 'q')
         F.frombytes(r.stdout[bo:bo + wb * cells])
         key = (lambda k: (k,)) if a == 1 else (lambda k, ww=w2: (k // ww, k % ww))
+        # **⊤ の印は flat の場だけのもの**（14k）。前は束を見ずに 2147483646 を ⊤ と読んでいた ——
+        # 自分の源に `<= 2147483646` と書いた日、max の場 tval の値 2147483646 が ⊤ に化けて不一致になった
         dec = ((lambda v: True) if l == 3
-               else (lambda v: L.TOP if v == TOPV else v))
+               else (lambda v, l=l: L.TOP if (l == 6 and v == TOPV) else v))
         store[f] = {key(k): dec(F[k]) for k in range(cells) if F[k] != BOT[l]}
         rank[f] = {key(k): K[off+k] for k in range(cells) if K[off+k]}
         bo += wb * cells

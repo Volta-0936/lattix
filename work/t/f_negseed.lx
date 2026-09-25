@@ -1,0 +1,30 @@
+# 負の種: 束ごと・同じ升・境目
+field a : max bound 3
+a[0] <- -3
+a[1] <- -5
+a[1] <- 2
+field b : min bound 3
+b[0] <- -3
+b[0] <- -7
+b[1] <- 4
+field c : flat bound 3
+c[0] <- -3
+c[1] <- -3
+c[1] <- -3
+field d : sum bound 3
+d[0] <- -3
+d[0] <- 5
+d[1] <- -3
+d[1] <- -4
+d[2] <- 7
+d[2] <- -7
+field e : count bound 2
+e[0] <- -3
+field g : max bound 3
+g[i] <- a[i] + 1   for (i) in 0 .. 2
+print a
+print b
+print c
+print d
+print e
+print g

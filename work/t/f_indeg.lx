@@ -1,0 +1,9 @@
+# 入次数と、根からの深さ
+table e = (0,1),(0,2),(1,3),(2,3),(3,4),(1,4)
+field indeg : count bound 8
+indeg[b] <- a   for (a,b) in e
+field dep : max bound 8
+dep[0] <- 0
+dep[b] <- dep[a] + 1   for (a,b) in e
+print indeg
+print dep

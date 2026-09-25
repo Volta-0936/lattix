@@ -154,8 +154,8 @@ def gen(flds, seeds, rules, edges, tmp, tag, guards=(), terms=(), coords=(),
                           r.stdout[bo:bo + wb * cells])
         key = ((lambda k: (k,)) if a == 1
                else (lambda k, w=w2: (k // w, k % w)))
-        dec = ((lambda v: True) if l == 3
-               else (lambda v: L.TOP if v == TOPV else v))
+        dec = ((lambda v: True) if l == 3        # ⊤ の印は flat だけ（selfgen.py と同じ判断 —— 14k）
+               else (lambda v, l=l: L.TOP if (l == 6 and v == TOPV) else v))
         store[f] = {key(k): dec(F[k]) for k in range(cells)
                     if F[k] != BOT[l]}
         rank[f] = {key(k): K[off+k] for k in range(cells) if K[off+k]}

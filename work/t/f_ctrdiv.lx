@@ -1,0 +1,7 @@
+# 計数器で割る: 100 を 1..10 で割った商と余り
+field q : max bound 11
+q[d] <- 100 / d   for (d) in 1 .. 10
+field r : max bound 11
+r[d] <- 100 % d   for (d) in 1 .. 10
+print q
+print r

@@ -100,7 +100,7 @@ class Checker:
             for k in d: d[k].sort(key=lambda x: x[1])
         self.ofield = {}                      # 所有者 → 読む場（項・ガード・内側の出現）
         for row in tab.T:
-            if row[2] in (3, 9, 10): self.ofield[row[6]] = row[3]
+            if row[2] in (3, 9, 10, 15, 16): self.ofield[row[6]] = row[3]
         for row in tab.G:
             if row[2] in (2, 9) or (row[2] in (3, 4) and row[6] == 0): self.ofield[row[8]] = row[3]
         for o, r, d, src, cf, cc, hf, of in tab.C:
@@ -235,9 +235,9 @@ class Checker:
         def operand(t):
             _r, ti, kind, f, c1, v, oo = t
             if kind in (1, 5, 6, 7, 8): return v
-            if kind in (2, 11, 12): return env['row'][c1]
-            if kind in (4, 13, 14): return env['k'][c1]
-            if kind in (3, 9, 10):
+            if kind in (2, 11, 12, 17, 18): return env['row'][c1]
+            if kind in (4, 13, 14, 19, 20): return env['k'][c1]
+            if kind in (3, 9, 10, 15, 16):
                 c = self.coord(oo, f, env, reads)
                 if c is None or c is OUT: return None
                 reads.append((f, c))
@@ -254,11 +254,13 @@ class Checker:
             # 算術は ⊤ 厳密（SPEC）。素の写し（項一つ）はそのまま ⊤ を運ぶ
             return TOP
         if any(x is None for x in xs): return None
+        # 場・列・計数器で割る・余り（種15〜20）: 割る数が 0 なら ⊥（⊤ は上で先に返っている —— ⊤ は ⊥ より強い）
+        if any(15 <= t[2] <= 20 and x == 0 for t, x in zip(ts, xs)): return None
         for t, x in zip(ts, xs):
             kind = t[2]
             if kind in (6, 10, 12, 14): cur = cur * x
-            elif kind == 7: cur = cur // x
-            elif kind == 8: cur = cur % x
+            elif kind in (7, 15, 17, 19): cur = cur // x
+            elif kind in (8, 16, 18, 20): cur = cur % x
             else:
                 if cur is not None: total += sign * cur
                 neg = kind in (5, 9, 11, 13)

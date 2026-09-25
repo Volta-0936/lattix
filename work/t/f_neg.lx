@@ -1,0 +1,14 @@
+# 負の値を持つ場と、差の最小
+table t = (0,5),(1,-3),(2,12),(3,-8),(4,0)
+field v : flat bound 5
+v[i] <- x   for (i,x) in t
+field lo : min bound 1
+lo[0] <- x   for (i,x) in t
+field neg : count bound 1
+neg[0] <- i   for (i,x) in t if x < 0
+field dif : min bound 5
+dif[i] <- x - y   for (i,x) in t for (j,y) in t if i != j
+print v
+print lo
+print neg
+print dif

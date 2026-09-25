@@ -1,0 +1,11 @@
+# 組ごとの最小・最大・幅（負の値も）
+table r = (0,0,5),(1,0,-2),(2,1,8),(3,1,8),(4,2,-7),(5,0,11)
+field lo : min bound 3
+lo[g] <- v   for (i,g,v) in r
+field hi : max bound 3
+hi[g] <- v   for (i,g,v) in r
+field wd : max bound 3
+wd[g] <- hi[g] - lo[g]   for (g) in 0 .. 2
+print lo
+print hi
+print wd

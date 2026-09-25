@@ -1,0 +1,7 @@
+# 数の棒グラフを文字で描く
+table h = (0,3),(1,7),(2,1),(3,5)
+field txt : flat bound 64
+txt[r * 9 + k] <- 35   for (r,n) in h for (k) in 0 .. 7 if k < n
+txt[r * 9 + k] <- 46   for (r,n) in h for (k) in 0 .. 7 if k >= n
+txt[r * 9 + 8] <- 10   for (r,n) in h
+render txt
