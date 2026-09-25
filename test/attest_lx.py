@@ -136,7 +136,10 @@ def src_verdict(src, tab, vals, ranks, data):
         names = re.findall(r'(?m)^field (\w+)', src)
         store, rank = {}, {}
         for f, Lf in enumerate(lay):
-            key = (lambda c: (c,)) if Lf['ar'] != 2 else (lambda c, w=Lf['w1']: (c // w, c % w))
+            # 升の番号 → 座標（三次元は (c0 * 広さ1 + c1) * 広さ2 + c2 の畳みを戻す）
+            if Lf['ar'] == 3: key = lambda c, w1=Lf['w1'], w2=Lf['w2']: (c // (w1 * w2), c // w2 % w1, c % w2)
+            elif Lf['ar'] == 2: key = lambda c, w=Lf['w1']: (c // w, c % w)
+            else: key = lambda c: (c,)
             d = {}
             for c, v in S[f].items():
                 if Lf['lat'] == 'or': v = True

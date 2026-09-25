@@ -637,6 +637,15 @@ fwid2[fdno[t]] <- tval[bw2[t]] for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
       if tline[bw2[t]] == tline[t]
 # 書かなければ次元0 と同じ —— **種の座標を畳む掛け数はここにしかない**
 fwid2[f] <- fwid[f] for (f) in 0 .. nfdz[0] if not hasw2[f]
+field bw3 : max bound 589824            # 三つ目の広さのトークン
+bw3[t] <- nextw[bw2[t]] for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]] if tline[bw2[t]] == tline[t]
+field hasw3 : or bound 2048             # 次元2 の広さを書いたか
+hasw3[fdno[t]] <- true for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+      if tline[bw3[t]] == tline[t] if isnum[bw3[t]]
+field fwid3 : max bound 2048            # 次元2 の広さ（同じ行に三つ目があれば。無ければ次元0 と同じ）
+fwid3[fdno[t]] <- tval[bw3[t]] for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+      if tline[bw3[t]] == tline[t] if isnum[bw3[t]]
+fwid3[f] <- fwid[f] for (f) in 0 .. nfdz[0] if not hasw3[f]
 
 # ── 頭の次数。**区切りは矢印より前の深さ1 の `,`** ──────────────────
 field iscom : or bound 589824           # `,` のトークン
@@ -658,6 +667,7 @@ farr[hfz[s]] <- 2 for (s) in 0 .. nstz[0] if hasr[s] if h2d[s]
 # 焼けた実行ファイルは segfault した（`test/mutate.py` が撒いて出した）。
 farr[fdno[t]] <- 1 for (t,zc) in ch if isdcl[t]
 farr[ixcf[t]] <- 2 for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
+farr[ixcf[t]] <- 3 for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
 
 # ── 表の行。**行も列も鎖である**（`(` で行が進み、`,` で列が進む）────
 field isnum : or bound 589824           # 数のトークン（英数字は数で始まらない）
@@ -729,8 +739,15 @@ sdt3[s] <- nextw[sdt2[s]] for (s) in 0 .. nstz[0] if isseed[s]
 field sedc : max bound 16384             # 種の座標
 sedc[s] <- tval[sdt0[s]] for (s) in 0 .. nstz[0] if isseed[s] if not h2d[s]
 # 2次元の種は `c1 * 次元1の広さ + c2` に畳む（`q[3,0]`）
+field h3d : or bound 16384               # 文 s の頭は3次元（頭の出現に次元2 がある）
+h3d[osn[o]] <- true for (o) in 0 .. nocz[0] if ohd[o] if has2[o]
 sedc[s] <- tval[sdt0[s]] * fwid2[hfz[s]] + tval[sdt2[s]]
-      for (s) in 0 .. nstz[0] if isseed[s] if h2d[s]
+      for (s) in 0 .. nstz[0] if isseed[s] if h2d[s] if not h3d[s]
+field sdt4 : max bound 16384             # 次元2 の添字の語（sdt3 が `,` のとき）
+sdt4[s] <- nextw[sdt3[s]] for (s) in 0 .. nstz[0] if isseed[s] if h3d[s]
+# 3次元の種は `(c0 * 広さ1 + c1) * 広さ2 + c2`
+sedc[s] <- tval[sdt0[s]] * fwid2[hfz[s]] * fwid3[hfz[s]] + tval[sdt2[s]] * fwid3[hfz[s]] + tval[sdt4[s]]
+      for (s) in 0 .. nstz[0] if isseed[s] if h3d[s]
 field sedvt : max bound 16384            # 種の値のトークン
 sedvt[s] <- nextw[arrowt[s] + 1] for (s) in 0 .. nstz[0] if isseed[s]
 field sedv : max bound 16384             # 種の値（`true` は 1）
@@ -762,73 +779,28 @@ field bnum : max bound 589824           # 文の中の束縛の通し番号
 bnum[t] <- 0             for (t,zc) in ch if sbrk[t]
 bnum[t] <- bnum[t-1] + 1 for (t,zc) in ch if t >= 1 if isbind[t-1] if not sbrk[t]
 bnum[t] <- bnum[t-1]     for (t,zc) in ch if t >= 1 if not isbind[t-1] if not sbrk[t]
-field bp0 : max bound 16384              # 文 s の 0 番目の束縛
-bp0[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 0
-field ub0 : max bound 589824           # トークン t の文の 0 番目の束縛
-ub0[t] <- bp0[snum[t]] for (t,zc) in ch
-field vd0 : or bound 589824            # 綴りが違う
-vd0[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub0[t],k]
-field vm0 : or bound 589824            # 0 番目の束縛と同じ綴り
-vm0[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub0[t] >= 0
-      if tlen[t] == tlen[ub0[t]] if not vd0[t]
-field bp1 : max bound 16384              # 文 s の 1 番目の束縛
-bp1[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 1
-field ub1 : max bound 589824           # トークン t の文の 1 番目の束縛
-ub1[t] <- bp1[snum[t]] for (t,zc) in ch
-field vd1 : or bound 589824            # 綴りが違う
-vd1[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub1[t],k]
-field vm1 : or bound 589824            # 1 番目の束縛と同じ綴り
-vm1[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub1[t] >= 0
-      if tlen[t] == tlen[ub1[t]] if not vd1[t]
-field bp2 : max bound 16384              # 文 s の 2 番目の束縛
-bp2[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 2
-field ub2 : max bound 589824           # トークン t の文の 2 番目の束縛
-ub2[t] <- bp2[snum[t]] for (t,zc) in ch
-field vd2 : or bound 589824            # 綴りが違う
-vd2[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub2[t],k]
-field vm2 : or bound 589824            # 2 番目の束縛と同じ綴り
-vm2[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub2[t] >= 0
-      if tlen[t] == tlen[ub2[t]] if not vd2[t]
-field bp3 : max bound 16384              # 文 s の 3 番目の束縛
-bp3[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 3
-field ub3 : max bound 589824           # トークン t の文の 3 番目の束縛
-ub3[t] <- bp3[snum[t]] for (t,zc) in ch
-field vd3 : or bound 589824            # 綴りが違う
-vd3[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub3[t],k]
-field vm3 : or bound 589824            # 3 番目の束縛と同じ綴り
-vm3[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub3[t] >= 0
-      if tlen[t] == tlen[ub3[t]] if not vd3[t]
-field bp4 : max bound 16384              # 文 s の 4 番目の束縛
-bp4[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 4
-field ub4 : max bound 589824           # トークン t の文の 4 番目の束縛
-ub4[t] <- bp4[snum[t]] for (t,zc) in ch
-field vd4 : or bound 589824            # 綴りが違う
-vd4[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub4[t],k]
-field vm4 : or bound 589824            # 4 番目の束縛と同じ綴り
-vm4[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub4[t] >= 0
-      if tlen[t] == tlen[ub4[t]] if not vd4[t]
-field bp5 : max bound 16384              # 文 s の 5 番目の束縛
-bp5[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 5
-field ub5 : max bound 589824           # トークン t の文の 5 番目の束縛
-ub5[t] <- bp5[snum[t]] for (t,zc) in ch
-field vd5 : or bound 589824            # 綴りが違う
-vd5[t] <- true for (t,zc) in ch for (k) in 0 .. 7
-      if tch[t,k] != tch[ub5[t],k]
-field vm5 : or bound 589824            # 5 番目の束縛と同じ綴り
-vm5[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub5[t] >= 0
-      if tlen[t] == tlen[ub5[t]] if not vd5[t]
+# **束縛の照合は鍵で比べる**（気づき42 を変数に）。前は束縛ごとに「文の n 番目の束縛」
+# （bp / ub）と「綴りが違う」「同じ」（vd / vm）の四枚を六組持っていた —— 升で比べるのは、
+# 比べるものに名前を付けていないことの言い換えである。**六つで閉じていた根拠は無く**、
+# 下ろしは表の列を全部束縛してからループを重ねるので六つを越え、下ろしの前段だけが
+# 十まで足していた（同じ判断を二箇所に。気づき34）。入れ子が八重まで焼けるようになった日に
+# 焼き手の前段も六つでは足りなくなった。
+# 鍵は字の鎖（同じ語の中で 128 倍して足す。字は 1..127 なので長くなるほど大きく、max が
+# 最後の鍵を残す）。八文字で止めるのは前と同じ（九文字目からは長さで分ける）。
+field ck : max bound 589824             # 字 i までの語の鍵（語の先頭から）
+ck[i] <- c                     for (i,c) in ch if cpos[i] == 0
+ck[i] <- ck[i-1] * 128 + c     for (i,c) in ch if i >= 1 if cpos[i] >= 1 if cpos[i] <= 7
+field tkey : max bound 589824           # トークン t の鍵（1〜8 文字目）
+tkey[tnum[i]] <- ck[i]         for (i,c) in ch if cpos[i] <= 7
+field bnt : max bound 16384 10          # 文 s の n 番目の束縛のトークン（十まで）
+bnt[snum[t], bnum[t]] <- t        for (t,zc) in ch if isbind[t] if bnum[t] <= 9
+field bky : max bound 16384 10          # その鍵
+bky[snum[t], bnum[t]] <- tkey[t]  for (t,zc) in ch if isbind[t] if bnum[t] <= 9
+field bln : max bound 16384 10          # その長さ
+bln[snum[t], bnum[t]] <- tlen[t]  for (t,zc) in ch if isbind[t] if bnum[t] <= 9
 field vbnd : max bound 589824           # トークン t が指す束縛のトークン
-vbnd[t] <- ub0[t] for (t,zc) in ch if vm0[t]
-vbnd[t] <- ub1[t] for (t,zc) in ch if vm1[t]
-vbnd[t] <- ub2[t] for (t,zc) in ch if vm2[t]
-vbnd[t] <- ub3[t] for (t,zc) in ch if vm3[t]
-vbnd[t] <- ub4[t] for (t,zc) in ch if vm4[t]
-vbnd[t] <- ub5[t] for (t,zc) in ch if vm5[t]
+vbnd[t] <- bnt[snum[t], n]   for (t,zc) in ch for (n) in 0 .. 9 if tkind[t] == 1
+      if tkey[t] == bky[snum[t], n] if tlen[t] == bln[snum[t], n]
 field vcolz : max bound 589824          # その変数の列（＝組の位置）
 vcolz[t] <- colc[vbnd[t]] for (t,zc) in ch
 field vlp : max bound 589824            # その変数の for 節の番号（1 起点）
@@ -1281,6 +1253,42 @@ c1of[oseq[t]] <- ixof[d1t[t]] for (t,zc) in ch if isocc[t]
       if iscom[d0cm[t]] if ixhf[d1t[t]]
 c1of[oseq[t]] <- ixpof[d1t[t]] for (t,zc) in ch if isocc[t]
       if iscom[d0cm[t]] if ixpr2[d1t[t]]
+# ── 次元2。**次元は `,` に沿った鎖**で、次元1 の添字の終わりの次の語が `,` なら次元2 がある。
+# 行の形（源・列・場・ずれ）は次元0・1 と同じで、焼く側（31_gen）は座標を (所有者, 次元) の行で
+# 受け取り、掛けて足す鎖で畳む —— もう N 次元を向いていた。二次元に縛っていたのはここだけである。
+field ix1e : max bound 589824           # 次元1 の添字の終わり（ずれ込み）
+ix1e[t] <- ixend[d1t[t]]  for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if not ixhf[d1t[t]]
+ix1e[t] <- ixnm[d1t[t]]   for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
+field d1cm : max bound 589824           # 次元1 の直後の語
+d1cm[t] <- nextw[ix1e[t]] for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
+field d2t : max bound 589824            # 次元2 の添字トークン
+d2t[t] <- nextw[d1cm[t]] for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
+field ix2e : max bound 589824           # 次元2 の添字の終わり（ずれ込み）
+ix2e[t] <- ixend[d2t[t]]  for (t,zc) in ch if isocc[t] if iscom[d1cm[t]] if not ixhf[d2t[t]]
+ix2e[t] <- ixnm[d2t[t]]   for (t,zc) in ch if isocc[t] if iscom[d1cm[t]] if ixhf[d2t[t]]
+field d2cm : max bound 589824           # 次元2 の直後の語（`,` なら四次元 —— 焼かない）
+d2cm[t] <- nextw[ix2e[t]] for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
+field has2 : or bound 32768             # 次元2 があるか
+has2[oseq[t]] <- true for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
+field c2sr : max bound 32768            # 出現 o の次元2
+c2sr[oseq[t]] <- ixsr[d2t[t]] for (t,zc) in ch if isocc[t]
+      if iscom[d1cm[t]]
+field c2cc : max bound 32768
+c2cc[oseq[t]] <- ixcc[d2t[t]] for (t,zc) in ch if isocc[t]
+      if iscom[d1cm[t]]
+field c2cf : max bound 32768
+c2cf[oseq[t]] <- ixcf[d2t[t]] for (t,zc) in ch if isocc[t]
+      if iscom[d1cm[t]]
+field c2hf : max bound 32768            # 0 無し / 1 後置 / 2 前置
+c2hf[oseq[t]] <- 1 for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
+      if ixhf[d2t[t]]
+c2hf[oseq[t]] <- 2 for (t,zc) in ch if isocc[t] if iscom[d1cm[t]]
+      if ixpr2[d2t[t]]
+field c2of : max bound 32768
+c2of[oseq[t]] <- ixof[d2t[t]] for (t,zc) in ch if isocc[t]
+      if iscom[d1cm[t]] if ixhf[d2t[t]]
+c2of[oseq[t]] <- ixpof[d2t[t]] for (t,zc) in ch if isocc[t]
+      if iscom[d1cm[t]] if ixpr2[d2t[t]]
 
 # ── 所有者の種と番号 ───────────────────────────────────────────────
 field isgrd : or bound 589824           # ガードの辺になる出現
@@ -1321,9 +1329,10 @@ field fdlat : max bound 2048                     # 場 f の束
 fdlat[f] <- flatt[f]                for (f) in 0 .. nfdz[0]
 field fdar : max bound 2048                      # 場 f の次数
 fdar[f] <- farr[f]                  for (f) in 0 .. nfdz[0]
-field fw : max bound 2048 2                         # 場 f の次元 d の広さ
+field fw : max bound 2048 3                         # 場 f の次元 d の広さ
 fw[f,0] <- fwid[f]                  for (f) in 0 .. nfdz[0]
 fw[f,1] <- fwid2[f]                 for (f) in 0 .. nfdz[0]
+fw[f,2] <- fwid3[f]                 for (f) in 0 .. nfdz[0]
 
 # ── 種の番号（文に沿った前置きの鎖）────────────────────────────────
 field sdcnt : max bound 16384           # 文 s までに数えた種（s を含む）
@@ -1522,6 +1531,8 @@ ncdo[o] <- 1                        for (o) in 0 .. nocz[0]
       if oin[o] if isrec[osn[o]] if c0sr[o] >= 0
 ncdo[o] <- 2                        for (o) in 0 .. nocz[0]
       if oin[o] if isrec[osn[o]] if c0sr[o] >= 0 if has1[o]
+ncdo[o] <- 3                        for (o) in 0 .. nocz[0]
+      if oin[o] if isrec[osn[o]] if c0sr[o] >= 0 if has2[o]
 field csb : max bound 32768             # 出現 o の最初のスロット番号（鎖）
 csb[o] <- 0                         for (o) in 0 .. nocz[0]
 csb[o] <- csb[o-1] + ncdo[o-1]      for (o) in 1 .. nocz[0]
@@ -1530,28 +1541,37 @@ hasc[o] <- true                     for (o) in 0 .. nocz[0]
       if oin[o] if isrec[osn[o]] if c0sr[o] >= 0
 field hasc2 : or bound 32768            # 次元1 も持つ
 hasc2[o] <- true                    for (o) in 0 .. nocz[0] if hasc[o] if has1[o]
+field hasc3 : or bound 32768            # 次元2 も持つ
+hasc3[o] <- true                    for (o) in 0 .. nocz[0] if hasc[o] if has2[o]
 field now : max bound 1                        # 所有者の数
 now[z] <- o + 1                     for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o]
 field ngc : max bound 1                        # スロットの総数
 ngc[z] <- csb[o] + 1                for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if hasc[o]
 ngc[z] <- csb[o] + 2                for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if hasc2[o]
+ngc[z] <- csb[o] + 3                for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if hasc3[o]
 field cso : max bound 32768
 cso[csb[o]] <- o                    for (o) in 0 .. nocz[0] if hasc[o]
 cso[csb[o] + 1] <- o                for (o) in 0 .. nocz[0] if hasc2[o]
+cso[csb[o] + 2] <- o                for (o) in 0 .. nocz[0] if hasc3[o]
 field csd : max bound 32768
 csd[csb[o]] <- 0                    for (o) in 0 .. nocz[0] if hasc[o]
 csd[csb[o] + 1] <- 1                for (o) in 0 .. nocz[0] if hasc2[o]
+csd[csb[o] + 2] <- 2                for (o) in 0 .. nocz[0] if hasc3[o]
 field cdr : max bound 32768
 cdr[csb[o]] <- rno[osn[o]]          for (o) in 0 .. nocz[0] if hasc[o]
 cdr[csb[o] + 1] <- rno[osn[o]]      for (o) in 0 .. nocz[0] if hasc2[o]
+cdr[csb[o] + 2] <- rno[osn[o]]      for (o) in 0 .. nocz[0] if hasc3[o]
 field cdsr : max bound 32768
 cdsr[csb[o]] <- c0sr[o]             for (o) in 0 .. nocz[0] if hasc[o]
 cdsr[csb[o] + 1] <- c1sr[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+cdsr[csb[o] + 2] <- c2sr[o]         for (o) in 0 .. nocz[0] if hasc3[o]
 field cdcf : max bound 32768
 cdcf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdcf[csb[o]] <- c0cf[o]             for (o) in 0 .. nocz[0] if hasc[o]
 cdcf[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdcf[csb[o] + 1] <- c1cf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+cdcf[csb[o] + 2] <- 0               for (o) in 0 .. nocz[0] if hasc3[o]
+cdcf[csb[o] + 2] <- c2cf[o]         for (o) in 0 .. nocz[0] if hasc3[o]
 # ── **内側の読みが二次元なら、内側の出現そのものを所有者にする** ───────
 #  `o[p[i,j]]` の `p[i,j]` は二次元の読みである。源2/3 は内側の次元を一本しか
 #  持てないので、内側の次元1 が黙って落ちて **別の升を読んでいた**
@@ -1574,6 +1594,15 @@ innr0[o] <- true                    for (o) in 0 .. nocz[0] if hasc[o]
 field innr1 : or bound 32768            # 次元1 の内側の読みが二次元
 innr1[o] <- true                    for (o) in 0 .. nocz[0] if hasc2[o]
       if in2b[o] >= 0 if has1[in2b[o]]
+field d2to : max bound 32768            # 出現 o の次元2 の索引トークン
+d2to[o] <- d2t[otok[o]]             for (o) in 0 .. nocz[0] if hasc3[o]
+field in2c : max bound 32768            # 次元2 の索引が指す内側の出現
+in2c[o] <- oseq[d2to[o]]            for (o) in 0 .. nocz[0] if hasc3[o]
+      if c2sr[o] >= 2 if c2sr[o] <= 3
+field innr2 : or bound 32768            # 次元2 の内側の読みが多次元
+innr2[o] <- true                    for (o) in 0 .. nocz[0] if hasc3[o]
+      if in2c[o] >= 0 if has1[in2c[o]]
+cdsr[csb[o] + 2] <- 5               for (o) in 0 .. nocz[0] if innr2[o]
 cdsr[csb[o]] <- 5                   for (o) in 0 .. nocz[0] if innr0[o]
 cdsr[csb[o] + 1] <- 5               for (o) in 0 .. nocz[0] if innr1[o]
 field cdcc : max bound 32768
@@ -1585,16 +1614,24 @@ cdcc[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdcc[csb[o] + 1] <- c1cc[o]         for (o) in 0 .. nocz[0] if hasc2[o]
       if not innr1[o]
 cdcc[csb[o] + 1] <- in2b[o]         for (o) in 0 .. nocz[0] if innr1[o]
+cdcc[csb[o] + 2] <- 0               for (o) in 0 .. nocz[0] if hasc3[o]
+cdcc[csb[o] + 2] <- c2cc[o]         for (o) in 0 .. nocz[0] if hasc3[o]
+      if not innr2[o]
+cdcc[csb[o] + 2] <- in2c[o]         for (o) in 0 .. nocz[0] if innr2[o]
 field cdhf : max bound 32768
 cdhf[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdhf[csb[o]] <- c0hf[o]             for (o) in 0 .. nocz[0] if hasc[o]
 cdhf[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdhf[csb[o] + 1] <- c1hf[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+cdhf[csb[o] + 2] <- 0               for (o) in 0 .. nocz[0] if hasc3[o]
+cdhf[csb[o] + 2] <- c2hf[o]         for (o) in 0 .. nocz[0] if hasc3[o]
 field cdof : max bound 32768
 cdof[csb[o]] <- 0                   for (o) in 0 .. nocz[0] if hasc[o]
 cdof[csb[o]] <- c0of[o]             for (o) in 0 .. nocz[0] if hasc[o]
 cdof[csb[o] + 1] <- 0               for (o) in 0 .. nocz[0] if hasc2[o]
 cdof[csb[o] + 1] <- c1of[o]         for (o) in 0 .. nocz[0] if hasc2[o]
+cdof[csb[o] + 2] <- 0               for (o) in 0 .. nocz[0] if hasc3[o]
+cdof[csb[o] + 2] <- c2of[o]         for (o) in 0 .. nocz[0] if hasc3[o]
 
 # ── 口。**二列の表は (位置, バイト) と読む** ────────────────────────
 # これは導出ではなく **約束**である（源のどこにも「生バイトで読む」とは
@@ -1611,15 +1648,17 @@ inpw[z] <- 0                         for (z) in 0 .. 0 for (z) in 0 .. 0 if not 
 # 17 文字以上は綴りが違っても同じ鍵になる —— 黙って間違えるより言う。
 inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
 inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
-# **入れ子は三重まで。** 計数器は rcx / r13 / r14 の三本しかない ——
-# 四重目は黙って壊れた符号（segfault）になっていた。
-inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 3
+# **入れ子は八重まで。** 計数器の register は rcx / r13 / r14 の三本で、四重目は
+# 黙って壊れた符号（segfault）になっていた（のでここで断っていた）。四本目からは升に置く
+# （31_gen の `lce`）—— 上限を決めているのは register の数ではなく、前段が for 節を
+# 八つまで持つこと（`lkd[文, 0..7]`）である。九つ目は言う。
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 8
 # **項は八つまで。** 九つ目は `trkd[文, 番号]` が隣の文の枠を踏み、
 # 答えが黙って変わっていた（`1+1+…+1` 九個が 9 でなく 13 になった）。
 inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
 
 # ── **どこが悪いかを言う。** 行番号と理由を生成器へ渡す ──────────────
-#   1 名前が 17 文字以上 / 2 入れ子が四重以上 / 3 項が九つ以上
+#   1 名前が 17 文字以上 / 2 入れ子が九重以上 / 3 項が九つ以上
 #   4 宣言の無い場を読んだ / 5 二のべきでない除数 / 6 表が無い・二つ以上
 #   7 成層できない / 8 焼けない形（項・ガード・座標・ループ・規則・種）
 # **`lnum` は文字位置の索引、`t` はトークン番号。** 取り違えると
@@ -1657,7 +1696,7 @@ field badk : min bound 1                          # 最初に焼けなかった 
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if sunk[snum[t]]
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
-badk[z] <- tlin[t] * 16 + 2   for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 3
+badk[z] <- tlin[t] * 16 + 2   for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 8
 badk[z] <- tlin[t] * 16 + 3   for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
 badk[z] <- tlin[otok[o]] * 16 + 4   for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o] if not ohas[o]
 badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if ntb[0] >= 2
@@ -1734,6 +1773,14 @@ field d1nm : max bound 589824           # 次元1 のずれの数
 d1nm[t] <- ixnm[d1t[t]]        for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
 crdok[d1op[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
 crdok[d1nm[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
+crdok[d1cm[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d1cm[t]]
+crdok[d2t[t]] <- true            for (t,zc) in ch if obk[t] if iscom[d1cm[t]]
+field d2op : max bound 589824           # 次元2 のずれの演算子
+d2op[t] <- ixop[d2t[t]]        for (t,zc) in ch if obk[t] if iscom[d1cm[t]] if ixhf[d2t[t]]
+field d2nm : max bound 589824           # 次元2 のずれの数
+d2nm[t] <- ixnm[d2t[t]]        for (t,zc) in ch if obk[t] if iscom[d1cm[t]] if ixhf[d2t[t]]
+crdok[d2op[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d1cm[t]] if ixhf[d2t[t]]
+crdok[d2nm[t]] <- true           for (t,zc) in ch if obk[t] if iscom[d1cm[t]] if ixhf[d2t[t]]
 crdok[tclos[obr[t]]] <- true     for (t,zc) in ch if obk[t]
 crdok[obr[t]] <- true            for (t,zc) in ch if obk[t]
 badk[z] <- tlin[u] * 16 + 8   for (u,zc) in ch for (z) in 0 .. 0 if tdep[u] >= 1
@@ -1885,9 +1932,15 @@ obk[t] <- true   for (t,zc) in ch if isocc[t] if obr[t] >= 0
 field fuse1 : or bound 2048                       # 場 f を一次元で使った
 fuse1[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if not iscom[d0cm[t]]
 field fuse2 : or bound 2048                       # 場 f を二次元で使った
-fuse2[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if iscom[d0cm[t]]
+fuse2[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if iscom[d0cm[t]] if not iscom[d1cm[t]]
+field fuse3 : or bound 2048                       # 場 f を三次元で使った
+fuse3[ixcf[t]] <- true   for (t,zc) in ch if obk[t] if iscom[d1cm[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
       if fuse1[ixcf[t]] if fuse2[ixcf[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
+      if fuse1[ixcf[t]] if fuse3[ixcf[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if obk[t]
+      if fuse2[ixcf[t]] if fuse3[ixcf[t]]
 # **種の座標は宣言の広さの内側**（理由 B）。種は規則と違って走るときに濾さず、升へ
 # 直に置く —— `r[5] <- 7`（r は bound 4）が **隣の場の升に 7 を置いていた**（解釈実行は
 # 広さを見ないので r[5] = 7、焼いた側は s[1] = 7）。種の座標は数なので、焼くときに分かる。
@@ -1896,12 +1949,18 @@ field sdbad : or bound 16384                       # 種 s の座標が広さの
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if tval[sdt0[s]] >= fwid[hfz[s]]
 sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if h2d[s]
       if tval[sdt2[s]] >= fwid2[hfz[s]]
+sdbad[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if h3d[s]
+      if tval[sdt4[s]] >= fwid3[hfz[s]]
+field sdt5 : max bound 16384                       # 3次元の種の次元2 の後ろの語（`]`）
+sdt5[s] <- nextw[sdt4[s]]   for (s) in 0 .. nstz[0] if isseed[s] if h3d[s]
 badk[z] <- tlin[hotok[s]] * 16 + 11   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sdbad[s]
 field sdnum : or bound 16384                       # 種 s の座標は数（一つだけ。`d[0+1]` は式）
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[sdt0[s]] if not h2d[s]
       if isclo[sdt1[s]]
 sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[sdt0[s]] if h2d[s]
       if iscom[sdt1[s]] if isnum[sdt2[s]] if isclo[sdt3[s]]
+sdnum[s] <- true   for (s) in 0 .. nstz[0] if isseed[s] if isnum[sdt0[s]] if h3d[s]
+      if iscom[sdt1[s]] if isnum[sdt2[s]] if iscom[sdt3[s]] if isnum[sdt4[s]] if isclo[sdt5[s]]
 badk[z] <- tlin[hotok[s]] * 16 + 8   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if isseed[s]
       if hasr[s] if not sdnum[s]
 # **種の値は数か `true` 一つ**（理由 8）。種は矢印の次の語だけを置く（`sedvt`）ので、
@@ -1926,21 +1985,18 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if i
       if isocc[int4[t]] if ixhf[int4b[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]
       if isocc[int4[t]] if iscom[d0cm[int4[t]]]
-# **三次元の場は焼かない**（理由 8）。次数は一か二しか数えていないので、`w[i,j,k]` の
-# k を黙って落とし、升を取り違えていた（`work/t/z_dim2rd.lx`）。次元1 の添字の後ろに
-# もう一つ `,` があれば三次元である。
-field ix1e : max bound 589824                     # 次元1 の添字の終わり（ずれ込み）
-ix1e[t] <- ixend[d1t[t]]  for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if not ixhf[d1t[t]]
-ix1e[t] <- ixnm[d1t[t]]   for (t,zc) in ch if isocc[t] if iscom[d0cm[t]] if ixhf[d1t[t]]
-field d1cm : max bound 589824                     # 次元1 の直後の語
-d1cm[t] <- nextw[ix1e[t]] for (t,zc) in ch if isocc[t] if iscom[d0cm[t]]
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d1cm[t]]
+# **四次元の場は焼かない**（理由 8）。次元は三つまで数える（33_self の c0* / c1* / c2*）ので、
+# `w[i,j,k,l]` の l を黙って落とさないように、次元2 の添字の後ろに `,` があれば断る。
+# （前は三次元で断っていた —— `work/t/z_dim2rd.lx` が k を落として升を取り違えたため）
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d2cm[t]]
 # **前置と後置のずれを一つの行に両方は持てない**（`k[k[i+1] - 1]`）。座標の行はずれを
 # 一つしか持たず、二つが max で混ざって別の升を読んでいた。焼かずに言う（理由 8）。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t]
       if ixhf[t+2] if ixpr2[t+2]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d0cm[t]]
       if ixhf[d1t[t]] if ixpr2[d1t[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if iscom[d1cm[t]]
+      if ixhf[d2t[t]] if ixpr2[d2t[t]]
 # **数は符号つき 32 ビットの即値に収まる所まで**（理由 C）。焼いた符号は定数を即値で
 # 持つので、`x[0] <- 3000000000` が -1294967296 になっていた（解釈実行は大きい数をそのまま
 # 持つ）。割る数・余りの数は二のべきで、即値ではなく「ずらし」と「覆い」になるので
@@ -3092,6 +3148,31 @@ encb[210,7] <- 72
 encb[210,8] <- 1
 encb[210,9] <- 208
 shp[210] <- 40960     # sar rdx,63 ; and rdx,rsi ; add rax,rdx    （床の余りへ寄せる）
+# **四本目からの計数器は升に住む**（場の下の余白、`[rbx-64]` から八バイトずつ）。
+# register は rcx / r13 / r14 の三本しか空いていないので、入れ子の四重目は計数器の置き場が
+# 無かった —— だが計数器は「居る場所」であって、register である必要は無い（気づき9）。
+# 読む口は register の形と一つずつ対になる（座標・比較の左右・項の値・掛ける）。
+encb[211,0] <- 76                    # 4C 8B 8B d32  mov r9, [rbx+d32]     （座標に載せる）
+encb[211,1] <- 139
+encb[211,2] <- 139
+shp[211] <- 28868
+encb[212,0] <- 72                    # 48 0F AF 83 d32  imul rax, [rbx+d32] （計数器を掛ける）
+encb[212,1] <- 15
+encb[212,2] <- 175
+encb[212,3] <- 131
+shp[212] <- 33028
+encb[213,0] <- 72                    # 48 8B B3 d32  mov rsi, [rbx+d32]    （比較の左辺）
+encb[213,1] <- 139
+encb[213,2] <- 179
+shp[213] <- 28868
+encb[214,0] <- 72                    # 48 3B 83 d32  cmp rax, [rbx+d32]    （上端が場の区間）
+encb[214,1] <- 59
+encb[214,2] <- 131
+shp[214] <- 28868
+encb[215,0] <- 72                    # 48 FF 83 d32  inc qword [rbx+d32]   （升の計数器を進める）
+encb[215,1] <- 255
+encb[215,2] <- 131
+shp[215] <- 28868
 
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
@@ -3202,7 +3283,7 @@ pb[0] <- 50
 pb[z] <- 55                          for (z) in 0 .. 0 for (z) in 0 .. 0 if inpw[0] == 1
 
 # ── 座標の広さは **場ごと・次元ごと** である（一律 64 ではない）──────
-# fdim (場, 次元, 広さ)。次元は 0 と 1。2次元の畳みは掛け算になる ——
+# fdim (場, 次元, 広さ)。次元は 0 / 1 / 2。多次元の畳みは掛けて足す鎖になる ——
 # 64 升に揃えていたのは私の都合で、座標の性質ではなかった。
 field fw2 : max bound 2048                    # 二つ目の次元の広さ（畳みの掛け数）
 fw2[f] <- fw[f, 1]                  for (f) in 0 .. nflz[0]
@@ -3210,6 +3291,7 @@ fw2[f] <- fw[f, 1]                  for (f) in 0 .. nflz[0]
 field fsz : max bound 2048                    # 場 f の升目の数
 fsz[f] <- fw[f, 0]                  for (f) in 0 .. nflz[0] if fdar[f] == 1
 fsz[f] <- fw[f, 0] * fw[f, 1]       for (f) in 0 .. nflz[0] if fdar[f] == 2
+fsz[f] <- fw[f, 0] * fw[f, 1] * fw[f, 2]   for (f) in 0 .. nflz[0] if fdar[f] == 3
 
 # **項の列は左からの畳み込みである。** `a + K * b` は括弧と同じで、
 # 名前を付けていない中間値でしかない —— 付ければただの項の列になる。
@@ -3522,8 +3604,15 @@ nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0bc[r] 
 # `for (k) in 1 .. 0` が本体を一度実行していた（解釈実行は実行しない）。
 # 頭で一度比べれば済む —— ループごとに二命令、入口で一度だけ。
 # 上端が ⊥ の場でも正しく回らなくなる（⊥ は下端より小さい）。
-field gnlh : max bound 16384                    # ループの頭（一段につき八命令）
-gnlh[r] <- gnl[r] * 8               for (r) in 0 .. nrlz[0]
+field gnlh : max bound 16384                    # ループの頭（一段につき八命令、段 3 からは九命令）
+# **段 3 からの計数器は升に住む**ので、頭が一命令（升に置く）、進めが一命令（升から読む）長い。
+# 伸びた分は `max(0, 段数 - 3)`。**join の max で書いてはいけない** —— 0 と「段数 - 3」を
+# 二本で書くと途中の値が残り、下の引き算（`rend - gnl3`）が途中の値を拾う（気づき38）。
+# 比べて二つに分ければ、場は一度しか書かれない。
+field gnlx : max bound 16384                    # 升に住む計数器の数
+gnlx[r] <- 0                        for (r) in 0 .. nrlz[0] if gnl[r] <= 3
+gnlx[r] <- gnl[r] - 3               for (r) in 0 .. nrlz[0] if gnl[r] >= 4
+gnlh[r] <- gnl[r] * 8 + gnlx[r]     for (r) in 0 .. nrlz[0]
 field gnl4 : max bound 16384                    # ループの前置き（頭は群の先頭 / 進めは群の末尾）
 # 頭（一段八命令）は群の先頭に、進め（一段三命令）は群の末尾に在る。前は頭と進めが同じ
 # 三命令だったので `gnlh * 2` と書けた —— 頭が伸びた日に、それは「たまたま同じ」だった。
@@ -3532,7 +3621,7 @@ gnl4[r] <- gnlh[r] + gnl3[r]        for (r) in 0 .. nrlz[0] if nofus[r]
 gnl4[r] <- gnl3[r]                  for (r) in 0 .. nrlz[0] if not nofus[r]
 field gnl3 : max bound 16384                    # 進めの分だけ（群の末尾にだけ在る）
 gnl3[r] <- 0                        for (r) in 0 .. nrlz[0]
-gnl3[r] <- gnl[r] * 3               for (r) in 0 .. nrlz[0] if nofus[r+1]
+gnl3[r] <- gnl[r] * 3 + gnlx[r]     for (r) in 0 .. nrlz[0] if nofus[r+1]
 field lrng : or bound 16384                     # 番号 l のループは区間か
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
@@ -4084,12 +4173,28 @@ form[rend[r] + 3] <- 21     for (r) in 0 .. nrlz[0] if lst[r] == 1     # test r8
 form[rend[r] + 4] <- 22     for (r) in 0 .. nrlz[0] if lst[r] == 1     # jne -> 層の頭
 jt[rend[r] + 4]   <- hd[r]  for (r) in 0 .. nrlz[0] if lst[r] == 1
 
-# ── ループの頭。**番号 0 が rcx、1 が r13**（入れ子は行が言う）───────
+# ── ループの頭。**番号 0 が rcx、1 が r13、2 が r14、3 からは升**（入れ子は行が言う）───────
 
 # ループの頭の位置（**読み二つの和は座標にできない**ので名前を付ける）
 field lhp : max bound 16384
-field lpi8 : max bound 16384                    # 頭の位置（一段につき八命令）
-lpi8[gl] <- lpi[gl] * 8             for (gl) in 0 .. nglz[0]
+field lpi8 : max bound 16384                    # 頭の位置（一段につき八命令、段 3 からは九命令）
+field lpxh : max bound 16384                    # それより外の、升に住む計数器の数
+lpxh[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 3
+lpxh[gl] <- lpi[gl] - 3             for (gl) in 0 .. nglz[0] if lpi[gl] >= 4
+lpi8[gl] <- lpi[gl] * 8 + lpxh[gl]  for (gl) in 0 .. nglz[0]
+# 頭と進めの長さ（段 3 から一命令ずつ長い）
+field lph : max bound 16384                     # 頭の命令数
+lph[gl] <- 8                        for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lph[gl] <- 9                        for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+field lpa : max bound 16384                     # 進めの命令数
+lpa[gl] <- 3                        for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lpa[gl] <- 4                        for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+# 段 l の計数器の升（場の下、`gap` の余白。-8〜-56 は別の升が使っている）。
+# 段は 0..7（前段が八つまで持つ）。**数えて置く** —— 段 3 が -64、段 7 が -96。
+field lcm : max bound 8
+lcm[l] <- l * 8 + 40                for (l) in 3 .. 7
+field lce : max bound 8                         # その升の即値（bias 込み）
+lce[l] <- bias[0] - lcm[l]          for (l) in 3 .. 7
 lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0]
 # **上端が場の区間は、入るたびに二つ比べる**（頭の最初の五命令。要らないループは nop）。
 #   ⊥ なら空 —— 解釈実行は上端が ⊥ の区間を回さない。前は min / flat の ⊥（2147483647）
@@ -4103,7 +4208,7 @@ imm[lhp[gl]]      <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. ngl
 form[lhp[gl] + 1] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, ⊥
 imm[lhp[gl] + 1]  <- fbot[lpbf[gl]]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 2] <- 13   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # je -> 出る（空）
-jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
+jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 3] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, 下端 + 上限
 imm[lhp[gl] + 3]  <- lplo[gl] + 4194304 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 4] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # jg -> 区間の踏み台
@@ -4118,19 +4223,33 @@ lpw[gl] <- lphi[gl] - lplo[gl]      for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 badk[z] <- rlin[lpr[gl]] * 16 + 15   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0
       if lpk[gl] == 1 if lpw[gl] > 4194304
 # 頭の検査（空なら一度も回らない）。飛び先は **一つ外のループの進め**、
-# いちばん外なら群の終わり —— どちらも `群の終わり - 3*段` で出る。
+# いちばん外なら群の終わり —— どちらも `群の終わり - (ここまでの進め) + (この段の進め)` で出る
+# （進めは内側から並ぶので、一つ外の進めは自分の進めのすぐ後ろ）。
 form[lhp[gl] + 6] <- 79   for (gl) in 0 .. nglz[0] if lpk[gl] == 0        # cmp rcx, 表の終わり
 form[lhp[gl] + 6] <- 20   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0
 form[lhp[gl] + 6] <- 103  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 1
 form[lhp[gl] + 6] <- 107  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 2
-imm[lhp[gl] + 6]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
+imm[lhp[gl] + 6]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] <= 2
 form[lhp[gl] + 6] <- 142  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 0
 form[lhp[gl] + 6] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 1
 form[lhp[gl] + 6] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 2
-imm[lhp[gl] + 6]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-form[lhp[gl] + 7] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] <= 1        # jae -> 出る
-form[lhp[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2        # jg（符号付き）
-jt[lhp[gl] + 7]   <- gend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0]
+imm[lhp[gl] + 6]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2
+form[lhp[gl] + 7] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] <= 1 if lpi[gl] <= 2    # jae -> 出る
+form[lhp[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2    # jg（符号付き）
+jt[lhp[gl] + 7]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+# **段 3 から（升の計数器）**: 下端を rax に作って升に置き、rax で上端と比べる（九命令）。
+# 表のループは段 0 にしか居ない（前段が一番外へ回す）ので、ここは区間だけである。
+form[lhp[gl] + 5] <- 2    for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov rax, 下端
+imm[lhp[gl] + 5]  <- lplo[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[lhp[gl] + 6] <- 51   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov [升], rax
+imm[lhp[gl] + 6]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[lhp[gl] + 7] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # cmp rax, 上端+1
+imm[lhp[gl] + 7]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3
+form[lhp[gl] + 7] <- 214  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # cmp rax, [上端]
+imm[lhp[gl] + 7]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3
+form[lhp[gl] + 8] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # jae -> 出る
+form[lhp[gl] + 8] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # jg（符号付き）
+jt[lhp[gl] + 8]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 form[lhp[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # mov rcx, データの先頭
 imm[lhp[gl] + 5]  <- dbase[0] + bias[0]  for (gl) in 0 .. nglz[0] if lpk[gl] == 0
 form[lhp[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0  # mov rcx, 下端
@@ -4253,6 +4372,8 @@ imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3
 form[gc[gg]] <- 134     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 0
 form[gc[gg]] <- 135     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 1
 form[gc[gg]] <- 136     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 2
+form[gc[gg]] <- 213     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] >= 3   # mov rsi,[升]
+imm[gc[gg]]  <- lce[gdc1[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] >= 3
 form[gc[gg]] <- 132     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 3
 imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 3
 
@@ -4279,6 +4400,8 @@ imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4
 form[gc[gg]] <- 109     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 0
 form[gc[gg]] <- 111     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 1
 form[gc[gg]] <- 113     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 2
+form[gc[gg]] <- 185     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] >= 3   # mov rax,[升]
+imm[gc[gg]]  <- lce[gdc1[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] >= 3
 form[gc[gg]] <- 2       for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 3
 imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 3
 
@@ -4321,6 +4444,9 @@ imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc]
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 0 if not inr1[gc]
 form[cdpos[gc]] <- 104  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 1 if not inr1[gc]
 form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 2 if not inr1[gc]
+# 段 3 からの計数器は升から載せる（長さは同じ一命令）
+form[cdpos[gc]] <- 211  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] >= 3 if not inr1[gc]
+imm[cdpos[gc]]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] >= 3 if not inr1[gc]
 # 源4: **定数**。`tch[t,0]` の 0 が座標にならず、次元1 が黙って落ちていた ——
 # 座標の源は「列・計数器・場の値」の三つだと思い込んでいた。定数も座標である。
 form[cdpos[gc]] <- 138  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if not inr1[gc]
@@ -4339,6 +4465,8 @@ imm[cdpos[gc] + 1]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if inr1
 form[cdpos[gc] + 1] <- 82   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 0
 form[cdpos[gc] + 1] <- 104  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 1
 form[cdpos[gc] + 1] <- 108  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 2
+form[cdpos[gc] + 1] <- 211  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] >= 3
+imm[cdpos[gc] + 1]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] >= 3
 form[cdpos[gc] + 1] <- 138  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 4
 imm[cdpos[gc] + 1]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 4
 form[cdpos[gc] + 2] <- 71   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdhf[gc] == 1   # add r9, ずれ
@@ -4382,6 +4510,8 @@ imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc]
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 0
 form[cdpos[gc]] <- 104  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 1
 form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 2
+form[cdpos[gc]] <- 211  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] >= 3
+imm[cdpos[gc]]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] >= 3
 # **源2/3 は座標を二つ持つ** —— 内側の添字（`g[i]` の i）と、読んだ値（外の座標）。
 # 読んだ値は下の濾しが見るが、**内側の添字を濾していたのは前置のずれ（`g[i+2]`）の
 # ときだけ**だった。ずれの無い `f[g[i]]` で i が g の広さを超えると、g の後ろの升
@@ -4534,6 +4664,8 @@ ispw[gt] <- true  for (gt) in 0 .. ngtz[0] for (k) in 0 .. 62 if pw[k] == tmv[gt
 form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 0
 form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 1
 form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 2
+form[tpos[gt]] <- 185  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] >= 3     # mov rax,[升]
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] >= 3
 
 # 種11/12: 表の列を **引く / 掛ける**（行は rcx。ずれは 8*列）
 form[tpos[gt]] <- 10   for (gt) in 0 .. ngtz[0] if tmk[gt] == 11    # mov rax,[列]（引くのは群の符号）
@@ -4544,9 +4676,13 @@ imm[tpos[gt]]  <- tmc18[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
 form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 0
 form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 1
 form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 2
+form[tpos[gt]] <- 185  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] >= 3
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] >= 3
 form[tpos[gt]] <- 150  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 0
 form[tpos[gt]] <- 152  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 1
 form[tpos[gt]] <- 154  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 2
+form[tpos[gt]] <- 212  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] >= 3     # imul rax,[升]
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] >= 3
 
 # 種3 / 種9: 場の読み。座標は crd が出す。値 → ⊥検査 → **足すか引くか** → 階数
 # 引く方（種9）が要ったのは `rel[n] <- off[jt[n]] - off[n] - ilen[n]` である ——
@@ -4774,7 +4910,12 @@ imm[av[r] - 1]  <- rrwf[r] * 8 + bias[0] - gpz[0]   for (r) in 0 .. nrlz[0]
 # ── 進める。**内側から外側へ**。前進もループ番号に沿った鎖である ────
 field ap : max bound 16384                      # ループ l の前進の位置
 field lpi3 : max bound 16384                    # 内側からの進めの位置
-lpi3[gl] <- lpi[gl] * 3 + 3         for (gl) in 0 .. nglz[0]
+# 段 l までの進めの命令数 = 3(l+1) + max(0, l-2)（段 3 から一命令ずつ長い）。gnlx と同じく
+# 比べて二つに分ける（引き算の右に置くので、途中の値を持たせない —— 気づき38）
+field lpx2 : max bound 16384
+lpx2[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lpx2[gl] <- lpi[gl] - 2             for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+lpi3[gl] <- lpi[gl] * 3 + 3 + lpx2[gl]   for (gl) in 0 .. nglz[0]
 ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # add rcx, 8*次数
 imm[ap[gl]]  <- lpar[gl] * 8 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 0
@@ -4799,10 +4940,22 @@ form[ap[gl] + 1] <- 142  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 
 form[ap[gl] + 1] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 1
 form[ap[gl] + 1] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 2
 imm[ap[gl] + 1]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (z) in 0 .. 0
-      for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-form[ap[gl] + 2] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] <= 1
-form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2   # jle（符号付き）                       # jb -> 一つ内側の頭
-jt[ap[gl] + 2]   <- lhp[gl] + 8   for (gl) in 0 .. nglz[0]
+      for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2
+form[ap[gl] + 2] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] <= 1 if lpi[gl] <= 2   # jb -> 一つ内側の頭
+form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2   # jle（符号付き）
+jt[ap[gl] + 2]   <- lhp[gl] + 8   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+# **段 3 から（升の計数器）**: 升を一つ進め、rax に読んで上端と比べる（四命令）。
+form[ap[gl]] <- 215      for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # inc [升]
+imm[ap[gl]]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[ap[gl] + 1] <- 185  for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov rax, [升]
+imm[ap[gl] + 1]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[ap[gl] + 2] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # cmp rax, 上端+1
+imm[ap[gl] + 2]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3
+form[ap[gl] + 2] <- 214  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # cmp rax, [上端]
+imm[ap[gl] + 2]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3
+form[ap[gl] + 3] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # jb -> 一つ内側の頭
+form[ap[gl] + 3] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # jle（符号付き）
+jt[ap[gl] + 3]   <- lhp[gl] + 9   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 
 # ══ 日程は自由である ═══════════════════════════════════════════════
 # **同じ規則を五十八周まわしていたのは、入口が変わっていないことを
@@ -5540,7 +5693,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #
 #   lattix: cannot bake - line 000042 reason 5
 #
-# 理由: 1 名前が 17 文字以上 / 2 入れ子が四重以上 / 3 項が九つ以上 /
+# 理由: 1 名前が 17 文字以上 / 2 入れ子が九重以上 / 3 項が九つ以上 /
 #       4 宣言の無い場を読んだ / 5 焼けない除数（0・負・即値の外） / 6 表が無い・二つ以上 /
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）

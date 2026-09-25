@@ -43,29 +43,29 @@ hd[j] <- h32[w8[j]] - 65536 * 65536   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] >= kw[0] if h32[w8[j] + 4] <= kw[2]
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw[3] if h32[w8[j]] < kw[1]
 field nfl : max bound 1
-nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260919
+nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260923
 field nsd : max bound 1
-nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260919
+nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260923
 field nrl : max bound 1
-nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260919
+nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngl : max bound 1
-ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngg : max bound 1
-ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngt : max bound 1
-ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngc : max bound 1
-ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260923
 field inpw : max bound 1
-inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260919
+inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260923
 field badk : max bound 1
-badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260919
+badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ncol : max bound 1
-ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260919
+ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260923
 # 節の頭（語の番号）と、表の語の数
 field sb : max bound 8
 sb[0] <- 16
-sb[z] <- 16 + nfl[0] * 4   for (z) in 1 .. 1
+sb[z] <- 16 + nfl[0] * 5   for (z) in 1 .. 1
 sb[z] <- sb[1] + nsd[0] * 3   for (z) in 2 .. 2
 sb[z] <- sb[2] + nrl[0] * 6   for (z) in 3 .. 3
 sb[z] <- sb[3] + ngl[0] * 8   for (z) in 4 .. 4
@@ -95,9 +95,9 @@ field ngtz : max bound 1
 ngtz[z] <- ngt[z] - 1   for (z) in 0 .. 0
 field ngcz : max bound 1
 ngcz[z] <- ngc[z] - 1   for (z) in 0 .. 0
-# F（場）: 束 / 次数 / 広さ0 / 広さ1
+# F（場）: 束 / 次数 / 広さ0 / 広さ1 / 広さ2
 field aF : max bound 256
-aF[f] <- sb[z] + f * 4   for (z) in 0 .. 0 for (f) in 0 .. nflz[0]
+aF[f] <- sb[z] + f * 5   for (z) in 0 .. 0 for (f) in 0 .. nflz[0]
 field flt : max bound 256
 flt[f] <- wd[aF[f]]   for (f) in 0 .. nflz[0]
 field far : max bound 256
@@ -106,9 +106,12 @@ field fw0 : max bound 256
 fw0[f] <- wd[aF[f] + 2]   for (f) in 0 .. nflz[0]
 field fw1 : max bound 256                  # 次元1 の広さ（一次元なら 1）
 fw1[f] <- 1   for (f) in 0 .. nflz[0] if far[f] == 1
-fw1[f] <- wd[aF[f] + 3]   for (f) in 0 .. nflz[0] if far[f] == 2
+fw1[f] <- wd[aF[f] + 3]   for (f) in 0 .. nflz[0] if far[f] >= 2
+field fw2 : max bound 256                  # 次元2 の広さ（三次元でなければ 1）
+fw2[f] <- 1   for (f) in 0 .. nflz[0] if far[f] <= 2
+fw2[f] <- wd[aF[f] + 4]   for (f) in 0 .. nflz[0] if far[f] == 3
 field fce : max bound 256                  # 升の数
-fce[f] <- fw0[f] * fw1[f]   for (f) in 0 .. nflz[0]
+fce[f] <- fw0[f] * fw1[f] * fw2[f]   for (f) in 0 .. nflz[0]
 field fwb : max bound 256                  # 升の幅（or は 1 バイト）
 fwb[f] <- 8   for (f) in 0 .. nflz[0] if flt[f] != 3
 fwb[f] <- 1   for (f) in 0 .. nflz[0] if flt[f] == 3
@@ -150,9 +153,9 @@ kB[z] <- vB[z] + vtot[z]   for (z) in 0 .. 0
 # 出した答え（stdout）: 場の面をそのまま出す本は値の面と同じ長さ、render の本は描く場の
 # ⊥ でない升の数（一升一バイト）。**出した答えも確かめる** —— 使う人が見るのは stdout である
 field ouw : max bound 1                    # 描く幅（8 は場の面をそのまま、1 は render）
-ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260919
+ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ouf : max bound 1                    # 描く場（render のとき）
-ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260919 if hd[11] == 1
+ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260923 if hd[11] == 1
 field oB : max bound 1                     # 出した答えの始まり
 oB[z] <- kB[z] + ncl[z] * 4   for (z) in 0 .. 0
 field nrd : count bound 1                  # 描かれる升の数
@@ -312,17 +315,18 @@ lsz[g] <- lhv[g] / 4 - llo[g] + 1   for (g) in 0 .. nglz[0] if lk[g] == 2 if lhv
       if not lwid[g]
 lsz[g] <- 0   for (g) in 0 .. nglz[0] if lk[g] == 2 if lhv[g] < llo4[g]
 lsz[g] <- 0   for (g) in 0 .. nglz[0] if lk[g] == 2 if not sp[lbg[g]]
-# 規則 r の枠 i（0..2）
+# 規則 r の枠 i（0..2）。**四重目からの枠は持たない**（実例を三つの枠で数えるので）——
+# そういう規則のある答えは UNSUPPORTED と言う（mkeval の un1[3]）。焼き手は八重まで焼く。
 field rlh : or bound 2048 4                # 枠 i がある
-rlh[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0]
+rlh[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if li[g] <= 2
 field rls : max bound 2048 4               # 枠 i の広さ（無い枠は 1）
-rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0]
+rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0] if li[g] <= 2
 rls[r, i] <- 1   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlh[r, i]
 field rlo : max bound 2048 4               # 枠 i の下端（表・無い枠は 0）
 rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2
-rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1
+rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
 field rtb : or bound 2048 4                # 枠 i は表
-rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0
+rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0 if li[g] <= 2
 # 規則の実例の数と、通し番号の頭
 field rs12 : max bound 2048                # 枠 1 × 枠 2（面の広さ）
 rs12[r] <- rls[r, 1] * rls[r, 2]   for (r) in 0 .. nrlz[0]
@@ -424,7 +428,7 @@ field cof : max bound 8192                  # ずれ（符号つき）
 cof[g] <- cofr[g]   for (g) in 0 .. ngcz[0] if cofr[g] <= 127
 cof[g] <- cofr[g] - 256   for (g) in 0 .. ngcz[0] if cofr[g] >= 128
 # 所有者 o の次元 d のスロット
-field osl : max bound 16384 2
+field osl : max bound 16384 3
 osl[cso[g], csd[g]] <- g   for (g) in 0 .. ngcz[0]
 field onx : max bound 1                     # 所有者の番号の上限
 onx[0] <- 0
@@ -519,13 +523,14 @@ field nar : max bound 131072 16                 # その次数
 nar[n, j] <- far[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
 field nfb : max bound 131072 16                 # その場の最初の升
 nfb[n, j] <- fcb[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
-field nw1 : max bound 131072 16                 # その場の次元1 の広さ
-nw1[n, j] <- fw1[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
 field osd0 : max bound 131072 16                # 次元 0 のスロット
 osd0[n, j] <- osl[noo[n, j], 0]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
 field osd1 : max bound 131072 16                # 次元 1 のスロット
 osd1[n, j] <- osl[noo[n, j], 1]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
-      if nar[n, j] == 2
+      if nar[n, j] >= 2
+field osd2 : max bound 131072 16                # 次元 2 のスロット
+osd2[n, j] <- osl[noo[n, j], 2]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
+      if nar[n, j] == 3
 # スロットの静かな数: 後置 / 前置のずれ、広さの内側になる基の値の範囲
 field spo : max bound 8192                   # 後置のずれ（無ければ 0）
 spo[g] <- 0   for (g) in 0 .. ngcz[0] if chf[g] != 1
@@ -536,6 +541,7 @@ spr[g] <- cof[g]   for (g) in 0 .. ngcz[0] if chf[g] == 2
 field swd : max bound 8192                   # その次元の広さ
 swd[g] <- fw0[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 0
 swd[g] <- fw1[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 1
+swd[g] <- fw2[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 2
 field sblo : max bound 8192                  # 基の値がこれ以上なら
 sblo[g] <- 0 - spo[g]   for (g) in 0 .. ngcz[0]
 field sbhi : max bound 8192                  # これ未満なら広さの内側
@@ -596,25 +602,43 @@ ncv0[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j 
 ncv0[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if csr[osd0[n, j]] == 2 if ccc[osd0[n, j]] == 1 if inpw[0] == 1
 field ncv1 : flat bound 131072 16        # 次元 1 の基の四倍（列 / 計数器。列の値は任意）
 field nqw1 : max bound 131072 16         # 語の表の列の語
-nqw1[n, j] <- nq0[n] + ccc[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if inpw[0] == 8 if csr[osd1[n, j]] == 0
-nqw1[n, j] <- nq0[n] + ccc[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if inpw[0] == 8 if csr[osd1[n, j]] == 2
-ncv1[n, j] <- uwv[nqw1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if inpw[0] == 8 if csr[osd1[n, j]] == 0
-ncv1[n, j] <- uwv[nqw1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if inpw[0] == 8 if csr[osd1[n, j]] == 2
-ncv1[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 0
-ncv1[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 0
-ncv1[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 1
-ncv1[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 1
-ncv1[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 2
-ncv1[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 2
-ncv1[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ccc[osd1[n, j]] == 0 if inpw[0] == 1
-ncv1[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ccc[osd1[n, j]] == 0 if inpw[0] == 1
-ncv1[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ccc[osd1[n, j]] == 1 if inpw[0] == 1
-ncv1[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ccc[osd1[n, j]] == 1 if inpw[0] == 1
+nqw1[n, j] <- nq0[n] + ccc[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if inpw[0] == 8 if csr[osd1[n, j]] == 0
+nqw1[n, j] <- nq0[n] + ccc[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if inpw[0] == 8 if csr[osd1[n, j]] == 2
+ncv1[n, j] <- uwv[nqw1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if inpw[0] == 8 if csr[osd1[n, j]] == 0
+ncv1[n, j] <- uwv[nqw1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if inpw[0] == 8 if csr[osd1[n, j]] == 2
+ncv1[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 0
+ncv1[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 0
+ncv1[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 1
+ncv1[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 1
+ncv1[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ccc[osd1[n, j]] == 2
+ncv1[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ccc[osd1[n, j]] == 2
+ncv1[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ccc[osd1[n, j]] == 0 if inpw[0] == 1
+ncv1[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ccc[osd1[n, j]] == 0 if inpw[0] == 1
+ncv1[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ccc[osd1[n, j]] == 1 if inpw[0] == 1
+ncv1[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ccc[osd1[n, j]] == 1 if inpw[0] == 1
+field ncv2 : flat bound 131072 16        # 次元 2 の基の四倍（列 / 計数器。列の値は任意）
+field nqw2 : max bound 131072 16         # 語の表の列の語
+nqw2[n, j] <- nq0[n] + ccc[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if inpw[0] == 8 if csr[osd2[n, j]] == 0
+nqw2[n, j] <- nq0[n] + ccc[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if inpw[0] == 8 if csr[osd2[n, j]] == 2
+ncv2[n, j] <- uwv[nqw2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if inpw[0] == 8 if csr[osd2[n, j]] == 0
+ncv2[n, j] <- uwv[nqw2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if inpw[0] == 8 if csr[osd2[n, j]] == 2
+ncv2[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 1 if ccc[osd2[n, j]] == 0
+ncv2[n, j] <- nk0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 3 if ccc[osd2[n, j]] == 0
+ncv2[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 1 if ccc[osd2[n, j]] == 1
+ncv2[n, j] <- nk1[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 3 if ccc[osd2[n, j]] == 1
+ncv2[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 1 if ccc[osd2[n, j]] == 2
+ncv2[n, j] <- nk2[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 3 if ccc[osd2[n, j]] == 2
+ncv2[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 0 if ccc[osd2[n, j]] == 0 if inpw[0] == 1
+ncv2[n, j] <- na0[n] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 2 if ccc[osd2[n, j]] == 0 if inpw[0] == 1
+ncv2[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 0 if ccc[osd2[n, j]] == 1 if inpw[0] == 1
+ncv2[n, j] <- urb[na0[n]] * 4   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if nar[n, j] == 3 if csr[osd2[n, j]] == 2 if ccc[osd2[n, j]] == 1 if inpw[0] == 1
 # ── 段 0 の出現（源5 を持たない）
 field q0x0 : max bound 131072 16            # 次元 0 の添字（広さの内側のとき）
 field q0i0 : max bound 131072 16            # 源2/3 の内側の升
 field q0x1 : max bound 131072 16            # 次元 1 の添字（広さの内側のとき）
 field q0i1 : max bound 131072 16            # 源2/3 の内側の升
+field q0x2 : max bound 131072 16            # 次元 2 の添字（広さの内側のとき）
+field q0i2 : max bound 131072 16            # 源2/3 の内側の升
 field q0ot : or bound 131072 16               # 座標はあるが広さの外（升は ⊥）
 field q0un : or bound 131072 16               # 座標が無い（内側の読みが ⊥）
 field q0tp : or bound 131072 16               # 座標に ⊤ を読んだ（attest は持たない）
@@ -650,41 +674,74 @@ q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if
       if sv[q0i0[n, j]] < sblo4[osd0[n, j]]
 q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if csr[osd0[n, j]] >= 2 if csr[osd0[n, j]] <= 3
       if sv[q0i0[n, j]] >= sbhi4[osd0[n, j]]
-q0x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q0x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sblo[osd1[n, j]] if ccc[osd1[n, j]] < sbhi[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] < sblo[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sbhi[osd1[n, j]]
-q0x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 0
+q0x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q0x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 1
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q0x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q0i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 2
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q0i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
-q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q0i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 3
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q0i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
-q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if not sp[q0i1[n, j]]
-q0tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q0tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if stop[q0i1[n, j]]
-q0x1[n, j] <- sv[q0i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q0x1[n, j] <- sv[q0i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q0i1[n, j]] >= sblo4[osd1[n, j]] if sv[q0i1[n, j]] < sbhi4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q0i1[n, j]] < sblo4[osd1[n, j]]
-q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q0i1[n, j]] >= sbhi4[osd1[n, j]]
+q0x2[n, j] <- ccc[osd2[n, j]] + spo[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 4
+      if ccc[osd2[n, j]] >= sblo[osd2[n, j]] if ccc[osd2[n, j]] < sbhi[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 4
+      if ccc[osd2[n, j]] < sblo[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 4
+      if ccc[osd2[n, j]] >= sbhi[osd2[n, j]]
+q0x2[n, j] <- ncv2[n, j] / 4 + spo[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 0
+      if ncv2[n, j] >= sblo4[osd2[n, j]] if ncv2[n, j] < sbhi4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 0 if ncv2[n, j] < sblo4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 0 if ncv2[n, j] >= sbhi4[osd2[n, j]]
+q0x2[n, j] <- ncv2[n, j] / 4 + spo[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 1
+      if ncv2[n, j] >= sblo4[osd2[n, j]] if ncv2[n, j] < sbhi4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 1 if ncv2[n, j] < sblo4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 1 if ncv2[n, j] >= sbhi4[osd2[n, j]]
+q0i2[n, j] <- fcb[ccf[osd2[n, j]]] + ncv2[n, j] / 4 + spr[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 2
+      if ncv2[n, j] >= sprl4[osd2[n, j]] if ncv2[n, j] < sprh4[osd2[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 2 if ncv2[n, j] < sprl4[osd2[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 2 if ncv2[n, j] >= sprh4[osd2[n, j]]
+q0i2[n, j] <- fcb[ccf[osd2[n, j]]] + ncv2[n, j] / 4 + spr[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 3
+      if ncv2[n, j] >= sprl4[osd2[n, j]] if ncv2[n, j] < sprh4[osd2[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 3 if ncv2[n, j] < sprl4[osd2[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] == 3 if ncv2[n, j] >= sprh4[osd2[n, j]]
+q0un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] >= 2 if csr[osd2[n, j]] <= 3
+      if not sp[q0i2[n, j]]
+q0tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] >= 2 if csr[osd2[n, j]] <= 3
+      if stop[q0i2[n, j]]
+q0x2[n, j] <- sv[q0i2[n, j]] / 4 + spo[osd2[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] >= 2 if csr[osd2[n, j]] <= 3
+      if sv[q0i2[n, j]] >= sblo4[osd2[n, j]] if sv[q0i2[n, j]] < sbhi4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] >= 2 if csr[osd2[n, j]] <= 3
+      if sv[q0i2[n, j]] < sblo4[osd2[n, j]]
+q0ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3 if csr[osd2[n, j]] >= 2 if csr[osd2[n, j]] <= 3
+      if sv[q0i2[n, j]] >= sbhi4[osd2[n, j]]
 field q0cl : max bound 131072 16              # 升（通し番号）
 q0cl[n, j] <- nfb[n, j] + q0x0[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 1
-q0cl[n, j] <- nfb[n, j] + q0x0[n, j] * nw1[n, j] + q0x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2
+q0cl[n, j] <- nfb[n, j] + q0x0[n, j] * fw1[nof[n, j]] + q0x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 2
+q0cl[n, j] <- nfb[n, j] + q0x0[n, j] * fw1[nof[n, j]] * fw2[nof[n, j]] + q0x1[n, j] * fw2[nof[n, j]] + q0x2[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if nar[n, j] == 3
 field q0pr : or bound 131072 16               # 読んだ升は ⊥ でない（⊤ を含む）
 q0pr[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 0 if sp[q0cl[n, j]]
 field q0tp2 : or bound 131072 16              # 読んだ升は ⊤
@@ -741,51 +798,51 @@ q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if
       if q0vl[n, q1j0[n, j]] < sblo4[osd0[n, j]]
 q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if csr[osd0[n, j]] == 5
       if q0vl[n, q1j0[n, j]] >= sbhi4[osd0[n, j]]
-q1x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q1x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sblo[osd1[n, j]] if ccc[osd1[n, j]] < sbhi[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] < sblo[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sbhi[osd1[n, j]]
-q1x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 0
+q1x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q1x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 1
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q1x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q1i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 2
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q1i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q1i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 3
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q1i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if not sp[q1i1[n, j]]
-q1tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q1tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if stop[q1i1[n, j]]
-q1x1[n, j] <- sv[q1i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q1x1[n, j] <- sv[q1i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q1i1[n, j]] >= sblo4[osd1[n, j]] if sv[q1i1[n, j]] < sbhi4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q1i1[n, j]] < sblo4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q1i1[n, j]] >= sbhi4[osd1[n, j]]
 field q1j1 : max bound 131072 16           # 源5 の内側の出現（規則の中の番号）
-q1j1[n, j] <- ccc[osd1[n, j]] - nro[n]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
-q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5 if not q0pr[n, q1j1[n, j]]
-q1tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5 if q0tp2[n, q1j1[n, j]]
-q1x1[n, j] <- q0vl[n, q1j1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q1j1[n, j] <- ccc[osd1[n, j]] - nro[n]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
+q1un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5 if not q0pr[n, q1j1[n, j]]
+q1tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5 if q0tp2[n, q1j1[n, j]]
+q1x1[n, j] <- q0vl[n, q1j1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q0vl[n, q1j1[n, j]] >= sblo4[osd1[n, j]] if q0vl[n, q1j1[n, j]] < sbhi4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q0vl[n, q1j1[n, j]] < sblo4[osd1[n, j]]
-q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q1ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q0vl[n, q1j1[n, j]] >= sbhi4[osd1[n, j]]
 field q1cl : max bound 131072 16              # 升（通し番号）
 q1cl[n, j] <- nfb[n, j] + q1x0[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 1
-q1cl[n, j] <- nfb[n, j] + q1x0[n, j] * nw1[n, j] + q1x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2
+q1cl[n, j] <- nfb[n, j] + q1x0[n, j] * fw1[nof[n, j]] + q1x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if nar[n, j] == 2
 field q1pr : or bound 131072 16               # 読んだ升は ⊥ でない（⊤ を含む）
 q1pr[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 1 if sp[q1cl[n, j]]
 field q1tp2 : or bound 131072 16              # 読んだ升は ⊤
@@ -842,51 +899,51 @@ q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if
       if q1vl[n, q2j0[n, j]] < sblo4[osd0[n, j]]
 q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if csr[osd0[n, j]] == 5
       if q1vl[n, q2j0[n, j]] >= sbhi4[osd0[n, j]]
-q2x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q2x1[n, j] <- ccc[osd1[n, j]] + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sblo[osd1[n, j]] if ccc[osd1[n, j]] < sbhi[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] < sblo[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 4
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 4
       if ccc[osd1[n, j]] >= sbhi[osd1[n, j]]
-q2x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 0
+q2x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q2x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 1
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] < sblo4[osd1[n, j]]
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 0 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q2x1[n, j] <- ncv1[n, j] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1
       if ncv1[n, j] >= sblo4[osd1[n, j]] if ncv1[n, j] < sbhi4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
-q2i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 2
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] < sblo4[osd1[n, j]]
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 1 if ncv1[n, j] >= sbhi4[osd1[n, j]]
+q2i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q2i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 3
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] < sprl4[osd1[n, j]]
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 2 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q2i1[n, j] <- fcb[ccf[osd1[n, j]]] + ncv1[n, j] / 4 + spr[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3
       if ncv1[n, j] >= sprl4[osd1[n, j]] if ncv1[n, j] < sprh4[osd1[n, j]]
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] < sprl4[osd1[n, j]]
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 3 if ncv1[n, j] >= sprh4[osd1[n, j]]
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if not sp[q2i1[n, j]]
-q2tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q2tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if stop[q2i1[n, j]]
-q2x1[n, j] <- sv[q2i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q2x1[n, j] <- sv[q2i1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q2i1[n, j]] >= sblo4[osd1[n, j]] if sv[q2i1[n, j]] < sbhi4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q2i1[n, j]] < sblo4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] >= 2 if csr[osd1[n, j]] <= 3
       if sv[q2i1[n, j]] >= sbhi4[osd1[n, j]]
 field q2j1 : max bound 131072 16           # 源5 の内側の出現（規則の中の番号）
-q2j1[n, j] <- ccc[osd1[n, j]] - nro[n]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
-q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5 if not q1pr[n, q2j1[n, j]]
-q2tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5 if q1tp2[n, q2j1[n, j]]
-q2x1[n, j] <- q1vl[n, q2j1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q2j1[n, j] <- ccc[osd1[n, j]] - nro[n]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
+q2un[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5 if not q1pr[n, q2j1[n, j]]
+q2tp[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5 if q1tp2[n, q2j1[n, j]]
+q2x1[n, j] <- q1vl[n, q2j1[n, j]] / 4 + spo[osd1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q1vl[n, q2j1[n, j]] >= sblo4[osd1[n, j]] if q1vl[n, q2j1[n, j]] < sbhi4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q1vl[n, q2j1[n, j]] < sblo4[osd1[n, j]]
-q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2 if csr[osd1[n, j]] == 5
+q2ot[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] >= 2 if csr[osd1[n, j]] == 5
       if q1vl[n, q2j1[n, j]] >= sbhi4[osd1[n, j]]
 field q2cl : max bound 131072 16              # 升（通し番号）
 q2cl[n, j] <- nfb[n, j] + q2x0[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 1
-q2cl[n, j] <- nfb[n, j] + q2x0[n, j] * nw1[n, j] + q2x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2
+q2cl[n, j] <- nfb[n, j] + q2x0[n, j] * fw1[nof[n, j]] + q2x1[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if nar[n, j] == 2
 field q2pr : or bound 131072 16               # 読んだ升は ⊥ でない（⊤ を含む）
 q2pr[n, j] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == 2 if sp[q2cl[n, j]]
 field q2tp2 : or bound 131072 16              # 読んだ升は ⊤
@@ -927,6 +984,7 @@ ovl[n, j] <- q2vl[n, j]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[
 field nuns : or bound 131072                      # 実例 n は attest が持たない形を含む
 nuns[n] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] >= 3
 nuns[n] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if ocp[n, j]
+nuns[n] <- true   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] >= 1 if nar[n, j] == 3
 field rbig : or bound 2048                      # 所有者が 16 を超える規則（検査しない）
 rbig[r] <- true   for (r) in 0 .. nrlz[0] if rocn[r] >= 17
 
@@ -1673,6 +1731,7 @@ field ninx : max bound 1
 ninx[z] <- nin2[z]   for (z) in 0 .. 0
 un1[3] <- true   for (z) in 0 .. 0 if ninx[z] > 131072                   # 実例が多すぎる
 un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が言語の上限より広い
+un1[3] <- true   for (g) in 0 .. nglz[0] if li[g] >= 3              # 四重以上のループ（枠は三つ）
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
 un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
@@ -1686,9 +1745,9 @@ un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 7 if un1[k]
 field okhd : or bound 1                         # 表の印がある
-okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919
+okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923
 field okin : or bound 1                         # 入力は attest の入力（表の印があり、値と階数の面が欠けていない）
-okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0 if not wbd[0]
+okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923 if nin[z] >= 0 if not wbd[0]
 # 面が欠けていると、読めない位置の升は ⊥ の印と比べられずに「在る升」になり、階数も読めない —— 判定せずに
 # 入力でないと言う（前は「示せない（余計な値か、違う階数）」と偽の理由で REJECTED にしていた）。
 # 表の頭か表の中に持てない語（-2147483646 より下）があるときも、表を読み違えるので判定しない（wbd）
@@ -2865,35 +2924,52 @@ out[z] <- 100   for (z) in 737 .. 737 if dw[16]
 out[z] <- 115   for (z) in 738 .. 738 if dw[16]
 out[z] <- 44   for (z) in 739 .. 739 if dw[16]
 out[z] <- 32   for (z) in 740 .. 740 if dw[16]
-out[z] <- 111   for (z) in 741 .. 741 if dw[16]
-out[z] <- 114   for (z) in 742 .. 742 if dw[16]
-out[z] <- 32   for (z) in 743 .. 743 if dw[16]
+out[z] <- 97   for (z) in 741 .. 741 if dw[16]
+out[z] <- 32   for (z) in 742 .. 742 if dw[16]
+out[z] <- 114   for (z) in 743 .. 743 if dw[16]
 out[z] <- 97   for (z) in 744 .. 744 if dw[16]
-out[z] <- 32   for (z) in 745 .. 745 if dw[16]
-out[z] <- 114   for (z) in 746 .. 746 if dw[16]
-out[z] <- 97   for (z) in 747 .. 747 if dw[16]
-out[z] <- 110   for (z) in 748 .. 748 if dw[16]
-out[z] <- 103   for (z) in 749 .. 749 if dw[16]
-out[z] <- 101   for (z) in 750 .. 750 if dw[16]
-out[z] <- 32   for (z) in 751 .. 751 if dw[16]
-out[z] <- 119   for (z) in 752 .. 752 if dw[16]
-out[z] <- 105   for (z) in 753 .. 753 if dw[16]
-out[z] <- 100   for (z) in 754 .. 754 if dw[16]
-out[z] <- 101   for (z) in 755 .. 755 if dw[16]
-out[z] <- 114   for (z) in 756 .. 756 if dw[16]
-out[z] <- 32   for (z) in 757 .. 757 if dw[16]
-out[z] <- 116   for (z) in 758 .. 758 if dw[16]
-out[z] <- 104   for (z) in 759 .. 759 if dw[16]
-out[z] <- 97   for (z) in 760 .. 760 if dw[16]
-out[z] <- 110   for (z) in 761 .. 761 if dw[16]
-out[z] <- 32   for (z) in 762 .. 762 if dw[16]
+out[z] <- 110   for (z) in 745 .. 745 if dw[16]
+out[z] <- 103   for (z) in 746 .. 746 if dw[16]
+out[z] <- 101   for (z) in 747 .. 747 if dw[16]
+out[z] <- 32   for (z) in 748 .. 748 if dw[16]
+out[z] <- 119   for (z) in 749 .. 749 if dw[16]
+out[z] <- 105   for (z) in 750 .. 750 if dw[16]
+out[z] <- 100   for (z) in 751 .. 751 if dw[16]
+out[z] <- 101   for (z) in 752 .. 752 if dw[16]
+out[z] <- 114   for (z) in 753 .. 753 if dw[16]
+out[z] <- 32   for (z) in 754 .. 754 if dw[16]
+out[z] <- 116   for (z) in 755 .. 755 if dw[16]
+out[z] <- 104   for (z) in 756 .. 756 if dw[16]
+out[z] <- 97   for (z) in 757 .. 757 if dw[16]
+out[z] <- 110   for (z) in 758 .. 758 if dw[16]
+out[z] <- 32   for (z) in 759 .. 759 if dw[16]
+out[z] <- 52   for (z) in 760 .. 760 if dw[16]
+out[z] <- 49   for (z) in 761 .. 761 if dw[16]
+out[z] <- 57   for (z) in 762 .. 762 if dw[16]
 out[z] <- 52   for (z) in 763 .. 763 if dw[16]
-out[z] <- 49   for (z) in 764 .. 764 if dw[16]
-out[z] <- 57   for (z) in 765 .. 765 if dw[16]
+out[z] <- 51   for (z) in 764 .. 764 if dw[16]
+out[z] <- 48   for (z) in 765 .. 765 if dw[16]
 out[z] <- 52   for (z) in 766 .. 766 if dw[16]
-out[z] <- 51   for (z) in 767 .. 767 if dw[16]
-out[z] <- 48   for (z) in 768 .. 768 if dw[16]
-out[z] <- 52   for (z) in 769 .. 769 if dw[16]
+out[z] <- 44   for (z) in 767 .. 767 if dw[16]
+out[z] <- 32   for (z) in 768 .. 768 if dw[16]
+out[z] <- 111   for (z) in 769 .. 769 if dw[16]
+out[z] <- 114   for (z) in 770 .. 770 if dw[16]
+out[z] <- 32   for (z) in 771 .. 771 if dw[16]
+out[z] <- 52   for (z) in 772 .. 772 if dw[16]
+out[z] <- 43   for (z) in 773 .. 773 if dw[16]
+out[z] <- 32   for (z) in 774 .. 774 if dw[16]
+out[z] <- 110   for (z) in 775 .. 775 if dw[16]
+out[z] <- 101   for (z) in 776 .. 776 if dw[16]
+out[z] <- 115   for (z) in 777 .. 777 if dw[16]
+out[z] <- 116   for (z) in 778 .. 778 if dw[16]
+out[z] <- 101   for (z) in 779 .. 779 if dw[16]
+out[z] <- 100   for (z) in 780 .. 780 if dw[16]
+out[z] <- 32   for (z) in 781 .. 781 if dw[16]
+out[z] <- 108   for (z) in 782 .. 782 if dw[16]
+out[z] <- 111   for (z) in 783 .. 783 if dw[16]
+out[z] <- 111   for (z) in 784 .. 784 if dw[16]
+out[z] <- 112   for (z) in 785 .. 785 if dw[16]
+out[z] <- 115   for (z) in 786 .. 786 if dw[16]
 out[z] <- 10   for (z) in 799 .. 799 if dw[16]
 dw[z] <- true   for (z) in 17 .. 17 if okin[0] if okbk[0] if anyun[0] if un1[4]
 out[z] <- 32   for (z) in 800 .. 800 if dw[17]

@@ -201,6 +201,8 @@ tpm[tvk[p], tvj[p]] <- tvb[p] - 207 for (p) in 0 .. tvn[0] if tvb[p] >= 208 if t
 # 145: '_c{0:6}[_st{0:6}[_r{1:1}], 30]'
 # 146: '_c{0:6}[_st{0:6}[%], 30]'
 # 147: '_c{0:6}[_st{0:6}[_z], 30]'
+# 148: ' bound {0:7} {1:7} {2:7}'
+# 149: '_unlowered'
 # 160: 句 ') in 0 .. '
 # 161: 句 ' for ('
 # 162: 句 '] <- '
@@ -291,7 +293,7 @@ tpm[tvk[p], tvj[p]] <- tvb[p] - 207 for (p) in 0 .. tvn[0] if tvb[p] >= 208 if t
 # 247: 句 '_pab[r'
 # 248: 句 'rt[r]\n'
 # 249: 句 '\n_sP[y'
-# 型紙の帯（4548 バイトを三バイトずつ）
+# 型紙の帯（4590 バイトを三バイトずつ）
 tv[0] <- 6236192
 tv[1] <- 2719858
 tv[2] <- 7235872
@@ -1611,204 +1613,218 @@ tv[1315] <- 5996673
 tv[1316] <- 6126175
 tv[1317] <- 3350572
 tv[1318] <- 23856
-tv[1319] <- 0
-tv[1320] <- 0
-tv[1321] <- 0
-tv[1322] <- 0
-tv[1323] <- 6889513
-tv[1324] <- 3154030
-tv[1325] <- 3026464
-tv[1326] <- 2097184
-tv[1327] <- 7499622
-tv[1328] <- 10272
-tv[1329] <- 3940445
-tv[1330] <- 8237
-tv[1331] <- 2107760
-tv[1332] <- 2125417
-tv[1333] <- 2111288
-tv[1334] <- 2108974
-tv[1335] <- 5723231
-tv[1336] <- 3169144
-tv[1337] <- 5963869
-tv[1338] <- 2108530
-tv[1339] <- 3809280
-tv[1340] <- 6384928
-tv[1341] <- 6430840
-tv[1342] <- 7239023
-tv[1343] <- 8292
-tv[1344] <- 6907402
-tv[1345] <- 6581349
-tv[1346] <- 24352
-tv[1347] <- 3169146
-tv[1348] <- 2097245
-tv[1349] <- 2123369
-tv[1350] <- 6773504
-tv[1351] <- 8236
-tv[1352] <- 2907504
-tv[1353] <- 5963808
-tv[1354] <- 7368799
-tv[1355] <- 6124123
-tv[1356] <- 6094941
-tv[1357] <- 4013600
-tv[1358] <- 2097184
-tv[1359] <- 7696226
-tv[1360] <- 2122862
-tv[1361] <- 6228480
-tv[1362] <- 5993570
-tv[1363] <- 4284160
-tv[1364] <- 6249281
-tv[1365] <- 3211343
-tv[1366] <- 3683126
-tv[1367] <- 7209012
-tv[1368] <- 2126959
-tv[1369] <- 6226015
-tv[1370] <- 5992804
-tv[1371] <- 3436895
-tv[1372] <- 5660507
-tv[1373] <- 6094926
-tv[1374] <- 7348268
-tv[1375] <- 6094941
-tv[1376] <- 2106656
-tv[1377] <- 2120960
-tv[1378] <- 2112829
-tv[1379] <- 6512384
-tv[1380] <- 6249331
-tv[1381] <- 2097238
-tv[1382] <- 3219499
-tv[1383] <- 7560960
-tv[1384] <- 5989481
-tv[1385] <- 3809280
-tv[1386] <- 7104032
-tv[1387] <- 29793
-tv[1388] <- 6249265
-tv[1389] <- 2687062
-tv[1390] <- 7235872
-tv[1391] <- 2109728
-tv[1392] <- 2108974
-tv[1393] <- 3683328
-tv[1394] <- 2108192
-tv[1395] <- 7364352
-tv[1396] <- 7494518
-tv[1397] <- 3158016
-tv[1398] <- 12336
-tv[1399] <- 5660507
-tv[1400] <- 2097230
-tv[1401] <- 7282746
-tv[1402] <- 3276914
-tv[1403] <- 3422262
-tv[1404] <- 3355955
-tv[1405] <- 7364352
-tv[1406] <- 7494512
-tv[1407] <- 7560960
-tv[1408] <- 6773614
-tv[1409] <- 6123520
-tv[1410] <- 2108509
-tv[1411] <- 6249216
-tv[1412] <- 7563120
-tv[1413] <- 6124123
-tv[1414] <- 2108416
-tv[1415] <- 23914
-tv[1416] <- 6844511
-tv[1417] <- 6124123
-tv[1418] <- 2826240
-tv[1419] <- 24352
-tv[1420] <- 3617841
-tv[1421] <- 3552564
-tv[1422] <- 24330
-tv[1423] <- 5272415
-tv[1424] <- 7561051
-tv[1425] <- 5976113
-tv[1426] <- 6118777
-tv[1427] <- 2108192
-tv[1428] <- 2433145
-tv[1429] <- 3158304
-tv[1430] <- 667904
-tv[1431] <- 28511
-tv[1432] <- 6381322
-tv[1433] <- 6094967
-tv[1434] <- 6627372
-tv[1435] <- 2760704
-tv[1436] <- 12576
-tv[1437] <- 2908507
-tv[1438] <- 6225952
-tv[1439] <- 5983553
-tv[1440] <- 6512384
-tv[1441] <- 5989237
-tv[1442] <- 7495424
-tv[1443] <- 7494515
-tv[1444] <- 7500800
-tv[1445] <- 25973
-tv[1446] <- 2108704
-tv[1447] <- 6225969
-tv[1448] <- 7631728
-tv[1449] <- 7035648
-tv[1450] <- 8236
-tv[1451] <- 668704
-tv[1452] <- 3145823
-tv[1453] <- 5660426
-tv[1454] <- 2120960
-tv[1455] <- 3219503
-tv[1456] <- 3211312
-tv[1457] <- 3355184
-tv[1458] <- 2907392
-tv[1459] <- 12320
-tv[1460] <- 5660426
-tv[1461] <- 655438
-tv[1462] <- 4478559
-tv[1463] <- 5976320
-tv[1464] <- 3764575
-tv[1465] <- 7560960
-tv[1466] <- 7363427
-tv[1467] <- 8236
-tv[1468] <- 3289137
-tv[1469] <- 3670068
-tv[1470] <- 7298826
-tv[1471] <- 2120960
-tv[1472] <- 8252
-tv[1473] <- 7762783
-tv[1474] <- 5963873
-tv[1475] <- 7431007
-tv[1476] <- 5976064
-tv[1477] <- 22111
-tv[1478] <- 6249266
-tv[1479] <- 6226006
-tv[1480] <- 7106145
-tv[1481] <- 24923
-tv[1482] <- 7233887
-tv[1483] <- 6226011
-tv[1484] <- 3176036
-tv[1485] <- 3421696
-tv[1486] <- 12576
-tv[1487] <- 6121307
-tv[1488] <- 6226013
-tv[1489] <- 5980481
-tv[1490] <- 6512384
-tv[1491] <- 5991541
-tv[1492] <- 23925
-tv[1493] <- 7236447
-tv[1494] <- 23404
-tv[1495] <- 3173219
-tv[1496] <- 26459
-tv[1497] <- 4013600
-tv[1498] <- 12320
-tv[1499] <- 6228594
-tv[1500] <- 6226031
-tv[1501] <- 3238756
-tv[1502] <- 6577920
-tv[1503] <- 12907
-tv[1504] <- 7758943
-tv[1505] <- 655409
-tv[1506] <- 6709599
-tv[1507] <- 2120960
-tv[1508] <- 8254
-tv[1509] <- 6385759
-tv[1510] <- 7494498
-tv[1511] <- 7631360
-tv[1512] <- 6124123
-tv[1513] <- 655370
-tv[1514] <- 5272415
-tv[1515] <- 31067
-tvz[0] <- 1515
+tv[1319] <- 7299616
+tv[1320] <- 6581877
+tv[1321] <- 8750624
+tv[1322] <- 8553348
+tv[1323] <- 2130049
+tv[1324] <- 9737622
+tv[1325] <- 9540243
+tv[1326] <- 10887312
+tv[1327] <- 10724517
+tv[1328] <- 10527138
+tv[1329] <- 7692032
+tv[1330] <- 7302254
+tv[1331] <- 7497079
+tv[1332] <- 25701
+tv[1333] <- 0
+tv[1334] <- 0
+tv[1335] <- 0
+tv[1336] <- 2107648
+tv[1337] <- 2125417
+tv[1338] <- 3022896
+tv[1339] <- 8238
+tv[1340] <- 7300640
+tv[1341] <- 2629746
+tv[1342] <- 2120960
+tv[1343] <- 2108732
+tv[1344] <- 2715648
+tv[1345] <- 7235872
+tv[1346] <- 3618848
+tv[1347] <- 3026464
+tv[1348] <- 5529376
+tv[1349] <- 5994583
+tv[1350] <- 23856
+tv[1351] <- 2912859
+tv[1352] <- 2097184
+tv[1353] <- 7151674
+tv[1354] <- 2127969
+tv[1355] <- 7696226
+tv[1356] <- 2122862
+tv[1357] <- 6687232
+tv[1358] <- 7103849
+tv[1359] <- 6234212
+tv[1360] <- 5995008
+tv[1361] <- 23856
+tv[1362] <- 6711584
+tv[1363] <- 5963808
+tv[1364] <- 2108519
+tv[1365] <- 6123520
+tv[1366] <- 8236
+tv[1367] <- 7364443
+tv[1368] <- 7494512
+tv[1369] <- 23901
+tv[1370] <- 4071517
+tv[1371] <- 8253
+tv[1372] <- 7299616
+tv[1373] <- 6581877
+tv[1374] <- 655392
+tv[1375] <- 7627359
+tv[1376] <- 6226011
+tv[1377] <- 5980481
+tv[1378] <- 20319
+tv[1379] <- 3356209
+tv[1380] <- 13368
+tv[1381] <- 7630702
+tv[1382] <- 24352
+tv[1383] <- 7431263
+tv[1384] <- 7429979
+tv[1385] <- 6249268
+tv[1386] <- 20054
+tv[1387] <- 2108509
+tv[1388] <- 23920
+tv[1389] <- 2433117
+tv[1390] <- 6094880
+tv[1391] <- 4013344
+tv[1392] <- 6225952
+tv[1393] <- 5993315
+tv[1394] <- 22111
+tv[1395] <- 2108192
+tv[1396] <- 6225969
+tv[1397] <- 6580595
+tv[1398] <- 2097243
+tv[1399] <- 6692922
+tv[1400] <- 7627116
+tv[1401] <- 5976320
+tv[1402] <- 22111
+tv[1403] <- 6889513
+tv[1404] <- 3219566
+tv[1405] <- 3026464
+tv[1406] <- 3407904
+tv[1407] <- 2826296
+tv[1408] <- 6225952
+tv[1409] <- 5994096
+tv[1410] <- 3145842
+tv[1411] <- 3158064
+tv[1412] <- 6249216
+tv[1413] <- 20054
+tv[1414] <- 2112032
+tv[1415] <- 29295
+tv[1416] <- 3683890
+tv[1417] <- 3486516
+tv[1418] <- 6225971
+tv[1419] <- 5992560
+tv[1420] <- 6226034
+tv[1421] <- 5992051
+tv[1422] <- 7340135
+tv[1423] <- 2907485
+tv[1424] <- 5963808
+tv[1425] <- 6778975
+tv[1426] <- 7494515
+tv[1427] <- 2883677
+tv[1428] <- 6122016
+tv[1429] <- 7364352
+tv[1430] <- 7494504
+tv[1431] <- 2097245
+tv[1432] <- 6234155
+tv[1433] <- 3420416
+tv[1434] <- 3486775
+tv[1435] <- 6228534
+tv[1436] <- 7560960
+tv[1437] <- 6249296
+tv[1438] <- 3158387
+tv[1439] <- 6125915
+tv[1440] <- 2826333
+tv[1441] <- 2128160
+tv[1442] <- 3219493
+tv[1443] <- 3211312
+tv[1444] <- 7298826
+tv[1445] <- 6228480
+tv[1446] <- 30561
+tv[1447] <- 2108509
+tv[1448] <- 2097253
+tv[1449] <- 3219498
+tv[1450] <- 6380288
+tv[1451] <- 8236
+tv[1452] <- 5063007
+tv[1453] <- 6226011
+tv[1454] <- 6518115
+tv[1455] <- 6226011
+tv[1456] <- 5993330
+tv[1457] <- 7602290
+tv[1458] <- 6649202
+tv[1459] <- 2957312
+tv[1460] <- 12576
+tv[1461] <- 7565407
+tv[1462] <- 5963892
+tv[1463] <- 2108523
+tv[1464] <- 3416064
+tv[1465] <- 24330
+tv[1466] <- 6228528
+tv[1467] <- 6094934
+tv[1468] <- 2109216
+tv[1469] <- 12337
+tv[1470] <- 3289137
+tv[1471] <- 6094899
+tv[1472] <- 3153964
+tv[1473] <- 6228480
+tv[1474] <- 20054
+tv[1475] <- 5660426
+tv[1476] <- 3211332
+tv[1477] <- 7429979
+tv[1478] <- 6225977
+tv[1479] <- 5989235
+tv[1480] <- 2108528
+tv[1481] <- 3158272
+tv[1482] <- 13362
+tv[1483] <- 6228536
+tv[1484] <- 6094959
+tv[1485] <- 2112544
+tv[1486] <- 7560960
+tv[1487] <- 24950
+tv[1488] <- 6512475
+tv[1489] <- 3145841
+tv[1490] <- 5660507
+tv[1491] <- 5976576
+tv[1492] <- 22111
+tv[1493] <- 7233887
+tv[1494] <- 6380396
+tv[1495] <- 6381312
+tv[1496] <- 23406
+tv[1497] <- 7758943
+tv[1498] <- 3538992
+tv[1499] <- 3219508
+tv[1500] <- 6773504
+tv[1501] <- 23901
+tv[1502] <- 4276575
+tv[1503] <- 6226011
+tv[1504] <- 7107939
+tv[1505] <- 6124891
+tv[1506] <- 7036672
+tv[1507] <- 5991534
+tv[1508] <- 7037696
+tv[1509] <- 6773552
+tv[1510] <- 4071424
+tv[1511] <- 3153981
+tv[1512] <- 684544
+tv[1513] <- 28511
+tv[1514] <- 7038047
+tv[1515] <- 6225969
+tv[1516] <- 3304292
+tv[1517] <- 6577920
+tv[1518] <- 12662
+tv[1519] <- 6381322
+tv[1520] <- 6094950
+tv[1521] <- 2113056
+tv[1522] <- 7364352
+tv[1523] <- 5988961
+tv[1524] <- 7471218
+tv[1525] <- 7494516
+tv[1526] <- 2653
+tv[1527] <- 7560970
+tv[1528] <- 7953232
+tv[1529] <- 0
+tvz[0] <- 1529
 # print の機械（work/lower/engine.lx を句 90 で畳んだ 8436 バイトを三バイトずつ）
 lk[0] <- 6451334
 lk[1] <- 3573107
@@ -4636,46 +4652,9 @@ lis[t] <- tstart[t] + 127           for (t,zc) in ch if tlen[t] >= 1
 field nnz : max bound 1                     # 最後の実例の番号
 nnz[z] <- i + 127                   for (i,c) in ch for (z) in 0 .. 0
 
-# ── 束縛を十まで ─────────────────────────────────────────────────────────
-# 33_self は文の束縛を六つまで引く（焼き手の文は表を一つしか回さないので足りる）。下ろす文は
-# 表の列を全部束縛したうえで別のループも回す（`for (pc,op,d,s1,s2,tg) in prog for (v) in vars`）。
-# 下ろしの前段にだけ足す（焼き手の前段は変えない —— 下ろした後の文に表の変数は残らない）
-field bp6 : max bound 8192
-bp6[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 6
-field ub6 : max bound 262144
-ub6[t] <- bp6[snum[t]] for (t,zc) in ch
-field vd6 : or bound 262144
-vd6[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub6[t],k]
-field vm6 : or bound 262144
-vm6[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub6[t] >= 0 if tlen[t] == tlen[ub6[t]] if not vd6[t]
-vbnd[t] <- ub6[t] for (t,zc) in ch if vm6[t]
-field bp7 : max bound 8192
-bp7[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 7
-field ub7 : max bound 262144
-ub7[t] <- bp7[snum[t]] for (t,zc) in ch
-field vd7 : or bound 262144
-vd7[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub7[t],k]
-field vm7 : or bound 262144
-vm7[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub7[t] >= 0 if tlen[t] == tlen[ub7[t]] if not vd7[t]
-vbnd[t] <- ub7[t] for (t,zc) in ch if vm7[t]
-field bp8 : max bound 8192
-bp8[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 8
-field ub8 : max bound 262144
-ub8[t] <- bp8[snum[t]] for (t,zc) in ch
-field vd8 : or bound 262144
-vd8[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub8[t],k]
-field vm8 : or bound 262144
-vm8[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub8[t] >= 0 if tlen[t] == tlen[ub8[t]] if not vd8[t]
-vbnd[t] <- ub8[t] for (t,zc) in ch if vm8[t]
-field bp9 : max bound 8192
-bp9[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 9
-field ub9 : max bound 262144
-ub9[t] <- bp9[snum[t]] for (t,zc) in ch
-field vd9 : or bound 262144
-vd9[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub9[t],k]
-field vm9 : or bound 262144
-vm9[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub9[t] >= 0 if tlen[t] == tlen[ub9[t]] if not vd9[t]
-vbnd[t] <- ub9[t] for (t,zc) in ch if vm9[t]
+# ── 束縛は十まで ─────────────────────────────────────────────────────────
+# 前はここで 33_self の六つに四つ足していた。いまは 33_self が鍵で十まで引く（`bnt` / `bky`）
+# —— 同じ判断を二箇所に持たない（気づき34）。
 
 # **出現 t の場（0 起点）を値で一度引く。** 書き先の座標に `f[ofl[oseq[t]] - 1]` と書くと、宣言の無い
 # 出現（ofl が ⊥）で焼いた本が 6 で止まる —— 焼き手の穴（三段の読みに後置のずれを付けた書き先は、
@@ -5089,10 +5068,12 @@ field lhj0 : max bound 262144               # 書き先 o の次元 0 の添字
 lhj0[o] <- ob1[o]                  for (o,zc) in ch if lhd[o] if obk[o]
 field lhj1 : max bound 262144               # 書き先 o の次元 1 の添字
 lhj1[o] <- d1t[o]                  for (o,zc) in ch if lhd[o] if obk[o] if iscom[d0cm[o]]
+field lhj2 : max bound 262144               # 書き先 o の次元 2 の添字
+lhj2[o] <- d2t[o]                  for (o,zc) in ch if lhd[o] if obk[o] if iscom[d1cm[o]]
 field lhf : max bound 262144                # 書き先 o の場（0 起点）
 lhf[o] <- ofl[oseq[o]] - 1         for (o,zc) in ch if lhd[o]
-field lbm : max bound 1024 2                # 場 f の次元 d の書き先の添字の最大
-field lbu : or bound 1024 2                 # 場 f の次元 d に分からない書き先がある
+field lbm : max bound 1024 3                # 場 f の次元 d の書き先の添字の最大
+field lbu : or bound 1024 3                 # 場 f の次元 d に分からない書き先がある
 lbm[lhf[o], 0] <- ljm[lhj0[o]]     for (o,zc) in ch if lhd[o] if ljk[lhj0[o]] if not lcs0[lhj0[o]]
 lbu[lhf[o], 0] <- true             for (o,zc) in ch if lhd[o] if obk[o] if not ljk[lhj0[o]] if not lemp[obr[o]]
 lbu[lhf[o], 0] <- true             for (o,zc) in ch if lhd[o] if lcs0[lhj0[o]]
@@ -5100,20 +5081,32 @@ lbm[lhf[o], 0] <- 0                for (o,zc) in ch if lhd[o] if lemp[obr[o]]
 lbm[lhf[o], 1] <- ljm[lhj1[o]]     for (o,zc) in ch if lhd[o] if ljk[lhj1[o]] if not lcs0[lhj1[o]]
 lbu[lhf[o], 1] <- true             for (o,zc) in ch if lhd[o] if lhj1[o] >= 0 if not ljk[lhj1[o]]
 lbu[lhf[o], 1] <- true             for (o,zc) in ch if lhd[o] if lcs0[lhj1[o]]
+lbm[lhf[o], 2] <- ljm[lhj2[o]]     for (o,zc) in ch if lhd[o] if ljk[lhj2[o]] if not lcs0[lhj2[o]]
+lbu[lhf[o], 2] <- true             for (o,zc) in ch if lhd[o] if lhj2[o] >= 0 if not ljk[lhj2[o]]
+lbu[lhf[o], 2] <- true             for (o,zc) in ch if lhd[o] if lcs0[lhj2[o]]
 field lb1 : max bound 1024                  # 場 f の次元0 の広さ
 lb1[f] <- fwid[f]                   for (f) in 0 .. nfdz[0] if lhb[f]
 lb1[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f]
 lb1[f] <- lbm[f, 0] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if lbm[f, 0] >= 0
 lb1[f] <- 4096                      for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 1 if lbu[f, 0]
 lb1[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbu[f, 0]
+lb1[f] <- 64                        for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 3 if lbu[f, 0]
 field lb2 : max bound 1024                  # 場 f の次元1 の広さ（一次元は 1）
 lb2[f] <- 1                         for (f) in 0 .. nfdz[0] if farr[f] == 1
-lb2[f] <- fwid2[f]                  for (f) in 0 .. nfdz[0] if lhb[f] if farr[f] == 2
-lb2[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2
-lb2[f] <- lbm[f, 1] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbm[f, 1] >= 0
+lb2[f] <- fwid2[f]                  for (f) in 0 .. nfdz[0] if lhb[f] if farr[f] >= 2
+lb2[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] >= 2
+lb2[f] <- lbm[f, 1] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] >= 2 if lbm[f, 1] >= 0
 lb2[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbu[f, 1]
+lb2[f] <- 64                        for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 3 if lbu[f, 1]
+# 三次元の既定は 64 × 64 × 64（二次元の 256 × 256 と同じ升の数の桁 —— 置き場は束 × 升で決まる）
+field lb3 : max bound 1024                  # 場 f の次元2 の広さ（三次元でなければ 1）
+lb3[f] <- 1                         for (f) in 0 .. nfdz[0] if farr[f] <= 2
+lb3[f] <- fwid3[f]                  for (f) in 0 .. nfdz[0] if lhb[f] if farr[f] == 3
+lb3[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 3
+lb3[f] <- lbm[f, 2] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 3 if lbm[f, 2] >= 0
+lb3[f] <- 64                        for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 3 if lbu[f, 2]
 field lsz : max bound 1024                  # 場 f の升の数
-lsz[f] <- lb1[f] * lb2[f]           for (f) in 0 .. nfdz[0]
+lsz[f] <- lb1[f] * lb2[f] * lb3[f]  for (f) in 0 .. nfdz[0]
 
 # ── print（文の順に数える）──────────────────────────────────────────────
 field lsp : or bound 8192                   # 文 s は print
@@ -5399,7 +5392,7 @@ ltd[t] <- true      for (t,zc) in ch if lvu[t]
 ltd[t] <- true      for (t,zc) in ch if lrn[t] >= 0
 field ldl : or bound 262144                 # 消す字
 ldl[i] <- true      for (i,c) in ch if istb[snum[tnum[i]]] if c != 10
-ldl[i] <- true      for (i,c) in ch if lsp[snum[tnum[i]]] if c != 10
+ldl[i] <- true      for (i,c) in ch if lsp[snum[tnum[i]]] if c != 10 if not lpxs[snum[tnum[i]]]
 ldl[i] <- true      for (i,c) in ch if ltd[tnum[i]]
 ldl[i] <- true      for (i,c) in ch if qdl[tnum[i]]
 # 集合: 宣言の `set`、値の `{` と要素と `}`、鍵が一つの書き先の `]`、`is`
@@ -5480,8 +5473,10 @@ field lnl : max bound 262144                # その束のトークン
 lnl[t] <- latt[t]                  for (t,zc) in ch if lnb[t]
 iti[lin[lnl[t]], 0] <- 2           for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 1 if not lsk[fdno[t]]
 iti[lin[lnl[t]], 0] <- 3           for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 2 if not lsk[fdno[t]]
+iti[lin[lnl[t]], 0] <- 148         for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 3 if not lsk[fdno[t]]
+ih2[lin[lnl[t]], 0] <- lb3[fdno[t]] for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 3
 ih0[lin[lnl[t]], 0] <- lb1[fdno[t]] for (t,zc) in ch if lnb[t]
-ih1[lin[lnl[t]], 0] <- lb2[fdno[t]] for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 2
+ih1[lin[lnl[t]], 0] <- lb2[fdno[t]] for (t,zc) in ch if lnb[t] if farr[fdno[t]] >= 2
 irw[lin[lnl[t]], 0] <- lrw[lte[lnl[t]]] for (t,zc) in ch if lnb[t]
 ibd[lin[lnl[t]], 0] <- true for (t,zc) in ch if lnb[t]
 # 型紙 4: `n[]` → `n[0]`
@@ -5641,6 +5636,17 @@ field lps0 : or bound 262144
 lps0[t] <- true                    for (t,zc) in ch if lpo[t] if lsk0[lpf[t]]
 field lps1 : or bound 262144
 lps1[t] <- true                    for (t,zc) in ch if lpo[t] if lsk1[lpf[t]]
+# **機械に形の無い print（三次元の場など）は消さない。** 消すと答えが一つ黙って欠ける（焼き手は
+# print を読まない）。文を残して頭を `print_unlowered` に替え、焼き手に **利用者の行で** 断らせる
+# （知らない文の頭 —— 理由 8）
+field lpx : or bound 262144                 # 下ろせない print の名
+lpx[t] <- true                     for (t,zc) in ch if lpo[t] if not lp1[t] if not lp2[t]
+      if not lps0[t] if not lps1[t]
+field lpxs : or bound 8192                  # 文 s は下ろせない print
+lpxs[snum[t]] <- true              for (t,zc) in ch if lpx[t]
+iti[lin[prevw[t]], 0] <- 149       for (t,zc) in ch if lpx[t]
+irw[lin[prevw[t]], 0] <- lrw[lte[prevw[t]]]   for (t,zc) in ch if lpx[t]
+ibd[lin[prevw[t]], 0] <- true      for (t,zc) in ch if lpx[t]
 field lpsa : or bound 262144                # 要素は原子
 lpsa[t] <- true                    for (t,zc) in ch if lpo[t] if lsea[lpf[t]]
 field lpsi : or bound 262144                # 要素は数

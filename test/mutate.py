@@ -40,7 +40,7 @@ _ns = {'__name__': 'mutate', '__file__': os.path.join(ROOT, 'test', 'accept.py')
 exec(compile(_src[:_src.index("tmp=tempfile.mkdtemp()")], 'accept', 'exec'), _ns)
 # 既知の穴の組は種にしない（壊すと同じ穴を踏む —— 測られているものを数え直さない）
 SEEDS = [c for c in _ns['CASES'] if c[4] is None and not c[5] and 'render ' not in c[1]]
-widths, BOT = _ns['widths'], _ns['BOT']
+widths, BOT, cellkey = _ns['widths'], _ns['BOT'], _ns['cellkey']
 
 
 def _book_seeds():
@@ -297,7 +297,7 @@ if __name__ == '__main__':
             if bot is None: continue
             for i in range(cells):
                 v = struct.unpack_from('<q' if wb == 8 else '<B', r2.stdout, o + wb * i)[0]
-                if v != bot: got[(f,) + ((i // w1, i % w1) if w1 > 1 else (i,))] = v
+                if v != bot: got[(f,) + cellkey(i, w1)] = v
         if got == ref: kinds['一致'] += 1
         else:
             dv = [(x, ref.get(x), got.get(x)) for x in sorted(set(got) | set(ref)) if got.get(x) != ref.get(x)][:3]

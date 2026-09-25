@@ -43,29 +43,29 @@ hd[j] <- h32[w8[j]] - 65536 * 65536   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] >= kw[0] if h32[w8[j] + 4] <= kw[2]
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw[3] if h32[w8[j]] < kw[1]
 field nfl : max bound 1
-nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260919
+nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260923
 field nsd : max bound 1
-nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260919
+nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260923
 field nrl : max bound 1
-nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260919
+nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngl : max bound 1
-ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngg : max bound 1
-ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngt : max bound 1
-ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ngc : max bound 1
-ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260919
+ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260923
 field inpw : max bound 1
-inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260919
+inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260923
 field badk : max bound 1
-badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260919
+badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ncol : max bound 1
-ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260919
+ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260923
 # 節の頭（語の番号）と、表の語の数
 field sb : max bound 8
 sb[0] <- 16
-sb[z] <- 16 + nfl[0] * 4   for (z) in 1 .. 1
+sb[z] <- 16 + nfl[0] * 5   for (z) in 1 .. 1
 sb[z] <- sb[1] + nsd[0] * 3   for (z) in 2 .. 2
 sb[z] <- sb[2] + nrl[0] * 6   for (z) in 3 .. 3
 sb[z] <- sb[3] + ngl[0] * 8   for (z) in 4 .. 4
@@ -95,9 +95,9 @@ field ngtz : max bound 1
 ngtz[z] <- ngt[z] - 1   for (z) in 0 .. 0
 field ngcz : max bound 1
 ngcz[z] <- ngc[z] - 1   for (z) in 0 .. 0
-# F（場）: 束 / 次数 / 広さ0 / 広さ1
+# F（場）: 束 / 次数 / 広さ0 / 広さ1 / 広さ2
 field aF : max bound 256
-aF[f] <- sb[z] + f * 4   for (z) in 0 .. 0 for (f) in 0 .. nflz[0]
+aF[f] <- sb[z] + f * 5   for (z) in 0 .. 0 for (f) in 0 .. nflz[0]
 field flt : max bound 256
 flt[f] <- wd[aF[f]]   for (f) in 0 .. nflz[0]
 field far : max bound 256
@@ -106,9 +106,12 @@ field fw0 : max bound 256
 fw0[f] <- wd[aF[f] + 2]   for (f) in 0 .. nflz[0]
 field fw1 : max bound 256                  # 次元1 の広さ（一次元なら 1）
 fw1[f] <- 1   for (f) in 0 .. nflz[0] if far[f] == 1
-fw1[f] <- wd[aF[f] + 3]   for (f) in 0 .. nflz[0] if far[f] == 2
+fw1[f] <- wd[aF[f] + 3]   for (f) in 0 .. nflz[0] if far[f] >= 2
+field fw2 : max bound 256                  # 次元2 の広さ（三次元でなければ 1）
+fw2[f] <- 1   for (f) in 0 .. nflz[0] if far[f] <= 2
+fw2[f] <- wd[aF[f] + 4]   for (f) in 0 .. nflz[0] if far[f] == 3
 field fce : max bound 256                  # 升の数
-fce[f] <- fw0[f] * fw1[f]   for (f) in 0 .. nflz[0]
+fce[f] <- fw0[f] * fw1[f] * fw2[f]   for (f) in 0 .. nflz[0]
 field fwb : max bound 256                  # 升の幅（or は 1 バイト）
 fwb[f] <- 8   for (f) in 0 .. nflz[0] if flt[f] != 3
 fwb[f] <- 1   for (f) in 0 .. nflz[0] if flt[f] == 3
@@ -150,9 +153,9 @@ kB[z] <- vB[z] + vtot[z]   for (z) in 0 .. 0
 # 出した答え（stdout）: 場の面をそのまま出す本は値の面と同じ長さ、render の本は描く場の
 # ⊥ でない升の数（一升一バイト）。**出した答えも確かめる** —— 使う人が見るのは stdout である
 field ouw : max bound 1                    # 描く幅（8 は場の面をそのまま、1 は render）
-ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260919
+ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260923
 field ouf : max bound 1                    # 描く場（render のとき）
-ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260919 if hd[11] == 1
+ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260923 if hd[11] == 1
 field oB : max bound 1                     # 出した答えの始まり
 oB[z] <- kB[z] + ncl[z] * 4   for (z) in 0 .. 0
 field nrd : count bound 1                  # 描かれる升の数
@@ -312,17 +315,18 @@ lsz[g] <- lhv[g] / 4 - llo[g] + 1   for (g) in 0 .. nglz[0] if lk[g] == 2 if lhv
       if not lwid[g]
 lsz[g] <- 0   for (g) in 0 .. nglz[0] if lk[g] == 2 if lhv[g] < llo4[g]
 lsz[g] <- 0   for (g) in 0 .. nglz[0] if lk[g] == 2 if not sp[lbg[g]]
-# 規則 r の枠 i（0..2）
+# 規則 r の枠 i（0..2）。**四重目からの枠は持たない**（実例を三つの枠で数えるので）——
+# そういう規則のある答えは UNSUPPORTED と言う（mkeval の un1[3]）。焼き手は八重まで焼く。
 field rlh : or bound 2048 4                # 枠 i がある
-rlh[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0]
+rlh[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if li[g] <= 2
 field rls : max bound 2048 4               # 枠 i の広さ（無い枠は 1）
-rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0]
+rls[lr[g], li[g]] <- lsz[g]   for (g) in 0 .. nglz[0] if li[g] <= 2
 rls[r, i] <- 1   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2 if not rlh[r, i]
 field rlo : max bound 2048 4               # 枠 i の下端（表・無い枠は 0）
 rlo[r, i] <- 0   for (r) in 0 .. nrlz[0] for (i) in 0 .. 2
-rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1
+rlo[lr[g], li[g]] <- llo[g]   for (g) in 0 .. nglz[0] if lk[g] >= 1 if li[g] <= 2
 field rtb : or bound 2048 4                # 枠 i は表
-rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0
+rtb[lr[g], li[g]] <- true   for (g) in 0 .. nglz[0] if lk[g] == 0 if li[g] <= 2
 # 規則の実例の数と、通し番号の頭
 field rs12 : max bound 2048                # 枠 1 × 枠 2（面の広さ）
 rs12[r] <- rls[r, 1] * rls[r, 2]   for (r) in 0 .. nrlz[0]
@@ -424,7 +428,7 @@ field cof : max bound 8192                  # ずれ（符号つき）
 cof[g] <- cofr[g]   for (g) in 0 .. ngcz[0] if cofr[g] <= 127
 cof[g] <- cofr[g] - 256   for (g) in 0 .. ngcz[0] if cofr[g] >= 128
 # 所有者 o の次元 d のスロット
-field osl : max bound 16384 2
+field osl : max bound 16384 3
 osl[cso[g], csd[g]] <- g   for (g) in 0 .. ngcz[0]
 field onx : max bound 1                     # 所有者の番号の上限
 onx[0] <- 0

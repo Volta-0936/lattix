@@ -22,7 +22,7 @@ MISS = -2147483646            # 表の「無い値」
 class Tables:
     def __init__(self, blob):
         w = struct.unpack('<%dq' % (len(blob) // 8), blob[:len(blob) // 8 * 8])
-        if len(w) < 16 or w[0] != 20260919:
+        if len(w) < 16 or w[0] != 20260923:
             raise ValueError('not an attest-front table')
         self.hdr = w[:16]
         nfl, nsd, nrl, ngl, ngg, ngt, ngc = w[1:8]
@@ -33,16 +33,18 @@ class Tables:
             out = [w[p + i * k: p + i * k + k] for i in range(n)]
             p += n * k
             return out
-        self.F = rows(nfl, 4); self.S = rows(nsd, 3); self.R = rows(nrl, 6)
+        self.F = rows(nfl, 5); self.S = rows(nsd, 3); self.R = rows(nrl, 6)
         self.L = rows(ngl, 8); self.G = rows(ngg, 9); self.T = rows(ngt, 7); self.C = rows(ngc, 8)
 
     # ── 場の置き場（値の面と階数の面）
     def layout(self):
         lay = []; vo = 0; ko = 0
-        for lat, ar, w0, w1 in self.F:
-            cells = w0 * (w1 if ar == 2 else 1)
+        for lat, ar, w0, w1, w2 in self.F:
+            w1 = w1 if ar >= 2 else 1
+            w2 = w2 if ar == 3 else 1
+            cells = w0 * w1 * w2
             wb = 1 if lat == 3 else 8
-            lay.append(dict(lat=LAT.get(lat, '?%d' % lat), ar=ar, w0=w0, w1=w1 if ar == 2 else 1,
+            lay.append(dict(lat=LAT.get(lat, '?%d' % lat), ar=ar, w0=w0, w1=w1, w2=w2,
                             cells=cells, wb=wb, vo=vo, ko=ko))
             vo += cells * wb; ko += cells * 4
         return lay, vo, ko
@@ -117,7 +119,7 @@ class Checker:
         L = self.lay[f]
         sl = self.slots.get(o, {})
         ds = []
-        for d in range(2 if L['ar'] == 2 else 1):
+        for d in range(L['ar'] if L['ar'] in (1, 2, 3) else 1):
             if d not in sl: return None
             src, cf, cc, hf, of = sl[d]
             off = s8(of)
@@ -145,14 +147,16 @@ class Checker:
             else: raise ValueError('coord source %d' % src)
             if hf == 1 or (hf != 0 and src in (0, 1, 4)): x += off
             ds.append(x)
-        w = [L['w0'], L['w1']]
+        w = [L['w0'], L['w1'], L['w2']]
         for d, x in enumerate(ds):
             if not 0 <= x < w[d]: return OUT
-        return ds[0] * L['w1'] + ds[1] if len(ds) == 2 else ds[0]
+        c = 0
+        for d, x in enumerate(ds): c = c * w[d] + x
+        return c
 
     def cell1(self, f, x):
         L = self.lay[f]
-        if L['ar'] == 2 or not 0 <= x < L['w0']: return None
+        if L['ar'] >= 2 or not 0 <= x < L['w0']: return None
         return x
 
     # ── 規則 r の実例を回す
@@ -173,7 +177,7 @@ class Checker:
                 for x in range(lo, h + 1):
                     k = list(env['k']); k[li] = x
                     yield from rec(i + 1, dict(env, k=tuple(k)))
-        yield from rec(0, dict(row=(), k=(0, 0, 0)))
+        yield from rec(0, dict(row=(), k=(0,) * 8))      # 計数器は八本まで（焼き手の入れ子の上限）
 
     def guard_ok(self, r, env, reads):
         gs = self.guards.get(r, [])

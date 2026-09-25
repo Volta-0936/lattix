@@ -1285,6 +1285,31 @@ encb[210,7] <- 72
 encb[210,8] <- 1
 encb[210,9] <- 208
 shp[210] <- 40960     # sar rdx,63 ; and rdx,rsi ; add rax,rdx    （床の余りへ寄せる）
+# **四本目からの計数器は升に住む**（場の下の余白、`[rbx-64]` から八バイトずつ）。
+# register は rcx / r13 / r14 の三本しか空いていないので、入れ子の四重目は計数器の置き場が
+# 無かった —— だが計数器は「居る場所」であって、register である必要は無い（気づき9）。
+# 読む口は register の形と一つずつ対になる（座標・比較の左右・項の値・掛ける）。
+encb[211,0] <- 76                    # 4C 8B 8B d32  mov r9, [rbx+d32]     （座標に載せる）
+encb[211,1] <- 139
+encb[211,2] <- 139
+shp[211] <- 28868
+encb[212,0] <- 72                    # 48 0F AF 83 d32  imul rax, [rbx+d32] （計数器を掛ける）
+encb[212,1] <- 15
+encb[212,2] <- 175
+encb[212,3] <- 131
+shp[212] <- 33028
+encb[213,0] <- 72                    # 48 8B B3 d32  mov rsi, [rbx+d32]    （比較の左辺）
+encb[213,1] <- 139
+encb[213,2] <- 179
+shp[213] <- 28868
+encb[214,0] <- 72                    # 48 3B 83 d32  cmp rax, [rbx+d32]    （上端が場の区間）
+encb[214,1] <- 59
+encb[214,2] <- 131
+shp[214] <- 28868
+encb[215,0] <- 72                    # 48 FF 83 d32  inc qword [rbx+d32]   （升の計数器を進める）
+encb[215,1] <- 255
+encb[215,2] <- 131
+shp[215] <- 28868
 
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
@@ -1395,7 +1420,7 @@ pb[0] <- 50
 pb[z] <- 55                          for (z) in 0 .. 0 for (z) in 0 .. 0 if inpw[0] == 1
 
 # ── 座標の広さは **場ごと・次元ごと** である（一律 64 ではない）──────
-# fdim (場, 次元, 広さ)。次元は 0 と 1。2次元の畳みは掛け算になる ——
+# fdim (場, 次元, 広さ)。次元は 0 / 1 / 2。多次元の畳みは掛けて足す鎖になる ——
 # 64 升に揃えていたのは私の都合で、座標の性質ではなかった。
 field fw2 : max bound 2048                    # 二つ目の次元の広さ（畳みの掛け数）
 fw2[f] <- fw[f, 1]                  for (f) in 0 .. nflz[0]
@@ -1403,6 +1428,7 @@ fw2[f] <- fw[f, 1]                  for (f) in 0 .. nflz[0]
 field fsz : max bound 2048                    # 場 f の升目の数
 fsz[f] <- fw[f, 0]                  for (f) in 0 .. nflz[0] if fdar[f] == 1
 fsz[f] <- fw[f, 0] * fw[f, 1]       for (f) in 0 .. nflz[0] if fdar[f] == 2
+fsz[f] <- fw[f, 0] * fw[f, 1] * fw[f, 2]   for (f) in 0 .. nflz[0] if fdar[f] == 3
 
 # **項の列は左からの畳み込みである。** `a + K * b` は括弧と同じで、
 # 名前を付けていない中間値でしかない —— 付ければただの項の列になる。
@@ -1715,8 +1741,15 @@ nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0bc[r] 
 # `for (k) in 1 .. 0` が本体を一度実行していた（解釈実行は実行しない）。
 # 頭で一度比べれば済む —— ループごとに二命令、入口で一度だけ。
 # 上端が ⊥ の場でも正しく回らなくなる（⊥ は下端より小さい）。
-field gnlh : max bound 16384                    # ループの頭（一段につき八命令）
-gnlh[r] <- gnl[r] * 8               for (r) in 0 .. nrlz[0]
+field gnlh : max bound 16384                    # ループの頭（一段につき八命令、段 3 からは九命令）
+# **段 3 からの計数器は升に住む**ので、頭が一命令（升に置く）、進めが一命令（升から読む）長い。
+# 伸びた分は `max(0, 段数 - 3)`。**join の max で書いてはいけない** —— 0 と「段数 - 3」を
+# 二本で書くと途中の値が残り、下の引き算（`rend - gnl3`）が途中の値を拾う（気づき38）。
+# 比べて二つに分ければ、場は一度しか書かれない。
+field gnlx : max bound 16384                    # 升に住む計数器の数
+gnlx[r] <- 0                        for (r) in 0 .. nrlz[0] if gnl[r] <= 3
+gnlx[r] <- gnl[r] - 3               for (r) in 0 .. nrlz[0] if gnl[r] >= 4
+gnlh[r] <- gnl[r] * 8 + gnlx[r]     for (r) in 0 .. nrlz[0]
 field gnl4 : max bound 16384                    # ループの前置き（頭は群の先頭 / 進めは群の末尾）
 # 頭（一段八命令）は群の先頭に、進め（一段三命令）は群の末尾に在る。前は頭と進めが同じ
 # 三命令だったので `gnlh * 2` と書けた —— 頭が伸びた日に、それは「たまたま同じ」だった。
@@ -1725,7 +1758,7 @@ gnl4[r] <- gnlh[r] + gnl3[r]        for (r) in 0 .. nrlz[0] if nofus[r]
 gnl4[r] <- gnl3[r]                  for (r) in 0 .. nrlz[0] if not nofus[r]
 field gnl3 : max bound 16384                    # 進めの分だけ（群の末尾にだけ在る）
 gnl3[r] <- 0                        for (r) in 0 .. nrlz[0]
-gnl3[r] <- gnl[r] * 3               for (r) in 0 .. nrlz[0] if nofus[r+1]
+gnl3[r] <- gnl[r] * 3 + gnlx[r]     for (r) in 0 .. nrlz[0] if nofus[r+1]
 field lrng : or bound 16384                     # 番号 l のループは区間か
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
@@ -2277,12 +2310,28 @@ form[rend[r] + 3] <- 21     for (r) in 0 .. nrlz[0] if lst[r] == 1     # test r8
 form[rend[r] + 4] <- 22     for (r) in 0 .. nrlz[0] if lst[r] == 1     # jne -> 層の頭
 jt[rend[r] + 4]   <- hd[r]  for (r) in 0 .. nrlz[0] if lst[r] == 1
 
-# ── ループの頭。**番号 0 が rcx、1 が r13**（入れ子は行が言う）───────
+# ── ループの頭。**番号 0 が rcx、1 が r13、2 が r14、3 からは升**（入れ子は行が言う）───────
 
 # ループの頭の位置（**読み二つの和は座標にできない**ので名前を付ける）
 field lhp : max bound 16384
-field lpi8 : max bound 16384                    # 頭の位置（一段につき八命令）
-lpi8[gl] <- lpi[gl] * 8             for (gl) in 0 .. nglz[0]
+field lpi8 : max bound 16384                    # 頭の位置（一段につき八命令、段 3 からは九命令）
+field lpxh : max bound 16384                    # それより外の、升に住む計数器の数
+lpxh[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 3
+lpxh[gl] <- lpi[gl] - 3             for (gl) in 0 .. nglz[0] if lpi[gl] >= 4
+lpi8[gl] <- lpi[gl] * 8 + lpxh[gl]  for (gl) in 0 .. nglz[0]
+# 頭と進めの長さ（段 3 から一命令ずつ長い）
+field lph : max bound 16384                     # 頭の命令数
+lph[gl] <- 8                        for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lph[gl] <- 9                        for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+field lpa : max bound 16384                     # 進めの命令数
+lpa[gl] <- 3                        for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lpa[gl] <- 4                        for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+# 段 l の計数器の升（場の下、`gap` の余白。-8〜-56 は別の升が使っている）。
+# 段は 0..7（前段が八つまで持つ）。**数えて置く** —— 段 3 が -64、段 7 が -96。
+field lcm : max bound 8
+lcm[l] <- l * 8 + 40                for (l) in 3 .. 7
+field lce : max bound 8                         # その升の即値（bias 込み）
+lce[l] <- bias[0] - lcm[l]          for (l) in 3 .. 7
 lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0]
 # **上端が場の区間は、入るたびに二つ比べる**（頭の最初の五命令。要らないループは nop）。
 #   ⊥ なら空 —— 解釈実行は上端が ⊥ の区間を回さない。前は min / flat の ⊥（2147483647）
@@ -2296,7 +2345,7 @@ imm[lhp[gl]]      <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. ngl
 form[lhp[gl] + 1] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, ⊥
 imm[lhp[gl] + 1]  <- fbot[lpbf[gl]]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 2] <- 13   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # je -> 出る（空）
-jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
+jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 3] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, 下端 + 上限
 imm[lhp[gl] + 3]  <- lplo[gl] + 4194304 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 4] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # jg -> 区間の踏み台
@@ -2311,19 +2360,33 @@ lpw[gl] <- lphi[gl] - lplo[gl]      for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 badk[z] <- rlin[lpr[gl]] * 16 + 15   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0
       if lpk[gl] == 1 if lpw[gl] > 4194304
 # 頭の検査（空なら一度も回らない）。飛び先は **一つ外のループの進め**、
-# いちばん外なら群の終わり —— どちらも `群の終わり - 3*段` で出る。
+# いちばん外なら群の終わり —— どちらも `群の終わり - (ここまでの進め) + (この段の進め)` で出る
+# （進めは内側から並ぶので、一つ外の進めは自分の進めのすぐ後ろ）。
 form[lhp[gl] + 6] <- 79   for (gl) in 0 .. nglz[0] if lpk[gl] == 0        # cmp rcx, 表の終わり
 form[lhp[gl] + 6] <- 20   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0
 form[lhp[gl] + 6] <- 103  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 1
 form[lhp[gl] + 6] <- 107  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 2
-imm[lhp[gl] + 6]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
+imm[lhp[gl] + 6]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] <= 2
 form[lhp[gl] + 6] <- 142  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 0
 form[lhp[gl] + 6] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 1
 form[lhp[gl] + 6] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 2
-imm[lhp[gl] + 6]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-form[lhp[gl] + 7] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] <= 1        # jae -> 出る
-form[lhp[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2        # jg（符号付き）
-jt[lhp[gl] + 7]   <- gend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0]
+imm[lhp[gl] + 6]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2
+form[lhp[gl] + 7] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] <= 1 if lpi[gl] <= 2    # jae -> 出る
+form[lhp[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2    # jg（符号付き）
+jt[lhp[gl] + 7]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+# **段 3 から（升の計数器）**: 下端を rax に作って升に置き、rax で上端と比べる（九命令）。
+# 表のループは段 0 にしか居ない（前段が一番外へ回す）ので、ここは区間だけである。
+form[lhp[gl] + 5] <- 2    for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov rax, 下端
+imm[lhp[gl] + 5]  <- lplo[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[lhp[gl] + 6] <- 51   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov [升], rax
+imm[lhp[gl] + 6]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[lhp[gl] + 7] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # cmp rax, 上端+1
+imm[lhp[gl] + 7]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3
+form[lhp[gl] + 7] <- 214  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # cmp rax, [上端]
+imm[lhp[gl] + 7]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3
+form[lhp[gl] + 8] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # jae -> 出る
+form[lhp[gl] + 8] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # jg（符号付き）
+jt[lhp[gl] + 8]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 form[lhp[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # mov rcx, データの先頭
 imm[lhp[gl] + 5]  <- dbase[0] + bias[0]  for (gl) in 0 .. nglz[0] if lpk[gl] == 0
 form[lhp[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0  # mov rcx, 下端
@@ -2446,6 +2509,8 @@ imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 3
 form[gc[gg]] <- 134     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 0
 form[gc[gg]] <- 135     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 1
 form[gc[gg]] <- 136     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] == 2
+form[gc[gg]] <- 213     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] >= 3   # mov rsi,[升]
+imm[gc[gg]]  <- lce[gdc1[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 2 if gdc1[gg] >= 3
 form[gc[gg]] <- 132     for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 3
 imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 3
 
@@ -2472,6 +2537,8 @@ imm[gc[gg]]  <- gdc1[gg] * 8 + bias[0]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4
 form[gc[gg]] <- 109     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 0
 form[gc[gg]] <- 111     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 1
 form[gc[gg]] <- 113     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] == 2
+form[gc[gg]] <- 185     for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] >= 3   # mov rax,[升]
+imm[gc[gg]]  <- lce[gdc1[gg]]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 2 if gdc1[gg] >= 3
 form[gc[gg]] <- 2       for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 3
 imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 3
 
@@ -2514,6 +2581,9 @@ imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc]
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 0 if not inr1[gc]
 form[cdpos[gc]] <- 104  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 1 if not inr1[gc]
 form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] == 2 if not inr1[gc]
+# 段 3 からの計数器は升から載せる（長さは同じ一命令）
+form[cdpos[gc]] <- 211  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] >= 3 if not inr1[gc]
+imm[cdpos[gc]]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 1 if cdcc[gc] >= 3 if not inr1[gc]
 # 源4: **定数**。`tch[t,0]` の 0 が座標にならず、次元1 が黙って落ちていた ——
 # 座標の源は「列・計数器・場の値」の三つだと思い込んでいた。定数も座標である。
 form[cdpos[gc]] <- 138  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if not inr1[gc]
@@ -2532,6 +2602,8 @@ imm[cdpos[gc] + 1]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if inr1
 form[cdpos[gc] + 1] <- 82   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 0
 form[cdpos[gc] + 1] <- 104  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 1
 form[cdpos[gc] + 1] <- 108  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] == 2
+form[cdpos[gc] + 1] <- 211  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] >= 3
+imm[cdpos[gc] + 1]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 1 if cdcc[gc] >= 3
 form[cdpos[gc] + 1] <- 138  for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 4
 imm[cdpos[gc] + 1]  <- cdcc[gc] + bias[0]   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdsr[gc] == 4
 form[cdpos[gc] + 2] <- 71   for (gc) in 0 .. ngcz[0] if inr1[gc] if cdhf[gc] == 1   # add r9, ずれ
@@ -2575,6 +2647,8 @@ imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc]
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 0
 form[cdpos[gc]] <- 104  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 1
 form[cdpos[gc]] <- 108  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 2
+form[cdpos[gc]] <- 211  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] >= 3
+imm[cdpos[gc]]  <- lce[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] >= 3
 # **源2/3 は座標を二つ持つ** —— 内側の添字（`g[i]` の i）と、読んだ値（外の座標）。
 # 読んだ値は下の濾しが見るが、**内側の添字を濾していたのは前置のずれ（`g[i+2]`）の
 # ときだけ**だった。ずれの無い `f[g[i]]` で i が g の広さを超えると、g の後ろの升
@@ -2727,6 +2801,8 @@ ispw[gt] <- true  for (gt) in 0 .. ngtz[0] for (k) in 0 .. 62 if pw[k] == tmv[gt
 form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 0
 form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 1
 form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] == 2
+form[tpos[gt]] <- 185  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] >= 3     # mov rax,[升]
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 4 if tmc1[gt] >= 3
 
 # 種11/12: 表の列を **引く / 掛ける**（行は rcx。ずれは 8*列）
 form[tpos[gt]] <- 10   for (gt) in 0 .. ngtz[0] if tmk[gt] == 11    # mov rax,[列]（引くのは群の符号）
@@ -2737,9 +2813,13 @@ imm[tpos[gt]]  <- tmc18[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 1
 form[tpos[gt]] <- 109  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 0
 form[tpos[gt]] <- 111  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 1
 form[tpos[gt]] <- 113  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] == 2
+form[tpos[gt]] <- 185  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] >= 3
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 13 if tmc1[gt] >= 3
 form[tpos[gt]] <- 150  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 0
 form[tpos[gt]] <- 152  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 1
 form[tpos[gt]] <- 154  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] == 2
+form[tpos[gt]] <- 212  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] >= 3     # imul rax,[升]
+imm[tpos[gt]]  <- lce[tmc1[gt]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 14 if tmc1[gt] >= 3
 
 # 種3 / 種9: 場の読み。座標は crd が出す。値 → ⊥検査 → **足すか引くか** → 階数
 # 引く方（種9）が要ったのは `rel[n] <- off[jt[n]] - off[n] - ilen[n]` である ——
@@ -2967,7 +3047,12 @@ imm[av[r] - 1]  <- rrwf[r] * 8 + bias[0] - gpz[0]   for (r) in 0 .. nrlz[0]
 # ── 進める。**内側から外側へ**。前進もループ番号に沿った鎖である ────
 field ap : max bound 16384                      # ループ l の前進の位置
 field lpi3 : max bound 16384                    # 内側からの進めの位置
-lpi3[gl] <- lpi[gl] * 3 + 3         for (gl) in 0 .. nglz[0]
+# 段 l までの進めの命令数 = 3(l+1) + max(0, l-2)（段 3 から一命令ずつ長い）。gnlx と同じく
+# 比べて二つに分ける（引き算の右に置くので、途中の値を持たせない —— 気づき38）
+field lpx2 : max bound 16384
+lpx2[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+lpx2[gl] <- lpi[gl] - 2             for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+lpi3[gl] <- lpi[gl] * 3 + 3 + lpx2[gl]   for (gl) in 0 .. nglz[0]
 ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # add rcx, 8*次数
 imm[ap[gl]]  <- lpar[gl] * 8 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 0
@@ -2992,10 +3077,22 @@ form[ap[gl] + 1] <- 142  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 
 form[ap[gl] + 1] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 1
 form[ap[gl] + 1] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] == 2
 imm[ap[gl] + 1]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (z) in 0 .. 0
-      for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-form[ap[gl] + 2] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] <= 1
-form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2   # jle（符号付き）                       # jb -> 一つ内側の頭
-jt[ap[gl] + 2]   <- lhp[gl] + 8   for (gl) in 0 .. nglz[0]
+      for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2
+form[ap[gl] + 2] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] <= 1 if lpi[gl] <= 2   # jb -> 一つ内側の頭
+form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] <= 2   # jle（符号付き）
+jt[ap[gl] + 2]   <- lhp[gl] + 8   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+# **段 3 から（升の計数器）**: 升を一つ進め、rax に読んで上端と比べる（四命令）。
+form[ap[gl]] <- 215      for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # inc [升]
+imm[ap[gl]]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[ap[gl] + 1] <- 185  for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # mov rax, [升]
+imm[ap[gl] + 1]  <- lce[lpi[gl]]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+form[ap[gl] + 2] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # cmp rax, 上端+1
+imm[ap[gl] + 2]  <- lphi[gl] + 1 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3
+form[ap[gl] + 2] <- 214  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # cmp rax, [上端]
+imm[ap[gl] + 2]  <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3
+form[ap[gl] + 3] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] >= 3   # jb -> 一つ内側の頭
+form[ap[gl] + 3] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if lpi[gl] >= 3   # jle（符号付き）
+jt[ap[gl] + 3]   <- lhp[gl] + 9   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 
 # ══ 日程は自由である ═══════════════════════════════════════════════
 # **同じ規則を五十八周まわしていたのは、入口が変わっていないことを
@@ -3733,7 +3830,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #
 #   lattix: cannot bake - line 000042 reason 5
 #
-# 理由: 1 名前が 17 文字以上 / 2 入れ子が四重以上 / 3 項が九つ以上 /
+# 理由: 1 名前が 17 文字以上 / 2 入れ子が九重以上 / 3 項が九つ以上 /
 #       4 宣言の無い場を読んだ / 5 焼けない除数（0・負・即値の外） / 6 表が無い・二つ以上 /
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）

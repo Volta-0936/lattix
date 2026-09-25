@@ -217,15 +217,41 @@ field big : or bound 64
 big[i] <- true for (i,c) in ch if c >= 97
 """ + "\n".join("# %d ------------------------------------------------------" % i
                 for i in range(8400)) + "\n", data=b"abc")
-# **入れ子は三重まで**（計数器は rcx / r13 / r14 の三本）。四重目は
-# 黙って壊れた符号になっていた —— いまは焼かずに言う。
+# **入れ子は八重まで**（計数器は rcx / r13 / r14 の三本と、四本目からは場の下の升）。
+# 前は三重までで、四重目は黙って壊れた符号になっていた（のちに焼かずに言うようにした）。
+# 升の計数器を **座標・比較の左右・値・掛ける・上端が場の区間・場の読みの座標** で読む。
 case("入れ子 三重（通る）", """table ch = (0,32)
 field a : max bound 16
 a[k] <- 1   for (k) in 0 .. 1 for (m) in 0 .. 1 for (n) in 0 .. 1
 """, data=b"ab")
-case("入れ子 四重（焼けない）", """table ch = (0,32)
+case("入れ子 四重（通る・升の計数器）", """table ch = (0,32)
+field a : max bound 4 4
+a[m, p] <- k * 10 + n + p   for (k) in 0 .. 1 for (m) in 0 .. 3 for (n) in 0 .. 2 for (p) in 0 .. 3 if p != n
+""", data=b"ab")
+case("入れ子 八重（通る・升の計数器）", """table ch = (0,32)
+field n : max bound 2
+n[0] <- 2
+field w : or bound 4 4
+w[i, j] <- true   for (i) in 0 .. 3 for (j) in 0 .. 3 if i != j
+field a : max bound 4 4
+a[g, q] <- q * h + d - f + r   for (b) in 0 .. 1 for (d) in 0 .. 1 for (f) in 0 .. 1 for (g) in 0 .. 3
+      for (h) in 0 .. n[0] for (p) in 1 .. 2 for (q) in 0 .. 3 for (r) in 0 .. 1
+      if q >= p if r < h if w[g, q] if b == 0
+""", data=b"ab")
+# **一つの文の束縛は十まで**（鍵で引く —— 前は焼き手の前段が六つ、下ろしの前段が十と、
+# 同じ判断を二箇所に別々の上限で持っていた）。表の六列を束ねてから区間を四つ重ねる。
+case("束縛 十（表の六列 + 区間四つ）", """table t = (0,0,0,0,0,0)
+field a : max bound 8 4
+a[p, j] <- q + r + s + u + v + i + k + m   for (p,q,r,s,u,v) in t for (i) in 0 .. 1 for (j) in 0 .. 3 for (k) in 0 .. 1 for (m) in 0 .. 2
+      if m != k
+""", rows=[(0,1,2,3,4,5),(1,0,0,0,0,1),(5,2,2,2,2,2)])
+case("束縛 十一（焼けない）", """table t = (0,0,0,0,0,0)
+field a : max bound 8 4
+a[p, j] <- q + n   for (p,q,r,s,u,v) in t for (i) in 0 .. 1 for (j) in 0 .. 3 for (k) in 0 .. 1 for (m) in 0 .. 2 for (n) in 0 .. 1
+""", rows=[(0,1,2,3,4,5)], exit=7, why=(3,8))
+case("入れ子 九重（焼けない）", """table ch = (0,32)
 field a : max bound 16
-a[k] <- 1   for (k) in 0 .. 1 for (m) in 0 .. 1 for (n) in 0 .. 1 for (p) in 0 .. 1
+a[k] <- 1   for (k) in 0 .. 1 for (m) in 0 .. 1 for (n) in 0 .. 1 for (p) in 0 .. 1 for (q) in 0 .. 1 for (r) in 0 .. 1 for (s) in 0 .. 1 for (u) in 0 .. 1 for (v) in 0 .. 1
 """, data=b"ab", exit=7, why=(3,2))
 # ══ 断片の際（測った）════════════════════════════════════════════
 # **狭さは覚えていられない。** 「入れ子は一段まで」と書いてあった。測ったら
@@ -792,9 +818,20 @@ n[0] <- 3
 field t : max bound 8
 t[j] <- j   for (j) in 0 .. n[0] - 1
 """, data=b"ab", exit=7, why=(5,8))
-case("三次元の場（言う）", """table ch = (0,32)
-field w : max bound 8
-w[i, j, k] <- i + j + k   for (i) in 0 .. 1 for (j) in 0 .. 1 for (k) in 0 .. 1
+case("三次元の場（広さ三つ・種・内側の読み）", """table ch = (0,32)
+field w : max bound 3 2 4
+w[i, j, k] <- i * 100 + j * 10 + k   for (i) in 0 .. 2 for (j) in 0 .. 1 for (k) in 0 .. 3
+field g : flat bound 3 3 3
+g[1, 2, 0] <- 7
+field a : flat bound 4
+a[0] <- 1
+a[1] <- 2
+field t : max bound 8
+t[k] <- w[a[k], k, a[k] + 1] + 1   for (k) in 0 .. 1
+""", data=b"ab")
+case("四次元の場（言う）", """table ch = (0,32)
+field w : max bound 2 2 2
+w[i, j, k, 0] <- i + j + k   for (i) in 0 .. 1 for (j) in 0 .. 1 for (k) in 0 .. 1
 """, data=b"ab", exit=7, why=(3,8))
 
 case("count の種は 1", """table ch = (0,32)
@@ -1411,11 +1448,19 @@ def widths(src):
     # 取らないので一升 1 バイト。
     off={}; o=0
     for f in order:
-        b=bnd[f]; w0=b[0]; w1=b[1] if len(b)>1 else w0
-        cells=w0*w1 if ar[f]==2 else w0
+        b=bnd[f]; w0=b[0]; w1=b[1] if len(b)>1 else w0; w2=b[2] if len(b)>2 else w0
+        # 三次元は (広さ1, 広さ2) の組で持つ（書かない次元の広さは次元0 と同じ —— 前段の fwid2 / fwid3）
+        if ar[f]==3: cells=w0*w1*w2; kw=(w1,w2)
+        elif ar[f]==2: cells=w0*w1; kw=w1
+        else: cells=w0; kw=1
         wb=1 if lat[f]=='or' else 8
-        off[f]=(o,cells,w1 if ar[f]==2 else 1,wb); o+=cells*wb
+        off[f]=(o,cells,kw,wb); o+=cells*wb
     return order, lat, off, o
+
+def cellkey(i, w1):
+    """升の通し番号 → 座標（w1 は広さ1、三次元なら (広さ1, 広さ2)）"""
+    if isinstance(w1, tuple): return (i // (w1[0] * w1[1]), (i // w1[1]) % w1[0], i % w1[1])
+    return (i // w1, i % w1) if w1 > 1 else (i,)
 
 BOT={'min':2147483647,'max':-2147483647,'or':0,'flat':2147483647,'sum':0,'count':0}
 tmp=tempfile.mkdtemp()
@@ -1465,7 +1510,7 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
         for i in range(cells):
             v=struct.unpack_from('<q' if wb==8 else '<B',plane,o+wb*i)[0]
             if v!=bot:
-                key=(i//w1,i%w1) if w1>1 else (i,)
+                key=cellkey(i,w1)
                 got[(f,)+key]=v
     # 解釈実行（表は同じデータを行にして渡す）
     try:
@@ -1500,3 +1545,4 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
 print("-"*W)
 for n,d in bad: print(f"  ✗ {n}: {d}")
 print(f"  {len(CASES)-len(bad)} / {len(CASES)} 一致")
+if bad: sys.exit(1)     # 外れがあれば終了コードでも言う（組の試験は rc しか見ない。気づき29）

@@ -26,7 +26,7 @@ W = 78
 _src = open(os.path.join(ROOT, 'test', 'accept.py'), encoding='utf-8').read()
 _ns = {'__name__': 'coords', '__file__': os.path.join(ROOT, 'test', 'accept.py')}
 exec(compile(_src[:_src.index("tmp=tempfile.mkdtemp()")], 'accept', 'exec'), _ns)
-widths, BOT = _ns['widths'], _ns['BOT']
+widths, BOT, cellkey = _ns['widths'], _ns['BOT'], _ns['cellkey']
 
 HEAD = """table ch = (0,32)
 field k : max bound 8
@@ -148,7 +148,7 @@ if __name__ == '__main__':
             o, cells, w1, wb = off[f]; bot = BOT.get(lat[f])
             for i in range(cells):
                 v = struct.unpack_from('<q' if wb == 8 else '<B', r2.stdout, o + wb * i)[0]
-                if v != bot: got[(f,) + ((i // w1, i % w1) if w1 > 1 else (i,))] = v
+                if v != bot: got[(f,) + cellkey(i, w1)] = v
         if got == ref: kinds['一致（%s）' % place] += 1
         else:
             dv = [(x, ref.get(x), got.get(x)) for x in sorted(set(got) | set(ref)) if got.get(x) != ref.get(x)][:3]

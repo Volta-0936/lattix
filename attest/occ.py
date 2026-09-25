@@ -13,16 +13,17 @@ def level(L):
     out = []
     a = out.append
     a(f"# ── 段 {L} の出現（源5 の内側は段 {L - 1}）" if L else "# ── 段 0 の出現（源5 を持たない）")
-    for d in (0, 1):
+    dims = (0, 1, 2) if L == 0 else (0, 1)   # 三次元の所有者は段 0 だけ持つ（置き場 2 GB の手前に収める）
+    for d in dims:
         a(f"field {P}x{d} : max bound {NI + 1} 16            # 次元 {d} の添字（広さの内側のとき）")
         a(f"field {P}i{d} : max bound {NI + 1} 16            # 源2/3 の内側の升")
     a(f"field {P}ot : or bound {NI + 1} 16               # 座標はあるが広さの外（升は ⊥）")
     a(f"field {P}un : or bound {NI + 1} 16               # 座標が無い（内側の読みが ⊥）")
     a(f"field {P}tp : or bound {NI + 1} 16               # 座標に ⊤ を読んだ（attest は持たない）")
     common = f"for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]] if olv[noo[n, j]] == {L}"
-    for d in (0, 1):
+    for d in dims:
         sl = f"osd{d}[n, j]"
-        dimok = "" if d == 0 else " if nar[n, j] == 2"
+        dimok = {0: "", 1: " if nar[n, j] >= 2", 2: " if nar[n, j] == 3"}[d]
         # 源4: 定数
         a(f"{P}x{d}[n, j] <- ccc[{sl}] + spo[{sl}]   {common}{dimok} if csr[{sl}] == 4")
         a(f"      if ccc[{sl}] >= sblo[{sl}] if ccc[{sl}] < sbhi[{sl}]")
@@ -67,7 +68,10 @@ def level(L):
     # 升と読み
     a(f"field {P}cl : max bound {NI + 1} 16              # 升（通し番号）")
     a(f"{P}cl[n, j] <- nfb[n, j] + {P}x0[n, j]   {common} if nar[n, j] == 1")
-    a(f"{P}cl[n, j] <- nfb[n, j] + {P}x0[n, j] * nw1[n, j] + {P}x1[n, j]   {common} if nar[n, j] == 2")
+    # 広さは場の読み（`fw1[nof[n, j]]`）で掛ける —— 升ごとの写し（前は nw1）を持たない分、置き場が空く
+    a(f"{P}cl[n, j] <- nfb[n, j] + {P}x0[n, j] * fw1[nof[n, j]] + {P}x1[n, j]   {common} if nar[n, j] == 2")
+    if L == 0:
+        a(f"{P}cl[n, j] <- nfb[n, j] + {P}x0[n, j] * fw1[nof[n, j]] * fw2[nof[n, j]] + {P}x1[n, j] * fw2[nof[n, j]] + {P}x2[n, j]   {common} if nar[n, j] == 3")
     a(f"field {P}pr : or bound {NI + 1} 16               # 読んだ升は ⊥ でない（⊤ を含む）")
     a(f"{P}pr[n, j] <- true   {common} if sp[{P}cl[n, j]]")
     a(f"field {P}tp2 : or bound {NI + 1} 16              # 読んだ升は ⊤")
@@ -97,13 +101,14 @@ def source(ni):
     nar[n, j] <- far[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
     field nfb : max bound {NI + 1} 16                 # その場の最初の升
     nfb[n, j] <- fcb[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
-    field nw1 : max bound {NI + 1} 16                 # その場の次元1 の広さ
-    nw1[n, j] <- fw1[nof[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
     field osd0 : max bound {NI + 1} 16                # 次元 0 のスロット
     osd0[n, j] <- osl[noo[n, j], 0]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
     field osd1 : max bound {NI + 1} 16                # 次元 1 のスロット
     osd1[n, j] <- osl[noo[n, j], 1]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
-          if nar[n, j] == 2
+          if nar[n, j] >= 2
+    field osd2 : max bound {NI + 1} 16                # 次元 2 のスロット
+    osd2[n, j] <- osl[noo[n, j], 2]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]
+          if nar[n, j] == 3
     # スロットの静かな数: 後置 / 前置のずれ、広さの内側になる基の値の範囲
     field spo : max bound 8192                   # 後置のずれ（無ければ 0）
     spo[g] <- 0   for (g) in 0 .. ngcz[0] if chf[g] != 1
@@ -114,6 +119,7 @@ def source(ni):
     field swd : max bound 8192                   # その次元の広さ
     swd[g] <- fw0[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 0
     swd[g] <- fw1[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 1
+    swd[g] <- fw2[ofd[cso[g]]]   for (g) in 0 .. ngcz[0] if csd[g] == 2
     field sblo : max bound 8192                  # 基の値がこれ以上なら
     sblo[g] <- 0 - spo[g]   for (g) in 0 .. ngcz[0]
     field sbhi : max bound 8192                  # これ未満なら広さの内側
@@ -158,9 +164,9 @@ def source(ni):
     nq0[n] <- na0[n] * ncol[0]   for (n) in 0 .. ninz[0] if inpw[0] == 8
     """
     cols = ""
-    for d in (0, 1):
+    for d in (0, 1, 2):
         sl = f"osd{d}[n, j]"
-        dimok = "" if d == 0 else " if nar[n, j] == 2"
+        dimok = {0: "", 1: " if nar[n, j] >= 2", 2: " if nar[n, j] == 3"}[d]
         cc = f"for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc[n] if ohas[noo[n, j]]{dimok}"
         cols += f"field ncv{d} : flat bound {NI + 1} 16        # 次元 {d} の基の四倍（列 / 計数器。列の値は任意）\n"
         cols += f"field nqw{d} : max bound {NI + 1} 16         # 語の表の列の語\n"

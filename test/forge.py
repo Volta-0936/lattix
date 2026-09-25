@@ -187,7 +187,9 @@ def src_ok(src, names, lay, vals, ranks):
     store, rank = {}, {}
     for f, L in enumerate(lay):
         d, k = {}, {}
-        key = (lambda c: (c,)) if L['ar'] != 2 else (lambda c, w=L['w1']: (c // w, c % w))
+        if L['ar'] == 3: key = lambda c, w1=L['w1'], w2=L['w2']: (c // (w1 * w2), c // w2 % w1, c % w2)
+        elif L['ar'] == 2: key = lambda c, w=L['w1']: (c // w, c % w)
+        else: key = lambda c: (c,)
         for c in range(L['cells']):
             v = vals.get((f, c))
             if v is None: continue

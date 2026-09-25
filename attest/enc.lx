@@ -6,7 +6,8 @@
 #
 #   頭 16 語: 印 / 場 / 種 / 規則 / ループ / ガード / 項 / 座標 / 所有者 / 口 / 描く場 /
 #             描く幅 / 断り（行*16+理由、無ければ -1）/ 表の列の数 / 0 / 0
-#   続けて F(4) S(3) R(6) L(8) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
+#   続けて F(5) S(3) R(6) L(8) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
+#   （印 20260923: F に次元2 の広さを足した。前の印 20260919 の表は四語の F で、読み違えないよう印を替えた）
 
 # ── 数。**無いは 0**（ガードの無い本では ngg が ⊥ で、頭の鎖が全部 ⊥ になり何も描かなかった）
 field kfl : max bound 1
@@ -51,7 +52,7 @@ anflz[z] <- kfl[0] - 1   for (z) in 0 .. 0
 
 field ab : max bound 8                        # 節の頭（語の番号）
 ab[0] <- 16
-ab[z] <- 16 + kfl[0] * 4   for (z) in 1 .. 1
+ab[z] <- 16 + kfl[0] * 5   for (z) in 1 .. 1
 ab[z] <- ab[1] + ksd[0] * 3   for (z) in 2 .. 2
 ab[z] <- ab[2] + krl[0] * 6   for (z) in 3 .. 3
 ab[z] <- ab[3] + kgl[0] * 8   for (z) in 4 .. 4
@@ -63,7 +64,7 @@ anw[z] <- ab[7] - 1   for (z) in 0 .. 0
 
 field wd : max bound 524288                   # 語の列
 wd[n] <- -2147483646   for (n) in 0 .. anw[0]
-wd[0] <- 20260919
+wd[0] <- 20260923
 wd[1] <- kfl[z]   for (z) in 0 .. 0
 wd[2] <- ksd[z]   for (z) in 0 .. 0
 wd[3] <- krl[z]   for (z) in 0 .. 0
@@ -85,11 +86,12 @@ wd[14] <- nrf[z]   for (z) in 0 .. 0            # 描く場の数（二つ以上
 wd[15] <- 0
 # ── F（4 語ずつ）
 field apF : max bound 16384
-apF[f] <- ab[z] + f * 4   for (z) in 0 .. 0 for (f) in 0 .. anflz[0]
+apF[f] <- ab[z] + f * 5   for (z) in 0 .. 0 for (f) in 0 .. anflz[0]
 wd[apF[f]] <- fdlat[f]   for (f) in 0 .. anflz[0]
 wd[apF[f] + 1] <- fdar[f]   for (f) in 0 .. anflz[0]
 wd[apF[f] + 2] <- fw[f, 0]   for (f) in 0 .. anflz[0]
 wd[apF[f] + 3] <- fw[f, 1]   for (f) in 0 .. anflz[0]
+wd[apF[f] + 4] <- fw[f, 2]   for (f) in 0 .. anflz[0]
 # ── S（3 語ずつ）
 field apS : max bound 16384
 apS[s] <- ab[z] + s * 3   for (z) in 1 .. 1 for (s) in 0 .. ansdz[0]

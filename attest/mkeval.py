@@ -43,6 +43,7 @@ a(f"""# **持たないもの** —— 鎖の四段目より深い出現、座標
 field nuns : or bound {N1}                      # 実例 n は attest が持たない形を含む
 nuns[n] <- true   {NJ} if olv[noo[n, j]] >= 3
 nuns[n] <- true   {NJ} if ocp[n, j]
+nuns[n] <- true   {NJ} if olv[noo[n, j]] >= 1 if nar[n, j] == 3
 field rbig : or bound 2048                      # 所有者が 16 を超える規則（検査しない）
 rbig[r] <- true   for (r) in 0 .. nrlz[0] if rocn[r] >= 17
 """)
@@ -518,6 +519,7 @@ field ninx : max bound 1
 ninx[z] <- nin2[z]   for (z) in 0 .. 0
 un1[3] <- true   for (z) in 0 .. 0 if ninx[z] > NIV                   # 実例が多すぎる
 un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が言語の上限より広い
+un1[3] <- true   for (g) in 0 .. nglz[0] if li[g] >= 3              # 四重以上のループ（枠は三つ）
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
 un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
@@ -531,9 +533,9 @@ un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 7 if un1[k]
 field okhd : or bound 1                         # 表の印がある
-okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919
+okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923
 field okin : or bound 1                         # 入力は attest の入力（表の印があり、値と階数の面が欠けていない）
-okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260919 if nin[z] >= 0 if not wbd[0]
+okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923 if nin[z] >= 0 if not wbd[0]
 # 面が欠けていると、読めない位置の升は ⊥ の印と比べられずに「在る升」になり、階数も読めない —— 判定せずに
 # 入力でないと言う（前は「示せない（余計な値か、違う階数）」と偽の理由で REJECTED にしていた）。
 # 表の頭か表の中に持てない語（-2147483646 より下）があるときも、表を読み違えるので判定しない（wbd）
@@ -654,7 +656,7 @@ nl(3, FST)
 for line, k, s in [(4, 0, "  a chain of reads deeper than 3, or top read in a coordinate or comparison"),
                    (5, 1, "  a value beyond +-2^60, or past the mark of its min / max field"),
                    (6, 2, "  a rule with more than 16 reads or 16 guard rows"),
-                   (7, 3, "  more rule instances than attest holds, or a range wider than 4194304"),
+                   (7, 3, "  more rule instances than attest holds, a range wider than 4194304, or 4+ nested loops"),
                    (8, 4, "  a flat top that only a cycle supports (it needs the value before top)")]:
     text(line, 0, s, UNS + f" if un1[{k}]")
     nl(line, UNS + f" if un1[{k}]")

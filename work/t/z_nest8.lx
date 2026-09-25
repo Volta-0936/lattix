@@ -1,0 +1,23 @@
+# 入れ子の四重から八重（計数器の四本目からは場の下の升）
+# 座標・比較・値・掛ける・上端が場の区間を、升の計数器で読む
+table ch = (0,32)
+field n : max bound 2
+n[0] <- 3
+n[1] <- 2
+field w : max bound 8 8
+w[i, j] <- i * 10 + j   for (i) in 0 .. 7 for (j) in 0 .. 7
+field s : max bound 8
+s[i] <- w[k, l] * m + j   for (i) in 0 .. 2 for (j) in 0 .. 1 for (k) in 0 .. n[0] for (l) in 1 .. 3 for (m) in 0 .. n[1]
+      if l != k
+field c : or bound 8 8
+c[l, m] <- true   for (i) in 0 .. 1 for (j) in 0 .. 1 for (k) in 0 .. 1 for (l) in 0 .. 3 for (m) in 0 .. 3 if m < l
+field e : max bound 4
+e[a] <- a + b + d + f + g + h + p + q   for (a) in 0 .. 1 for (b) in 0 .. 1 for (d) in 0 .. 1 for (f) in 0 .. 1
+      for (g) in 0 .. 1 for (h) in 0 .. 2 for (p) in 0 .. 1 for (q) in 0 .. 3
+field v : min bound 4 4
+v[h, p] <- a * 100 + q - g   for (a) in 1 .. 2 for (b) in 0 .. 0 for (d) in 0 .. 0 for (f) in 0 .. 0
+      for (g) in 0 .. 3 for (h) in 0 .. 3 for (p) in 0 .. 3 for (q) in 0 .. 1 if q <= p if g < h
+print s
+print c
+print e
+print v
