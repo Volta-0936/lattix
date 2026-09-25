@@ -81,6 +81,7 @@ wd[12] <- badk[z]   for (z) in 0 .. 0 if badk[z] <= 16777215
 wd[z] <- 0 - 1   for (z) in 13 .. 13
 wd[13] <- ncol[z]   for (z) in 0 .. 0
 wd[14] <- 0
+wd[14] <- nrf[z]   for (z) in 0 .. 0            # 描く場の数（二つ以上なら attest は持たない）
 wd[15] <- 0
 # ── F（4 語ずつ）
 field apF : max bound 16384

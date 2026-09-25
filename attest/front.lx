@@ -494,9 +494,21 @@ isocc[t] <- true for (t,zc) in ch if kwrnd[prevw[t]] if tkind[t] == 1
 # `print x` の `x` も出現である —— 宣言が無ければ解釈実行は断る（理由 4 で言う）。
 # 焼く側は print を読まないので、宣言の無い名前を黙って通していた。
 isocc[t] <- true for (t,zc) in ch if kwprn[prevw[t]] if tkind[t] == 1
-field rndf : max bound 8               # `render` する場（0 起点）
-rndf[z] <- ofl[oseq[t]] - 1 for (t,zc) in ch for (z) in 0 .. 0
-      if kwrnd[prevw[t]] if tkind[t] == 1
+# **render は書いた順に全部描く**（解釈実行と同じ）。前は `rndf[0]` 一つで、二つ書くと
+# 場の番号の大きい方だけが残った。k 番目の render を文の鎖で数える（八つまで）。
+field srnd : or bound 8192             # 文 s は render
+srnd[snum[t]] <- true for (t,zc) in ch if sbrk[t] if kwrnd[t]
+field rdo : max bound 8192             # 文 s より前にある render の数
+rdo[s] <- 0                 for (s) in 0 .. nstz[0]
+rdo[s] <- rdo[s-1] + 1      for (s) in 1 .. nstz[0] if srnd[s-1]
+rdo[s] <- rdo[s-1]          for (s) in 1 .. nstz[0] if not srnd[s-1]
+field rdt : max bound 589824           # トークン t の文より前の render の数
+rdt[t] <- rdo[snum[t]] for (t,zc) in ch if kwrnd[prevw[t]] if tkind[t] == 1
+# **書き先の座標は一段の読みで書く** —— 33_self は旧い道（21_lex → 32_shape → 31_gen。
+# test/selfbyte.py）でも焼けねばならず、旧い道は書き先の読みを一段しか知らない。
+field rndf : max bound 8               # k 番目の `render` が描く場（0 起点）
+rndf[rdt[t]] <- ofl[oseq[t]] - 1 for (t,zc) in ch
+      if kwrnd[prevw[t]] if tkind[t] == 1 if rdt[t] <= 7
 
 # 束の名前。**束が替えるのは join だけ** なので、ここは番号を付けるだけ
 field kwmin : or bound 589824
@@ -1611,12 +1623,10 @@ field sknown : or bound 8192                      # 文 s は断片が知って�
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwtbl[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwfld[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwrnd[t]
-# **render は一つだけ**（理由 8）。二つ書くと、場の番号の大きい方だけを黙って描いていた
-# （解釈実行は両方を描く）。二つ目からの行で言う。
-field rnd1 : min bound 1                          # 最初の render の字句
-rnd1[z] <- t   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
+# **render は八つまで**（理由 8）。書いた順に全部描く（解釈実行と同じ）。前は一つだけで、
+# 二つ書くと場の番号の大きい方だけを黙って描いていた。九つ目からの行で言う。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
-      if t > rnd1[0]
+      if rdo[snum[t]] >= 8
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwprn[t]
 sknown[s] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
 field sunk : or bound 8192                        # 知らない種類（否定は層を切る）
@@ -1949,6 +1959,11 @@ badk[z] <- tlin[t] * 16 + 7   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t]
       if lvl[snum[t], 127]
 field outf : max bound 1                       # 出す場（`render f`）
 outf[z] <- rndf[z]                   for (z) in 0 .. 0 for (z) in 0 .. 0
+field orf : max bound 8                        # k 番目に描く場
+orf[k] <- rndf[k]                    for (k) in 0 .. 7
+field nrf : max bound 1                        # 描く場の数
+nrf[0] <- 0
+nrf[z] <- k + 1                      for (k) in 0 .. 7 for (z) in 0 .. 0 if rndf[k] >= 0
 field outw : min bound 1                       # 1 ならバイトで出す
 outw[0] <- 8
 outw[z] <- 1                         for (z) in 0 .. 0 for (z) in 0 .. 0 if rndf[z] >= 0
@@ -2047,6 +2062,7 @@ wd[12] <- badk[z]   for (z) in 0 .. 0 if badk[z] <= 16777215
 wd[z] <- 0 - 1   for (z) in 13 .. 13
 wd[13] <- ncol[z]   for (z) in 0 .. 0
 wd[14] <- 0
+wd[14] <- nrf[z]   for (z) in 0 .. 0            # 描く場の数（二つ以上なら attest は持たない）
 wd[15] <- 0
 # ── F（4 語ずつ）
 field apF : max bound 16384

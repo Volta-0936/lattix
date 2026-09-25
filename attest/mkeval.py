@@ -521,6 +521,13 @@ un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が�
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
 un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
+# 二のべきでない除数（焼き手は 09-23 から idiv で割る。attest の割り算は寄せ量の鎖で、二のべきしか
+# 持たない —— 黙って値を作らずに「支えが無い」と読むより、持たないと言う）と、描く場が二つ以上
+# （attest が描き直すのは最初の描く場だけ）
+field tspw : or bound 8192                      # 項 g の除数は二のべき
+tspw[g] <- true   for (g) in 0 .. ngtz[0] for (k) in 0 .. 62 if tk[g] >= 7 if tk[g] <= 8 if pw[k] == tvl[g]
+un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 7 if tk[g] <= 8 if not tspw[g]
+un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
 anyun[0] <- true   for (k) in 0 .. 7 if un1[k]
 field okhd : or bound 1                         # 表の印がある
@@ -571,7 +578,7 @@ field pc : max bound 16 11                      # i 桁目の文字（上の桁�
 pc[k, i] <- pd[k, i] + 48   for (k) in 0 .. 15 for (i) in 0 .. 9 if pq[k, i] >= 1
 pc[k, i] <- 48   for (k) in 0 .. 15 for (i) in 0 .. 0 if pq[k, i] == 0
 pc[k, i] <- 32   for (k) in 0 .. 15 for (i) in 1 .. 9 if pq[k, i] == 0
-field out : max bound 1200
+field out : max bound 1300
 """)
 # 描く行の種類ごとに一つの印（dw）を立て、文字ごとの規則はその印だけを見る —— 文字ごとに条件を
 # 全部書くと、焼き手のガードの面（8,192 行）を越える（2026-09-19 に越えた）
@@ -662,6 +669,8 @@ text(9, 0, "  every value is grounded, so facts are missing: the answer is below
 nl(9, MISS)
 text(11, 0, "  an aggregate supported by reads of its own stratum at an equal or higher rank", UNS + " if un1[6]")
 nl(11, UNS + " if un1[6]")
+text(12, 0, "  a divisor that is not a power of two, or more than one render", UNS + " if un1[7]")
+nl(12, UNS + " if un1[7]")
 OBAD = OK2 + " if obad[0]"
 text(10, 0, "  the output differs from the answer in the witness at byte ", OBAD)
 num(10, 61, 11, OBAD)
