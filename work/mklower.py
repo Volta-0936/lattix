@@ -96,6 +96,28 @@ TEMPLATES = [
     (68, "=="),
     (69, "@"),                                          # 十七文字以上の場の名前 → `_f<宣言の番号>`
 ]
+# print の機械の、行で引く場の宣言（型紙 70 から。穴 0 = 行の数）
+ENGINE_ROWS = runpy.run_path(os.path.join(ROOT, 'work', 'lower', 'mkengine.py'))['ROWS']
+for _i, (_nm, _lat, _w) in enumerate(ENGINE_ROWS):
+    _tail = "" if _w == 0 else (" {1:4}" if isinstance(_w, str) else f" {_w}")
+    TEMPLATES.append((70 + _i, f"\nfield {_nm} : {_lat} bound {{0:7}}" + _tail))
+assert 70 + len(ENGINE_ROWS) <= 128
+
+
+def rows_rules():
+    """行で引く場の宣言の実例（源の字に居ない番号 0.. に八つずつ）。穴 0 = 行の数（lrz）、
+    穴 1 = 二次元目の広さ（"O" は `_o` の広さ lcw、"T" は項の字の広さ ltw）"""
+    out = ["# ── 行で引く場の宣言の実例（work/mklower.py が起こす。手で直さない）──"]
+    for i, (nm, lat, w) in enumerate(ENGINE_ROWS):
+        n, e = divmod(i, 8)
+        out.append(f"iti[{n}, {e}] <- {70 + i}")
+        out.append(f"ih0[{n}, {e}] <- lrz[0]   for (z) in 0 .. 0")
+        if w == "O":
+            out.append(f"ih1[{n}, {e}] <- lcw[0]   for (z) in 0 .. 0")
+        elif w == "T":
+            out.append(f"ih1[{n}, {e}] <- ltw[0]   for (z) in 0 .. 0")
+    out.append("# ── 行で引く場の宣言ここまで ──")
+    return "\n".join(out) + "\n"
 WIDTH = 63                                         # 型紙の升（lx の 1..63）
 
 
@@ -119,38 +141,97 @@ def cells(text):
     return out
 
 
-def seeds():
-    lines = ["# ── 型紙（work/mklower.py が起こす。手で直さない）──"]
-    for k, text in TEMPLATES:
-        lines.append(f"# {k}: {text!r}")
-        for j, (c, h, d) in enumerate(cells(text)):
-            if h == 0 and d <= -101:
-                lines.append(f"tpm[{k}, {j}] <- {-d - 100}")
-            elif h == 0 and d < 0:
-                lines.append(f"tpn[{k}, {j}] <- {-d}")
-            elif h == 0:
-                lines.append(f"tpc[{k}, {j}] <- {c}")
+def compress(text, limit=120):
+    """**機械の字を句で畳む。** よく出る句（`for (r) in 0 .. _Rz[0]` は百十七回）を一バイト（128 + m）に
+    置き換える。句の字は型紙の帯に 128 + m 番の型紙として入れる —— 開くのは型紙を開く規則そのもので、
+    句のバイト p は `ex[p, k] = tpc[128 + m, k]`（⊥ は幅 0 なので、句の長さを数えずに並ぶ）。
+    貪欲に選ぶ（節約 = 回数 × (長さ - 1) - 長さ）。結果は機械の字が同じ限り同じなので、控えに取る。"""
+    import hashlib, json
+    key = hashlib.sha256(text.encode()).hexdigest()
+    cache = os.path.join(ROOT, 'work', 'lower', 'engine.pack.json')
+    if os.path.exists(cache):
+        c = json.load(open(cache))
+        if c.get('key') == key:
+            return c['seq'], c['macros']
+    from collections import Counter
+    seq, macros = list(text), []
+    while len(macros) < limit:
+        best = None
+        for L in range(4, 41):
+            cnt = Counter(''.join(seq[i:i + L]) for i in range(len(seq) - L + 1)
+                          if all(isinstance(x, str) for x in seq[i:i + L]))
+            for w, k in cnt.items():
+                sv = k * (L - 1) - L
+                if best is None or sv > best[0]:
+                    best = (sv, w)
+        if not best or best[0] <= 10:
+            break
+        w, m = best[1], len(macros)
+        macros.append(w)
+        out, i = [], 0
+        while i < len(seq):
+            if all(isinstance(x, str) for x in seq[i:i + len(w)]) and ''.join(seq[i:i + len(w)]) == w:
+                out.append(m); i += len(w)
             else:
-                lines.append(f"tph[{k}, {j}] <- {h}")
-                lines.append(f"tpd[{k}, {j}] <- {d}")
-    # print の機械（下ろした本の末尾に一度だけ置く字の並び）と `table ch`
+                out.append(seq[i]); i += 1
+        seq = out
+    json.dump({'key': key, 'seq': seq, 'macros': macros}, open(cache, 'w'))
+    return seq, macros
+
+
+def seeds():
+    """型紙と print の機械を **帯に畳んで** 種にする。種の数は焼き手の文の面（8,192）に効く ——
+    升ごとに一文だった型紙（二千文）と、三バイトずつの機械（二千文）が下ろしの文の三分の二を占めていた。
+    - 型紙の帯: 升ごとに一バイト（字 = そのまま / 穴 h の d 桁目 = 128 + 16(h-1) + d /
+      名の k 文字目 = 191 + k / 綴りの k 文字目 = 207 + k）、型紙の終わりに 0。三バイトずつ一つの種に。
+    - 機械の帯: 字は七ビット（注釈を落とせば ASCII だけ）なので四バイトずつ一つの種に（28 ビット）。
+    帯を開くのは下ろしの規則（lib/lower.lx の「帯を開く」）。"""
+    lines = ["# ── 型紙と機械の帯（work/mklower.py が起こす。手で直さない）──"]
+    blob = bytearray()
+    # 機械の字（注釈と詰め物を落とし、句で畳む）。句は型紙 128 + m
     runpy.run_path(os.path.join(ROOT, 'work', 'lower', 'mkengine.py'), run_name='__main__')
     eng = open(os.path.join(ROOT, 'work', 'lower', 'engine.lx'), encoding='utf-8').read()
     bt = ": ⊥ everywhere (no coordinate reached a definite value)\n".encode()
     eng += "".join(f"_bt[{i}] <- {b}\n" for i, b in enumerate(bt))
     eng += "table ch = (0,32)\n"
-    # 畳む前に注釈と詰め物の空白を落とす（読む本は work/lower/engine.lx。種の数は焼き手の文の面に効く）
     eng = "\n".join(re.sub(r' +', ' ', re.sub(r'\s+#.*$', '', l)) for l in eng.split("\n")
                     if not l.startswith('#'))
-    data = ("\n" + eng).encode()
-    data += b" " * (-len(data) % 3)                  # 三バイトずつ畳む（端は空白で埋める）
+    seq, macros = compress("\n" + eng)
+    ids = {k: text for k, text in TEMPLATES}
+    for m, w in enumerate(macros):
+        ids[128 + m] = w
+    for k in range(max(ids) + 1):
+        if k >= 128:                                  # 句: 字をそのまま（型紙の書き方で読まない）
+            lines.append(f"# {k}: 句 {ids[k]!r}")
+            assert len(ids[k]) <= 48 and all(ord(x) == 10 or 32 <= ord(x) <= 126 for x in ids[k])
+            blob += ids[k].encode()
+        elif k in ids:
+            lines.append(f"# {k}: {ids[k]!r}")
+            for (c, h, d) in cells(ids[k]):
+                if h == 0 and d <= -101:
+                    blob.append(207 + (-d - 100))
+                elif h == 0 and d < 0:
+                    blob.append(191 + (-d))
+                elif h == 0:
+                    assert c == 10 or 32 <= c <= 126, (k, c)
+                    blob.append(c)
+                else:
+                    assert 1 <= h <= 4 and 0 <= d <= 15, (k, h, d)
+                    blob.append(128 + 16 * (h - 1) + d)
+        blob.append(0)
+    blob += b"\0" * (-len(blob) % 3)
+    lines.append(f"# 型紙の帯（{len(blob)} バイトを三バイトずつ）")
+    lines += [f"tv[{i}] <- {blob[3*i] + 256 * blob[3*i+1] + 65536 * blob[3*i+2]}" for i in range(len(blob) // 3)]
+    lines.append(f"tvz[0] <- {len(blob) // 3 - 1}")
+    # print の機械: 字は 0..127、句は 128 + m。三バイトずつ種に畳む
+    data = bytes((ord(x) if isinstance(x, str) else 128 + x) for x in seq)
+    assert all(isinstance(x, int) or ord(x) < 128 for x in seq)
+    data += b" " * (-len(data) % 3)
     assert len(data) <= 3 * 4096, len(data)
-    # **三バイトを一つの種に畳む**（種は符号つき 32 ビットに収まる数）。一バイト一文だと文の数が
-    # 焼き手の面（8,192）を越えた —— 前段と下ろしの規則だけで二千五百文ある
-    lines.append(f"# print の機械（work/lower/engine.lx の {len(data)} バイトを三バイトずつ）")
+    lines.append(f"# print の機械（work/lower/engine.lx を句 {len(macros)} で畳んだ {len(data)} バイトを三バイトずつ）")
     lines += [f"lk[{i}] <- {data[3*i] + 256 * data[3*i+1] + 65536 * data[3*i+2]}" for i in range(len(data) // 3)]
     lines.append(f"lkz[0] <- {len(data) // 3 - 1}")
-    lines.append("# ── 型紙ここまで ──")
+    lines.append("# ── 帯ここまで ──")
     return "\n".join(lines) + "\n"
 
 
@@ -184,6 +265,7 @@ if __name__ == '__main__':
     low = open(lp, encoding='utf-8').read()
     low = splice(low, 'templates', seeds())
     low = splice(low, 'digits', digit_rules())
+    low = splice(low, 'rows', rows_rules())
     open(lp, 'w', encoding='utf-8').write(low)
     front = open(os.path.join(ROOT, 'examples', '33_self.lx'), encoding='utf-8').read()
     front = "\n".join(l for l in front.splitlines() if not l.startswith('print '))

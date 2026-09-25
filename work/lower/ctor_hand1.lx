@@ -1,0 +1,21 @@
+table t = (0,97), (1,98), (2,99)
+field a : flat bound 8
+a[i] <- c            for (i,c) in t
+field b : flat bound 8
+b[i] <- c + 1        for (i,c) in t
+field p : flat bound 8
+_kn[0] <- 2
+_kb1[0] <- 226970939
+_kb2[0] <- 177131001
+_knm[0, 0] <- 112
+_knm[0, 1] <- 97
+_knm[0, 2] <- 105
+_knm[0, 3] <- 114
+_knl[0] <- 4
+_Sz[0] <- 2
+_TWz[0] <- 1023
+_sk[g] <- 0          for (g) in 0 .. 2
+_sv[g, 0] <- a[g]    for (g) in 0 .. 2
+_sv[g, 1] <- b[g]    for (g) in 0 .. 2
+p[g] <- _sid[g]      for (g) in 0 .. 2
+print p

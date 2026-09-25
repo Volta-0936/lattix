@@ -2,13 +2,6 @@
 # 行 r は印字する升（集合なら要素）の線形の番号。字は決まった席に置き、⊥ の席は render が飛ばす（幅 0）。
 # 席: 名 0..31 / `[` 32 / 座標0 33..56 / `, ` 57,58 / 座標1 59..82 / `] = ` 83..86 / 値 87..110 / 改行 111。
 # 集合: 組の最初の行が名・鍵・`{`（87）、ほかは `, `（88,89）、要素 90..113、最後の行が `}`（114）と改行（115）
-field _o : max bound 65536 116
-field _pv : max bound 65536
-field _pk1 : max bound 65536
-field _pk2 : max bound 65536
-field _pp : max bound 65536
-field _pab : max bound 65536
-field _pq : max bound 65536
 field _pbs : max bound 64
 field _pen : max bound 64
 field _pd2 : or bound 64
@@ -25,11 +18,6 @@ field _Pz : max bound 1
 field _bt : max bound 64
 field _pst : or bound 64                     # print p は集合
 field _pea : or bound 64                     # 集合の要素は原子
-field _pe : max bound 65536                  # 行 r の要素
-field _pgs : max bound 65536                 # 行 r の組（同じ鍵の集合）の頭の行
-field _gf : min bound 65536                  # 組の最初の要素の行
-field _gl : max bound 65536                  # 組の最後の要素の行
-field _ph : or bound 65536                   # 行 r は名と鍵を書く
 _pp[r] <- p   for (r) in 0 .. _Rz[0] for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _pv[r] == _pv[r]
 _pn[_pp[r]] <- true   for (r) in 0 .. _Rz[0]
 _pk1[r] <- r - _pbs[_pp[r]] - 1   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]
@@ -40,7 +28,6 @@ _ph[r] <- true   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if _gf[_pgs[r]] == r
 _o[r, j] <- _pnm[_pp[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 31 if _ph[r]
 _o[r, 32] <- 91   for (r) in 0 .. _Rz[0] if _ph[r]
 _o[r, j + 33] <- _an[_pk1[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 23 if _ph[r] if _pa1[_pp[r]]
-field _dk1 : max bound 65536 10
 _dk1[r, 9] <- _pk1[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa1[_pp[r]]
 _dk1[r, e] <- _dk1[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 47] <- 48 + _dk1[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dk1[r, e] >= 1
@@ -48,7 +35,6 @@ _o[r, 56] <- 48 + _dk1[r, 9] % 10   for (r) in 0 .. _Rz[0]
 _o[r, 57] <- 44   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
 _o[r, 58] <- 32   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
 _o[r, j + 59] <- _an[_pk2[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 23 if _ph[r] if _pa2[_pp[r]]
-field _dk2 : max bound 65536 10
 _dk2[r, 9] <- _pk2[r]   for (r) in 0 .. _Rz[0] if _ph[r] if _pp[r] >= 0 if not _pa2[_pp[r]]
 _dk2[r, e] <- _dk2[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 73] <- 48 + _dk2[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dk2[r, e] >= 1
@@ -63,27 +49,24 @@ _o[r, 89] <- 117   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
 _o[r, 90] <- 101   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
 _o[r, j + 87] <- _an[_pv[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 23 if _pav[_pp[r]]
 _o[r, 87] <- 45   for (r) in 0 .. _Rz[0] if _pv[r] < 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]]
-_pab[r] <- _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] >= 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]]
-_pab[r] <- 0 - _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] < 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]]
+_pab[r] <- _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] >= 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]] if not _rt[r]
+_pab[r] <- 0 - _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] < 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]] if not _rt[r]
 # 十九桁は一つの割り算で出せない（10^18 の上は 64 ビットの積が溢れる）ので、下九桁と上に分ける
 _pq[r] <- _pab[r] / 1000000000   for (r) in 0 .. _Rz[0]
-field _dv0 : max bound 65536 10
 _dv0[r, 9] <- _pab[r] % 1000000000   for (r) in 0 .. _Rz[0]
 _dv0[r, e] <- _dv0[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 101] <- 48 + _dv0[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dv0[r, e] >= 1
 _o[r, 110] <- 48 + _dv0[r, 9] % 10   for (r) in 0 .. _Rz[0]
 _o[r, e + 101] <- 48   for (r) in 0 .. _Rz[0] for (e) in 1 .. 8 if _pq[r] >= 1 if _dv0[r, e] == 0
-field _dv1 : max bound 65536 10
 _dv1[r, 9] <- _pq[r]   for (r) in 0 .. _Rz[0] if _pq[r] >= 1
 _dv1[r, e] <- _dv1[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 92] <- 48 + _dv1[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _dv1[r, e] >= 1
 _o[r, 101] <- 48 + _dv1[r, 9] % 10   for (r) in 0 .. _Rz[0]
-_o[r, 111] <- 10   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pst[_pp[r]]
+_o[r, 111] <- 10   for (r) in 0 .. _Rz[0] if _pp[r] >= 0 if not _pst[_pp[r]] if not _rt[r]
 _o[r, 87] <- 123   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if _gf[_pgs[r]] == r
 _o[r, 88] <- 44   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if _gf[_pgs[r]] < r
 _o[r, 89] <- 32   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if _gf[_pgs[r]] < r
 _o[r, j + 90] <- _an[_pe[r], j]   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] for (j) in 0 .. 23 if _pea[_pp[r]]
-field _de : max bound 65536 10
 _de[r, 9] <- _pe[r]   for (r) in 0 .. _Rz[0] if _pst[_pp[r]] if not _pea[_pp[r]]
 _de[r, e] <- _de[r, e + 1] / 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8
 _o[r, e + 104] <- 48 + _de[r, e] % 10   for (r) in 0 .. _Rz[0] for (e) in 0 .. 8 if _de[r, e] >= 1
@@ -110,4 +93,281 @@ field _sc : max bound 64 14641
 _sc[p, 0] <- 0   for (p) in 0 .. _Pz[0] if _psi[p]
 _sc[p, q] <- _sc[p, q - 1] + 1   for (p) in 0 .. _Pz[0] for (q) in 1 .. 14640 if _psi[p] if _sh[p, q - 1]
 _sc[p, q] <- _sc[p, q - 1]   for (p) in 0 .. _Pz[0] for (q) in 1 .. 14640 if _psi[p] if not _sh[p, q - 1]
+field _Sz : max bound 1                      # 最後の場所の番号
+field _sk : flat bound 16384                 # 場所 g の構成子
+field _sv : flat bound 16384 4               # 場所 g の i 番目の引数（数・項の番地）
+field _sva : flat bound 16384 4              # 場所 g の i 番目の引数（原子の番号）
+field _kn : max bound 64                     # 構成子 k の引数の数
+field _kb1 : max bound 64                    # 構成子 k の名と引数の数を折り込んだ種（一本目）
+field _kb2 : max bound 64                    # （二本目）
+field _knm : max bound 64 16                 # 構成子 k の名
+field _knl : max bound 64                    # その長さ
+field _sn : flat bound 16384                 # 場所 g の引数の数
+_sn[g] <- _kn[_sk[g]]   for (g) in 0 .. _Sz[0]
+# 原子の綴りの折り込み（`_enc(str) = 3·fold(綴り) + 1`）
+field _anl : max bound 1024
+_anl[a] <- j + 1   for (a) in 0 .. 1023 for (j) in 0 .. 23 if _an[a, j] >= 1
+field _af1 : flat bound 1024 25
+field _ag1 : flat bound 1024 24
+_af1[a, 0] <- 0   for (a) in 0 .. 1023 if _anl[a] >= 1
+_ag1[a, j] <- _af1[a, j] * 1000003 + _an[a, j] + 1   for (a) in 0 .. 1023 for (j) in 0 .. 23
+_af1[a, j + 1] <- _ag1[a, j] % 268435399   for (a) in 0 .. 1023 for (j) in 0 .. 23
+field _afh1 : max bound 1024
+_afh1[a] <- _af1[a, _anl[a]]   for (a) in 0 .. 1023
+field _se1 : flat bound 16384 4         # 引数の符号化（数 3(v mod M) / 原子 3·fold + 1）
+_se1[g, i] <- _sv[g, i] % 268435399 * 3   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_se1[g, i] <- _afh1[_sva[g, i]] * 3 + 1   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+field _sh1 : flat bound 16384 5         # 引数 i までを折り込んだもの（flat —— 上を見よ）
+field _su1 : flat bound 16384 4
+_sh1[g, 0] <- _kb1[_sk[g]]   for (g) in 0 .. _Sz[0]
+_su1[g, i] <- _sh1[g, i] * 1000003 + _se1[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if i < _sn[g]
+_sh1[g, i + 1] <- _su1[g, i] % 268435399   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if i < _sn[g]
+field _af2 : flat bound 1024 25
+field _ag2 : flat bound 1024 24
+_af2[a, 0] <- 0   for (a) in 0 .. 1023 if _anl[a] >= 1
+_ag2[a, j] <- _af2[a, j] * 1000033 + _an[a, j] + 1   for (a) in 0 .. 1023 for (j) in 0 .. 23
+_af2[a, j + 1] <- _ag2[a, j] % 268435367   for (a) in 0 .. 1023 for (j) in 0 .. 23
+field _afh2 : max bound 1024
+_afh2[a] <- _af2[a, _anl[a]]   for (a) in 0 .. 1023
+field _se2 : flat bound 16384 4         # 引数の符号化（数 3(v mod M) / 原子 3·fold + 1）
+_se2[g, i] <- _sv[g, i] % 268435367 * 3   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_se2[g, i] <- _afh2[_sva[g, i]] * 3 + 1   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+field _sh2 : flat bound 16384 5         # 引数 i までを折り込んだもの（flat —— 上を見よ）
+field _su2 : flat bound 16384 4
+_sh2[g, 0] <- _kb2[_sk[g]]   for (g) in 0 .. _Sz[0]
+_su2[g, i] <- _sh2[g, i] * 1000033 + _se2[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if i < _sn[g]
+_sh2[g, i + 1] <- _su2[g, i] % 268435367   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if i < _sn[g]
+field _sid : flat bound 16384                # 場所 g の番地（項の引数が項なら、番地の鎖は再帰する —— 升は一度だけ決まる flat なので回れる）
+_sid[g] <- _sh1[g, _sn[g]] * 268435367 + _sh2[g, _sn[g]]   for (g) in 0 .. _Sz[0]
+# **番地 → 場所の引き: 多段の桶の最小。** 段 L ごとに `_cbL[番地 % P_L]` に場所の最小を置く（min —— 置く順に
+# 依らない）。桶の最小の番地が自分の番地と同じなら解けた。違えば（別の番地が同じ桶に居た）解けていない場所
+# だけで次の段の桶を作る。四段で残ったものは詰めた一覧を線形に見る。同じ番地の場所は同じ中身なので、
+# どの場所を引いても答えは同じ —— 引く側は段ごとに「桶の最小の番地 == 探す番地」を見るだけでよい
+field _cq0 : max bound 16384
+_cq0[g] <- _sid[g] % 65521   for (g) in 0 .. _Sz[0] if _sid[g] >= 0
+field _cb0 : min bound 65521
+_cb0[_cq0[g]] <- g   for (g) in 0 .. _Sz[0]
+field _cr0 : max bound 16384
+_cr0[g] <- _cb0[_cq0[g]]   for (g) in 0 .. _Sz[0]
+field _ck0 : or bound 16384
+_ck0[g] <- true   for (g) in 0 .. _Sz[0] if _sid[_cr0[g]] == _sid[g]
+field _cq1 : max bound 16384
+_cq1[g] <- _sid[g] % 65519   for (g) in 0 .. _Sz[0] if _sid[g] >= 0 if not _ck0[g]
+field _cb1 : min bound 65519
+_cb1[_cq1[g]] <- g   for (g) in 0 .. _Sz[0]
+field _cr1 : max bound 16384
+_cr1[g] <- _cb1[_cq1[g]]   for (g) in 0 .. _Sz[0]
+field _ck1 : or bound 16384
+_ck1[g] <- true   for (g) in 0 .. _Sz[0] if _sid[_cr1[g]] == _sid[g]
+field _cq2 : max bound 16384
+_cq2[g] <- _sid[g] % 65497   for (g) in 0 .. _Sz[0] if _sid[g] >= 0 if not _ck0[g] if not _ck1[g]
+field _cb2 : min bound 65497
+_cb2[_cq2[g]] <- g   for (g) in 0 .. _Sz[0]
+field _cr2 : max bound 16384
+_cr2[g] <- _cb2[_cq2[g]]   for (g) in 0 .. _Sz[0]
+field _ck2 : or bound 16384
+_ck2[g] <- true   for (g) in 0 .. _Sz[0] if _sid[_cr2[g]] == _sid[g]
+field _cq3 : max bound 16384
+_cq3[g] <- _sid[g] % 65479   for (g) in 0 .. _Sz[0] if _sid[g] >= 0 if not _ck0[g] if not _ck1[g] if not _ck2[g]
+field _cb3 : min bound 65479
+_cb3[_cq3[g]] <- g   for (g) in 0 .. _Sz[0]
+field _cr3 : max bound 16384
+_cr3[g] <- _cb3[_cq3[g]]   for (g) in 0 .. _Sz[0]
+field _ck3 : or bound 16384
+_ck3[g] <- true   for (g) in 0 .. _Sz[0] if _sid[_cr3[g]] == _sid[g]
+field _cu : or bound 16384                  # 四段で解けなかった場所
+_cu[g] <- true   for (g) in 0 .. _Sz[0] if _sid[g] >= 0 if not _ck0[g] if not _ck1[g] if not _ck2[g] if not _ck3[g]
+field _cuc : max bound 16384                # 場所 g までの解けなかった場所の数（鎖）
+_cuc[0] <- 0   for (z) in 0 .. 0 if _Sz[0] >= 0 if not _cu[0]
+_cuc[0] <- 1   for (z) in 0 .. 0 if _cu[0]
+_cuc[g] <- _cuc[g - 1] + 1   for (g) in 1 .. _Sz[0] if _cu[g]
+_cuc[g] <- _cuc[g - 1]   for (g) in 1 .. _Sz[0] if not _cu[g]
+field _cul : max bound 16384                # 解けなかった場所の一覧
+_cul[_cuc[g] - 1] <- g   for (g) in 0 .. _Sz[0] if _cu[g]
+field _cuz : max bound 1
+_cuz[z] <- _cuc[g] - 1   for (g) in 0 .. _Sz[0] for (z) in 0 .. 0
+# 行 r の値の場所（値が項の番地なら）
+_xq0[r] <- _pv[r] % 65521   for (r) in 0 .. _Rz[0] if _Sz[0] >= 0 if _pp[r] >= 0 if _pv[r] >= 0
+_xs0[r] <- _cb0[_xq0[r]]   for (r) in 0 .. _Rz[0]
+_rs[r] <- _xs0[r]   for (r) in 0 .. _Rz[0] if _sid[_xs0[r]] == _pv[r]
+_xq1[r] <- _pv[r] % 65519   for (r) in 0 .. _Rz[0] if _Sz[0] >= 0 if _pp[r] >= 0 if _pv[r] >= 0
+_xs1[r] <- _cb1[_xq1[r]]   for (r) in 0 .. _Rz[0]
+_rs[r] <- _xs1[r]   for (r) in 0 .. _Rz[0] if _sid[_xs1[r]] == _pv[r]
+_xq2[r] <- _pv[r] % 65497   for (r) in 0 .. _Rz[0] if _Sz[0] >= 0 if _pp[r] >= 0 if _pv[r] >= 0
+_xs2[r] <- _cb2[_xq2[r]]   for (r) in 0 .. _Rz[0]
+_rs[r] <- _xs2[r]   for (r) in 0 .. _Rz[0] if _sid[_xs2[r]] == _pv[r]
+_xq3[r] <- _pv[r] % 65479   for (r) in 0 .. _Rz[0] if _Sz[0] >= 0 if _pp[r] >= 0 if _pv[r] >= 0
+_xs3[r] <- _cb3[_xq3[r]]   for (r) in 0 .. _Rz[0]
+_rs[r] <- _xs3[r]   for (r) in 0 .. _Rz[0] if _sid[_xs3[r]] == _pv[r]
+_rs[r] <- _cul[u]   for (r) in 0 .. _Rz[0] for (u) in 0 .. _cuz[0] if _sid[_cul[u]] == _pv[r]
+_rt[r] <- true   for (r) in 0 .. _Rz[0] if _rs[r] >= 0
+# 場所 g の i 番目の引数が項なら、その場所（子）
+field _cs : max bound 16384 4
+field _yq0 : max bound 16384 4
+field _ys0 : max bound 16384 4
+_yq0[g, i] <- _sv[g, i] % 65521   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] >= 0
+_ys0[g, i] <- _cb0[_yq0[g, i]]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_cs[g, i] <- _ys0[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sid[_ys0[g, i]] == _sv[g, i]
+field _yq1 : max bound 16384 4
+field _ys1 : max bound 16384 4
+_yq1[g, i] <- _sv[g, i] % 65519   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] >= 0
+_ys1[g, i] <- _cb1[_yq1[g, i]]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_cs[g, i] <- _ys1[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sid[_ys1[g, i]] == _sv[g, i]
+field _yq2 : max bound 16384 4
+field _ys2 : max bound 16384 4
+_yq2[g, i] <- _sv[g, i] % 65497   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] >= 0
+_ys2[g, i] <- _cb2[_yq2[g, i]]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_cs[g, i] <- _ys2[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sid[_ys2[g, i]] == _sv[g, i]
+field _yq3 : max bound 16384 4
+field _ys3 : max bound 16384 4
+_yq3[g, i] <- _sv[g, i] % 65479   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] >= 0
+_ys3[g, i] <- _cb3[_yq3[g, i]]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+_cs[g, i] <- _ys3[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sid[_ys3[g, i]] == _sv[g, i]
+_cs[g, i] <- _cul[u]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 for (u) in 0 .. _cuz[0] if _sid[_cul[u]] == _sv[g, i]
+field _ct : or bound 16384 4                # 引数は項
+_ct[g, i] <- true   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _cs[g, i] >= 0
+# **項の字は固定の枠で並べる**（名 16 / 数 20 / 原子 24 / 子の項は子の枠）。⊥ の升は render が飛ばすので、
+# 枠の余りは詰まって消える —— 長さを数えなくてよい。深さ d（0..8）の節の枠の広さ `_W[g, d]`、
+# 引数 i の枠の始まり `_Oi[g, d]`（名 + `(` の後ろ、前の枠 + `, `）。深さ 9 の子は番地の数字（show_val と同じ）。
+# 引数は三つまで
+field _W : max bound 16384 9
+field _Wm : max bound 16384 9                # 広さ - 1（`)` の位置）
+field _O0 : max bound 16384 9
+field _Oe0 : max bound 16384 9          # 数の枠の終わり（右寄せの桁の一の位）
+field _aw0 : max bound 16384 9
+_aw0[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sv[g, 0] == _sv[g, 0] if not _ct[g, 0]
+_aw0[g, d] <- 24   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sva[g, 0] >= 0
+_aw0[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _ct[g, 0] if d == 8
+_aw0[g, d] <- _W[_cs[g, 0], d + 1]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if d < 8
+field _O1 : max bound 16384 9
+field _Oe1 : max bound 16384 9          # 数の枠の終わり（右寄せの桁の一の位）
+field _aw1 : max bound 16384 9
+_aw1[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sv[g, 1] == _sv[g, 1] if not _ct[g, 1]
+_aw1[g, d] <- 24   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sva[g, 1] >= 0
+_aw1[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _ct[g, 1] if d == 8
+_aw1[g, d] <- _W[_cs[g, 1], d + 1]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if d < 8
+field _O2 : max bound 16384 9
+field _Oe2 : max bound 16384 9          # 数の枠の終わり（右寄せの桁の一の位）
+field _aw2 : max bound 16384 9
+_aw2[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sv[g, 2] == _sv[g, 2] if not _ct[g, 2]
+_aw2[g, d] <- 24   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sva[g, 2] >= 0
+_aw2[g, d] <- 20   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _ct[g, 2] if d == 8
+_aw2[g, d] <- _W[_cs[g, 2], d + 1]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if d < 8
+_O0[g, d] <- 17   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] >= 1
+_O1[g, d] <- _O0[g, d] + _aw0[g, d] + 2   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] > 1
+_O2[g, d] <- _O1[g, d] + _aw1[g, d] + 2   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] > 2
+_Oe0[g, d] <- _O0[g, d] + 19   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+_Oe1[g, d] <- _O1[g, d] + 19   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+_Oe2[g, d] <- _O2[g, d] + 19   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+_W[g, d] <- 18   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] == 0
+_W[g, d] <- _O0[g, d] + _aw0[g, d] + 1   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] == 1
+_W[g, d] <- _O1[g, d] + _aw1[g, d] + 1   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] == 2
+_W[g, d] <- _O2[g, d] + _aw2[g, d] + 1   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8 if _sn[g] == 3
+_Wm[g, d] <- _W[g, d] - 1   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+# **桁は場所ごとの鎖**（行ごとに十九の規則を並べない）: 場所 g の引数 i の大きさを `_dq[4g+i, e]` に
+# 10^e で割ったものとして置き、項の字の数の枠は、その番号の桁を右寄せで写すだけ
+field _q4 : max bound 16384 4
+_q4[g, i] <- g * 4 + i   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3
+field _Sq : max bound 1
+_Sq[z] <- _Sz[0] * 4 + 3   for (z) in 0 .. 0
+field _dq : max bound 65536 20
+_dq[_q4[g, i], 0] <- _sv[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] >= 0
+_dq[_q4[g, i], 0] <- 0 - _sv[g, i]   for (g) in 0 .. _Sz[0] for (i) in 0 .. 3 if _sv[g, i] < 0
+_dq[x, e + 1] <- _dq[x, e] / 10   for (x) in 0 .. _Sq[0] for (e) in 0 .. 18
+# (場所, 深さ) を一本の番号 9g + d に畳んだ写し（焼き手の内側の二次元の読みは、次元1 に読みを置けない）
+field _q9 : max bound 16384 9
+_q9[g, d] <- g * 9 + d   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _Wm1 : max bound 147456
+_Wm1[_q9[g, d]] <- _Wm[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _O01 : max bound 147456
+_O01[_q9[g, d]] <- _O0[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _Oe01 : max bound 147456
+_Oe01[_q9[g, d]] <- _Oe0[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _O11 : max bound 147456
+_O11[_q9[g, d]] <- _O1[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _Oe11 : max bound 147456
+_Oe11[_q9[g, d]] <- _Oe1[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _O21 : max bound 147456
+_O21[_q9[g, d]] <- _O2[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+field _Oe21 : max bound 147456
+_Oe21[_q9[g, d]] <- _Oe2[g, d]   for (g) in 0 .. _Sz[0] for (d) in 0 .. 8
+# **足し算の表**（焼き手の座標は「読み ± 定数」だけ —— 和は表を読めば読みになる。読みは次元0 に置く）
+field _AA : max bound 1111 1111               # x + y
+_AA[x, y] <- x + y   for (x) in 0 .. _TWx[0] for (y) in 0 .. _TWx[0]
+field _AM : max bound 1111 24                # x - e
+_AM[x, e] <- x - e   for (x) in 0 .. _TWx[0] for (e) in 0 .. 23 if x >= e
+field _TWz : max bound 1                    # 項の字の広さ - 1（下ろしが置く。項が無ければ ⊥）
+field _TWx : max bound 1                    # 項の字の最後の席（87 + 広さ - 1）
+_TWx[z] <- _TWz[0] + 87   for (z) in 0 .. 0
+_V0[r, 87] <- _rs[r]   for (r) in 0 .. _Rz[0]
+_Wn[r] <- _W[_rs[r], 0] + 87   for (r) in 0 .. _Rz[0]
+_VN[r, p] <- _V0[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 0   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V0[r, p] >= 0
+_V1[r, _AA[_O0[_V0[r, p], 0], p]] <- _cs[_V0[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V1[r, _AA[_O1[_V0[r, p], 0], p]] <- _cs[_V0[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V1[r, _AA[_O2[_V0[r, p], 0], p]] <- _cs[_V0[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V1[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 1   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V1[r, p] >= 0
+_V2[r, _AA[_O0[_V1[r, p], 1], p]] <- _cs[_V1[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V2[r, _AA[_O1[_V1[r, p], 1], p]] <- _cs[_V1[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V2[r, _AA[_O2[_V1[r, p], 1], p]] <- _cs[_V1[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V2[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 2   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V2[r, p] >= 0
+_V3[r, _AA[_O0[_V2[r, p], 2], p]] <- _cs[_V2[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V3[r, _AA[_O1[_V2[r, p], 2], p]] <- _cs[_V2[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V3[r, _AA[_O2[_V2[r, p], 2], p]] <- _cs[_V2[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V3[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 3   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V3[r, p] >= 0
+_V4[r, _AA[_O0[_V3[r, p], 3], p]] <- _cs[_V3[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V4[r, _AA[_O1[_V3[r, p], 3], p]] <- _cs[_V3[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V4[r, _AA[_O2[_V3[r, p], 3], p]] <- _cs[_V3[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V4[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 4   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V4[r, p] >= 0
+_V5[r, _AA[_O0[_V4[r, p], 4], p]] <- _cs[_V4[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V5[r, _AA[_O1[_V4[r, p], 4], p]] <- _cs[_V4[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V5[r, _AA[_O2[_V4[r, p], 4], p]] <- _cs[_V4[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V5[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 5   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V5[r, p] >= 0
+_V6[r, _AA[_O0[_V5[r, p], 5], p]] <- _cs[_V5[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V6[r, _AA[_O1[_V5[r, p], 5], p]] <- _cs[_V5[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V6[r, _AA[_O2[_V5[r, p], 5], p]] <- _cs[_V5[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V6[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 6   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V6[r, p] >= 0
+_V7[r, _AA[_O0[_V6[r, p], 6], p]] <- _cs[_V6[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V7[r, _AA[_O1[_V6[r, p], 6], p]] <- _cs[_V6[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V7[r, _AA[_O2[_V6[r, p], 6], p]] <- _cs[_V6[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V7[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 7   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V7[r, p] >= 0
+_V8[r, _AA[_O0[_V7[r, p], 7], p]] <- _cs[_V7[r, p], 0]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V8[r, _AA[_O1[_V7[r, p], 7], p]] <- _cs[_V7[r, p], 1]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_V8[r, _AA[_O2[_V7[r, p], 7], p]] <- _cs[_V7[r, p], 2]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VN[r, p] <- _V8[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_VD[r, p] <- 8   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _V8[r, p] >= 0
+_VG[r, p] <- _VN[r, p] * 9 + _VD[r, p]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_o[r, _AA[j, p]] <- _knm[_sk[_VN[r, p]], j]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (j) in 0 .. 15
+_o[r, _AA[_knl[_sk[_VN[r, p]]], p]] <- 40   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_o[r, _AA[_Wm1[_VG[r, p]], p]] <- 41   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0]
+_o[r, _AA[_AA[_O01[_VG[r, p]], p], j]] <- _an[_sva[_VN[r, p], 0], j]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (j) in 0 .. 23
+_o[r, _AM[_AA[_Oe01[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 0], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if not _ct[_VN[r, p], 0] if _dq[_q4[_VN[r, p], 0], e] >= 1
+_o[r, _AA[_Oe01[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 0], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if not _ct[_VN[r, p], 0]
+_o[r, _AM[_AA[_Oe01[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 0], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if _ct[_VN[r, p], 0] if _VD[r, p] == 8 if _dq[_q4[_VN[r, p], 0], e] >= 1
+_o[r, _AA[_Oe01[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 0], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _ct[_VN[r, p], 0] if _VD[r, p] == 8
+_o[r, _AA[_O01[_VG[r, p]], p]] <- 45   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sv[_VN[r, p], 0] < 0
+_o[r, _AM[_AA[_O11[_VG[r, p]], p], 2]] <- 44   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sn[_VN[r, p]] > 1
+_o[r, _AM[_AA[_O11[_VG[r, p]], p], 1]] <- 32   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sn[_VN[r, p]] > 1
+_o[r, _AA[_AA[_O11[_VG[r, p]], p], j]] <- _an[_sva[_VN[r, p], 1], j]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (j) in 0 .. 23
+_o[r, _AM[_AA[_Oe11[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 1], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if not _ct[_VN[r, p], 1] if _dq[_q4[_VN[r, p], 1], e] >= 1
+_o[r, _AA[_Oe11[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 1], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if not _ct[_VN[r, p], 1]
+_o[r, _AM[_AA[_Oe11[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 1], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if _ct[_VN[r, p], 1] if _VD[r, p] == 8 if _dq[_q4[_VN[r, p], 1], e] >= 1
+_o[r, _AA[_Oe11[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 1], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _ct[_VN[r, p], 1] if _VD[r, p] == 8
+_o[r, _AA[_O11[_VG[r, p]], p]] <- 45   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sv[_VN[r, p], 1] < 0
+_o[r, _AM[_AA[_O21[_VG[r, p]], p], 2]] <- 44   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sn[_VN[r, p]] > 2
+_o[r, _AM[_AA[_O21[_VG[r, p]], p], 1]] <- 32   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sn[_VN[r, p]] > 2
+_o[r, _AA[_AA[_O21[_VG[r, p]], p], j]] <- _an[_sva[_VN[r, p], 2], j]   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (j) in 0 .. 23
+_o[r, _AM[_AA[_Oe21[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 2], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if not _ct[_VN[r, p], 2] if _dq[_q4[_VN[r, p], 2], e] >= 1
+_o[r, _AA[_Oe21[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 2], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if not _ct[_VN[r, p], 2]
+_o[r, _AM[_AA[_Oe21[_VG[r, p]], p], e]] <- 48 + _dq[_q4[_VN[r, p], 2], e] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] for (e) in 1 .. 19 if _ct[_VN[r, p], 2] if _VD[r, p] == 8 if _dq[_q4[_VN[r, p], 2], e] >= 1
+_o[r, _AA[_Oe21[_VG[r, p]], p]] <- 48 + _dq[_q4[_VN[r, p], 2], 0] % 10   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _ct[_VN[r, p], 2] if _VD[r, p] == 8
+_o[r, _AA[_O21[_VG[r, p]], p]] <- 45   for (r) in 0 .. _Rz[0] for (p) in 87 .. _TWx[0] if _sv[_VN[r, p], 2] < 0
+_o[r, _Wn[r]] <- 10   for (r) in 0 .. _Rz[0] if _rt[r]
 render _o

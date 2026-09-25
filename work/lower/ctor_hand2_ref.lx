@@ -1,0 +1,11 @@
+table s = (0,97), (1,98), (2,99), (3,100), (4,101), (5,102), (6,103), (7,104), (8,105), (9,106), (10,107), (11,108)
+constructor cons(head, tail) bound 256
+constructor tag(name, num) bound 64
+table w = (alpha, 3), (beta, 5)
+field text : flat
+text[11] <- cons(108, 0)
+text[i] <- cons(c, text[i+1]) for (i,c) in s if i < 11
+field tg : flat
+tg[n] <- tag(a, n - 10) for (a, n) in w
+print text
+print tg
