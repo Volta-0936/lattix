@@ -110,6 +110,7 @@ field _Sz : max bound 1                      # 最後の場所の番号
 field _sk : flat bound 16384                 # 場所 g の構成子
 field _sv : flat bound 16384 4               # 場所 g の i 番目の引数（数・項の番地）
 field _sva : flat bound 16384 4              # 場所 g の i 番目の引数（原子の番号）
+field _sad : flat bound 16384                # 場所 g の番地（出現の塊が写す —— アクセサが比べて引く）
 field _kn : max bound 64                     # 構成子 k の引数の数
 field _kb1 : max bound 64                    # 構成子 k の名と引数の数を折り込んだ種（一本目）
 field _kb2 : max bound 64                    # （二本目）

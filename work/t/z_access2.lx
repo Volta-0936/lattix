@@ -1,0 +1,33 @@
+# アクセサ（14d）: 項を作って、アクセサで歩き、読んだものでまた項を作る。
+# 焼いた側は番地（56 ビット）を座標にできないので、場所の番地を比べて引く。
+constructor cons(hd, tl) bound 64
+table xs = (0, 5), (1, 7), (2, 9)
+field lst : flat bound 4
+lst[3] <- 0
+lst[i] <- cons(v, lst[i + 1])   for (i, v) in xs
+
+# 先頭から歩く（アクセサの読みを座標の鎖に）
+field walk : flat bound 4
+walk[0] <- lst[0]
+walk[k + 1] <- cons_tl[walk[k]]   for (k) in 0 .. 2
+field heads : max bound 4
+heads[k] <- cons_hd[walk[k]]   for (k) in 0 .. 3
+
+# ガードの中で読む・大きさを読む
+field big : or bound 4
+big[k] <- true   for (k) in 0 .. 3 if cons_hd[walk[k]] > 6
+field sz : max bound 4
+sz[k] <- _size[walk[k]]   for (k) in 0 .. 3
+
+# 読んだもので項を作る（逆順のリスト）
+field acc : flat bound 4
+acc[0] <- 0
+acc[k + 1] <- cons(cons_hd[walk[k]], acc[k])   for (k) in 0 .. 2
+field rh : max bound 4
+rh[k] <- cons_hd[acc[3 - k]]   for (k) in 0 .. 2
+
+print heads
+print big
+print sz
+print acc
+print rh

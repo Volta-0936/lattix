@@ -1,0 +1,34 @@
+# アクセサ（14d）の端: 入れ子のアクセサ・算術のあるガードの辺・座標の中・三つ目の引数・大きさ（項でなければ ⊥）
+constructor node(key, lo, hi) bound 64
+constructor cons(hd, tl) bound 64
+table xs = (0, 5), (1, 7), (2, 9)
+field lst : flat bound 4
+lst[3] <- 0
+lst[i] <- cons(v, lst[i + 1])   for (i, v) in xs
+field t : flat bound 4
+t[0] <- node(4, 0, 0)
+t[1] <- node(8, t[0], 0)
+t[2] <- node(6, t[0], t[1])
+# 入れ子のアクセサ
+field third : max bound 1
+third[0] <- cons_hd[cons_tl[cons_tl[lst[0]]]]
+# 算術のあるガードの辺の中
+field g : or bound 4
+g[k] <- true   for (k) in 0 .. 2 if node_key[t[k]] + 1 > 6
+# 座標の中
+field m : max bound 16
+m[node_key[t[k]]] <- k   for (k) in 0 .. 2
+# 三つ目の引数・大きさ
+field hk : max bound 4
+hk[k] <- node_key[node_hi[t[k]]]   for (k) in 0 .. 2
+field ts : max bound 4
+ts[k] <- _size[t[k]]   for (k) in 0 .. 2
+# 項でないものの大きさは ⊥
+field ns : max bound 1
+ns[0] <- _size[lst[3]]
+print third
+print g
+print m
+print hk
+print ts
+print ns
