@@ -46,6 +46,25 @@ TEMPLATES = [
     (23, "\n_pd2[{0:2}] <- true"),
     (24, "\n_pnm[{0:2}, {1:2}] <- {2:3}"),         # 名前の字
     (25, "\n_pd0[{0:2}] <- true"),                  # `n[]` の場（座標を書かない）
+    # ANF: 区間 [ta, tb] に名前 `_g<ta>` を置く。`%` はトークンの綴り（束縛の変数名、八文字）
+    (30, "\n_g{0:6}[_r{1:1}"),                      # 塊の頭 A（表のループ / 区間のループ / 一点）
+    (31, "\n_g{0:6}[%"),
+    (32, "\n_g{0:6}[_z"),
+    (33, "] <- "),                                   # 塊の頭 B（ループ一つ / 二つ目が表 / 区間）
+    (34, ", _r{1:1}] <- "),
+    (35, ", %] <- "),
+    (36, " for (_r{0:1}) in 0 .. {1:7}"),           # 塊のループの節
+    (37, " for (%) in {0:7} .. {1:7}"),
+    (38, " for (%) in {0:7} .. @[{1:7}]"),
+    (39, " for (_z) in 0 .. 0"),
+    (40, "\nfield _g{0:6} : flat bound {1:7}"),     # 塊の宣言
+    (41, "\nfield _g{0:6} : flat bound {1:7} {2:7}"),
+    (42, "_g{0:6}[_r{1:1}"),                         # 本文の参照 A / B
+    (43, "_g{0:6}[%"),
+    (44, "_g{0:6}[_z"),
+    (45, "]"),
+    (46, ", _r{1:1}]"),
+    (47, ", %]"),
 ]
 WIDTH = 63                                         # 型紙の升（lx の 1..63）
 
@@ -62,6 +81,8 @@ def cells(text):
             i += m.end()
         elif text[i] == '@':
             out += [(None, 0, -(k + 1)) for k in range(16)]; i += 1
+        elif text[i] == '%':
+            out += [(None, 0, -(k + 101)) for k in range(8)]; i += 1
         else:
             out.append((ord(text[i]), 0, 0)); i += 1
     assert len(out) <= WIDTH, (text, len(out))
@@ -73,7 +94,9 @@ def seeds():
     for k, text in TEMPLATES:
         lines.append(f"# {k}: {text!r}")
         for j, (c, h, d) in enumerate(cells(text)):
-            if h == 0 and d < 0:
+            if h == 0 and d <= -101:
+                lines.append(f"tpm[{k}, {j}] <- {-d - 100}")
+            elif h == 0 and d < 0:
                 lines.append(f"tpn[{k}, {j}] <- {-d}")
             elif h == 0:
                 lines.append(f"tpc[{k}, {j}] <- {c}")
@@ -86,9 +109,13 @@ def seeds():
     eng += "".join(f"_bt[{i}] <- {b}\n" for i, b in enumerate(bt))
     eng += "table ch = (0,32)\n"
     data = ("\n" + eng).encode()
-    assert len(data) <= 8192, len(data)
-    lines.append(f"# print の機械（work/lower/engine.lx の {len(data)} バイト）")
-    lines += [f"lk[{i}] <- {b}" for i, b in enumerate(data)]
+    data += b" " * (-len(data) % 3)                  # 三バイトずつ畳む（端は空白で埋める）
+    assert len(data) <= 3 * 4096, len(data)
+    # **三バイトを一つの種に畳む**（種は符号つき 32 ビットに収まる数）。一バイト一文だと文の数が
+    # 焼き手の面（8,192）を越えた —— 前段と下ろしの規則だけで二千五百文ある
+    lines.append(f"# print の機械（work/lower/engine.lx の {len(data)} バイトを三バイトずつ）")
+    lines += [f"lk[{i}] <- {data[3*i] + 256 * data[3*i+1] + 65536 * data[3*i+2]}" for i in range(len(data) // 3)]
+    lines.append(f"lkz[0] <- {len(data) // 3 - 1}")
     lines.append("# ── 型紙ここまで ──")
     return "\n".join(lines) + "\n"
 
@@ -106,6 +133,8 @@ def digit_rules():
                        f" if tpd[cti[c], j] == {d}{g}")
     for k in range(16):
         out.append(f"lx[crow[c], j + 1] <- dch[cnd[c], {k}]   {L} if tpn[cti[c], j] == {k + 1}")
+    for k in range(8):
+        out.append(f"lx[crow[c], j + 1] <- tch[cnm[c], {k}]   {L} if tpm[cti[c], j] == {k + 1}")
     out.append("# ── 穴の桁ここまで ──")
     return "\n".join(out) + "\n"
 
@@ -127,8 +156,12 @@ if __name__ == '__main__':
     # 下ろす源は 262,144 バイトまで（焼き手の 589,824 は焼き手自身を読むための広さ）。
     # 狭くするのは置き場のため —— 前段の面は百九十枚あり、2 GB の手前に収めたい。
     front = front.replace('bound 589824', 'bound 262144')
+    # 焼き手の写し（lib/fold.lx）も入れる —— 「座標の語として読めたか」（crdok）は焼き手の判断で、
+    # 下ろしはそれを見て持ち上げる（同じ判断を二度書かない）
+    glue = open(os.path.join(ROOT, 'lib', 'fold.lx'), encoding='utf-8').read()
+    front += "\n" + glue.replace('bound 589824', 'bound 262144')
     head = ("# **下ろす（lower.lx）** —— 自由に書かれた .lx を、焼ける形（SPEC §12）の .lx に書き換える。\n"
-            "# 中身は examples/33_self.lx（前段）と lib/lower.lx（下ろしの規則）を繋いだもの。\n"
+            "# 中身は examples/33_self.lx（前段）と lib/fold.lx（焼き手の写し）と lib/lower.lx（下ろしの規則）を繋いだもの。\n"
             "# work/mklower.py が組む。**手で直さない。**\n\n")
     out = head + front + "\n" + low
     names = re.findall(r'(?m)^field (\w+)', out)
