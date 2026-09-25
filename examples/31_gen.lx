@@ -1107,6 +1107,142 @@ shp[171] <- 12288
 shp[172] <- 12288
 shp[173] <- 28868
 
+# ── **⊥ を 0 に置く形**（大きい min / max / flat の場）──────────────────
+# 升には v xor ⊥ を置く。すると記憶の 0 がそのまま ⊥ で、起動のときに ⊥ で塗らなくてよい
+# （触らない頁は OS が物理記憶すら割り当てない）。鍵は場の下の二升: [rbx-48] に min と flat の
+# ⊥（2147483647）、[rbx-56] に max の ⊥（-2147483647）。xor は自分の逆なので、読むのも書くのも
+# 同じ一命令を足すだけである。**鍵は升に置く**（register は一つも空いていない）。穴は番地の d32
+# 一つのまま —— 鍵の変位は骨に焼く。長さは 12 まで（encb の幅）。
+encb[201,0] <- 74
+encb[201,1] <- 139
+encb[201,2] <- 132
+encb[201,3] <- 203
+encb[201,8] <- 72
+encb[201,9] <- 51
+encb[201,10] <- 67
+encb[201,11] <- 208
+shp[201] <- 49412     # mov rax,[rbx+r9*8+d32] ; xor rax,[rbx-48]
+encb[202,0] <- 74
+encb[202,1] <- 139
+encb[202,2] <- 132
+encb[202,3] <- 203
+encb[202,8] <- 72
+encb[202,9] <- 51
+encb[202,10] <- 67
+encb[202,11] <- 200
+shp[202] <- 49412     # mov rax,[rbx+r9*8+d32] ; xor rax,[rbx-56]
+encb[203,0] <- 74
+encb[203,1] <- 139
+encb[203,2] <- 180
+encb[203,3] <- 203
+encb[203,8] <- 72
+encb[203,9] <- 51
+encb[203,10] <- 115
+encb[203,11] <- 208
+shp[203] <- 49412     # mov rsi,[rbx+r9*8+d32] ; xor rsi,[rbx-48]
+encb[204,0] <- 74
+encb[204,1] <- 139
+encb[204,2] <- 180
+encb[204,3] <- 203
+encb[204,8] <- 72
+encb[204,9] <- 51
+encb[204,10] <- 115
+encb[204,11] <- 200
+shp[204] <- 49412     # mov rsi,[rbx+r9*8+d32] ; xor rsi,[rbx-56]
+encb[205,0] <- 78
+encb[205,1] <- 139
+encb[205,2] <- 140
+encb[205,3] <- 203
+encb[205,8] <- 76
+encb[205,9] <- 51
+encb[205,10] <- 75
+encb[205,11] <- 208
+shp[205] <- 49412     # mov r9,[rbx+r9*8+d32]  ; xor r9,[rbx-48]
+encb[206,0] <- 78
+encb[206,1] <- 139
+encb[206,2] <- 140
+encb[206,3] <- 203
+encb[206,8] <- 76
+encb[206,9] <- 51
+encb[206,10] <- 75
+encb[206,11] <- 200
+shp[206] <- 49412     # mov r9,[rbx+r9*8+d32]  ; xor r9,[rbx-56]
+encb[207,0] <- 72
+encb[207,1] <- 51
+encb[207,2] <- 67
+encb[207,3] <- 208
+encb[207,4] <- 72
+encb[207,5] <- 137
+encb[207,6] <- 132
+encb[207,7] <- 211
+shp[207] <- 49668     # xor rax,[rbx-48] ; mov [rbx+rdx*8+d32],rax
+encb[164,0] <- 72
+encb[164,1] <- 51
+encb[164,2] <- 67
+encb[164,3] <- 200
+encb[164,4] <- 72
+encb[164,5] <- 137
+encb[164,6] <- 132
+encb[164,7] <- 211
+shp[164] <- 49668     # xor rax,[rbx-56] ; mov [rbx+rdx*8+d32],rax
+encb[87,0] <- 72
+encb[87,1] <- 139
+encb[87,2] <- 180
+encb[87,3] <- 211
+encb[87,8] <- 72
+encb[87,9] <- 51
+encb[87,10] <- 115
+encb[87,11] <- 208
+shp[87] <- 49412     # mov rsi,[rbx+rdx*8+d32] ; xor rsi,[rbx-48]
+encb[11,0] <- 72
+encb[11,1] <- 139
+encb[11,2] <- 180
+encb[11,3] <- 211
+encb[11,8] <- 72
+encb[11,9] <- 51
+encb[11,10] <- 115
+encb[11,11] <- 200
+shp[11] <- 49412     # mov rsi,[rbx+rdx*8+d32] ; xor rsi,[rbx-56]
+encb[39,0] <- 72
+encb[39,1] <- 49
+encb[39,2] <- 132
+encb[39,3] <- 203
+shp[39] <- 33028     # xor [rbx+rcx*8+d32],rax
+encb[30,0] <- 72
+encb[30,1] <- 139
+encb[30,2] <- 132
+encb[30,3] <- 203
+encb[30,8] <- 72
+encb[30,9] <- 51
+encb[30,10] <- 67
+encb[30,11] <- 208
+shp[30] <- 49412     # mov rax,[rbx+rcx*8+d32] ; xor rax,[rbx-48]
+encb[23,0] <- 72
+encb[23,1] <- 139
+encb[23,2] <- 132
+encb[23,3] <- 203
+encb[23,8] <- 72
+encb[23,9] <- 51
+encb[23,10] <- 67
+encb[23,11] <- 200
+shp[23] <- 49412     # mov rax,[rbx+rcx*8+d32] ; xor rax,[rbx-56]
+encb[18,0] <- 72
+encb[18,1] <- 51
+encb[18,2] <- 67
+encb[18,3] <- 208
+encb[18,4] <- 72
+encb[18,5] <- 137
+encb[18,6] <- 131
+shp[18] <- 45508     # xor rax,[rbx-48] ; mov [rbx+d32],rax
+encb[16,0] <- 72
+encb[16,1] <- 51
+encb[16,2] <- 67
+encb[16,3] <- 200
+encb[16,4] <- 72
+encb[16,5] <- 137
+encb[16,6] <- 131
+shp[16] <- 45508     # xor rax,[rbx-56] ; mov [rbx+d32],rax
+
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
@@ -1280,15 +1416,37 @@ field fmsw : max bound 16                     # 幅 → 種の書き込み
 fmsw[1] <- 179
 fmsw[8] <- 51
 field frd : max bound 1024                    # 場 f を rax に読む形
-frd[f] <- fmrd[fwbz[f]]             for (f) in 0 .. nflz[0]
+frd[f] <- fmrd[fwbz[f]]             for (f) in 0 .. nflz[0] if not fxr[f]
+frd[f] <- 201                       for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+frd[f] <- 202                       for (f) in 0 .. nflz[0] if fxm[f]
 field frs : max bound 1024                    # 場 f を rsi に読む形
-frs[f] <- fmrs[fwbz[f]]             for (f) in 0 .. nflz[0]
+frs[f] <- fmrs[fwbz[f]]             for (f) in 0 .. nflz[0] if not fxr[f]
+frs[f] <- 203                       for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+frs[f] <- 204                       for (f) in 0 .. nflz[0] if fxm[f]
 field fc1 : max bound 1024                    # 場 f の升は 1 か
 fc1[f] <- fmc1[fwbz[f]]             for (f) in 0 .. nflz[0]
 field fs1 : max bound 1024                    # 場 f の升に 1 を入れる
 fs1[f] <- fms1[fwbz[f]]             for (f) in 0 .. nflz[0]
 field fsw : max bound 1024                    # 場 f への種の書き込み
-fsw[f] <- fmsw[fwbz[f]]             for (f) in 0 .. nflz[0]
+fsw[f] <- fmsw[fwbz[f]]             for (f) in 0 .. nflz[0] if not fxr[f]
+fsw[f] <- 18                        for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+fsw[f] <- 16                        for (f) in 0 .. nflz[0] if fxm[f]
+field fcr : max bound 1024                    # 場 f を座標として r9 に読む形
+fcr[f] <- 100                       for (f) in 0 .. nflz[0] if not fxr[f]
+fcr[f] <- 205                       for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+fcr[f] <- 206                       for (f) in 0 .. nflz[0] if fxm[f]
+field fjr : max bound 1024                    # 場 f の今の値を rsi に読む形（join。rdx で引く）
+fjr[f] <- 65                        for (f) in 0 .. nflz[0] if not fxr[f]
+fjr[f] <- 87                        for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+fjr[f] <- 11                        for (f) in 0 .. nflz[0] if fxm[f]
+field fjw : max bound 1024                    # 場 f へ rax を書く形（join。rdx で引く）
+fjw[f] <- 42                        for (f) in 0 .. nflz[0] if not fxr[f]
+fjw[f] <- 207                       for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+fjw[f] <- 164                       for (f) in 0 .. nflz[0] if fxm[f]
+field fer : max bound 1024                    # 場 f を描くために rax に読む形（rcx で引く）
+fer[f] <- 125                       for (f) in 0 .. nflz[0] if not fxr[f]
+fer[f] <- 30                        for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+fer[f] <- 23                        for (f) in 0 .. nflz[0] if fxm[f]
 field foff : max bound 1024                   # 場 f の先頭（F の先頭からのずれ）
 foff[0] <- 0
 foff[f] <- foff[f-1] + fsz8[f-1]    for (f) in 0 .. nflz[0] if f > 0
@@ -1378,6 +1536,20 @@ field nofill : or bound 1024                # ⊥ が 0 の束（or / sum / coun
 nofill[f] <- true                   for (f) in 0 .. nflz[0] if fdlat[f] == 3
 nofill[f] <- true                   for (f) in 0 .. nflz[0] if fdlat[f] == 8
 nofill[f] <- true                   for (f) in 0 .. nflz[0] if fdlat[f] == 9
+# **大きい min / max / flat の場は ⊥ を 0 に置く**（升に v xor ⊥）。⊥ が 0 でない束は、
+# 使うかもしれない升を全部先に塗っていた —— 入力に依らない仕事で、焼き手自身が 6 行の本を
+# 焼くだけで 722 MB を触っていた。xor なら記憶の 0 がそのまま ⊥ になり、塗る仕事が
+# 「触った頁だけ」に縮む。**小さい場は塗る方が符号が短い**ので閾で分ける。
+# 区間の上端に読まれる場は升と直に比べる（`cmp rcx,[上端]`）ので、置き方を替えない。
+field zxlb : or bound 1024                  # 区間の上端に読まれる場
+zxlb[lpbf[gl]] <- true   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
+field fxr : or bound 1024                   # 場 f は ⊥ を 0 に置く
+fxr[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 1 if fsz[f] >= 16384 if not zxlb[f]
+fxr[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 6 if fsz[f] >= 16384 if not zxlb[f]
+field fxm : or bound 1024                   # そのうち max（鍵は [rbx-56]）
+fxm[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 2 if fsz[f] >= 16384 if not zxlb[f]
+fxr[f] <- true   for (f) in 0 .. nflz[0] if fxm[f]
+nofill[f] <- true                   for (f) in 0 .. nflz[0] if fxr[f]
 field nfld6 : max bound 1                   # ⊥ 埋めの命令数（埋める場だけ）
 nfld6[0] <- 0
 # 種が一つも無いプログラムは番兵を置く（表の字句が空を書けないため）。
@@ -1723,7 +1895,11 @@ field vchk : max bound 8192                 # 規則 r の値の見張りの命�
 vchk[r] <- 0           for (r) in 0 .. nrlz[0]
 vchk[r] <- 2           for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not vsafe[r]
 vchk[r] <- 4           for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not vsafe[r]
-jlen[r] <- 5 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3
+field rxw : or bound 8192                   # 規則 r の書き先は ⊥ を 0 に置く場
+rxw[r] <- true    for (r) in 0 .. nrlz[0] if fxr[rrwf[r]]
+jlen[r] <- 5 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
+# 置き方を替えた場は升と直に比べられない —— 今の値を rsi に解いてから比べる（一命令増える）
+jlen[r] <- 6 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 jlen[r] <- 11 + vchk[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # 足す + jo（溢れ）
@@ -1794,7 +1970,7 @@ nins[z] <- 8                          for (z) in 0 .. 0
 field nfl2 : max bound 1                      # 踏み台のぶん（場 × 2。はみ出し・値・溢れで三組）
 nfl2[z] <- nfl[0] * 2   for (z) in 0 .. 0
 # 127（書き出しと出口）+ 10（入力と書きの踏み台）+ 14（周回の出口）= 151。項は八つまで（理由 3）
-nins[0] <- ebase[0] + pklen[0] + 151 + nfl2[0] + nfl2[0] + nfl2[0] + nfl2[0]   for (z) in 0 .. 0
+nins[0] <- ebase[0] + pklen[0] + dclen[0] + 151 + nfl2[0] + nfl2[0] + nfl2[0] + nfl2[0]   for (z) in 0 .. 0
 field ninz : max bound 1                      # nins の一つ手前（区間の上端に書ける形）
 ninz[0] <- nins[0] - 1   for (z) in 0 .. 0
 
@@ -1932,8 +2108,21 @@ field f6 : max bound 1024                   # 埋める場だけを数えた鎖
 f6[0] <- 0
 f6[f] <- f6[f-1] + 6                for (f) in 0 .. nflz[0] if f > 0 if not nofill[f-1]
 f6[f] <- f6[f-1]                    for (f) in 0 .. nflz[0] if f > 0 if nofill[f-1]
-fzp[f] <- pb[0] + f6[f]             for (f) in 0 .. nflz[0]
-nfld6[z] <- f6[f] + 6               for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if not nofill[f]
+# 鍵を二升に置く四命令（⊥ を 0 に置く場があるときだけ。無い本の符号は前と同じバイト）
+field nxr : max bound 1                     # 鍵の命令数
+nxr[0] <- 0
+nxr[z] <- 4                          for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if fxr[f]
+form[pb[z]]     <- 2    for (z) in 0 .. 0 if nxr[z] == 4    # mov rax, 2147483647（min と flat の ⊥）
+imm[pb[z]]      <- 2147483647 + bias[0]   for (z) in 0 .. 0 if nxr[z] == 4
+form[pb[z] + 1] <- 51   for (z) in 0 .. 0 if nxr[z] == 4    # mov [rbx-48], rax
+imm[pb[z] + 1]  <- 0 - 48 + bias[0]       for (z) in 0 .. 0 if nxr[z] == 4
+form[pb[z] + 2] <- 2    for (z) in 0 .. 0 if nxr[z] == 4    # mov rax, -2147483647（max の ⊥）
+imm[pb[z] + 2]  <- 0 - 2147483647 + bias[0]   for (z) in 0 .. 0 if nxr[z] == 4
+form[pb[z] + 3] <- 51   for (z) in 0 .. 0 if nxr[z] == 4    # mov [rbx-56], rax
+imm[pb[z] + 3]  <- 0 - 56 + bias[0]       for (z) in 0 .. 0 if nxr[z] == 4
+fzp[f] <- pb[0] + nxr[0] + f6[f]     for (f) in 0 .. nflz[0]
+nfld6[z] <- nxr[0]                   for (z) in 0 .. 0
+nfld6[z] <- f6[f] + 6 + nxr[0]       for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if not nofill[f]
 form[fzp[f]] <- 2                  for (f) in 0 .. nflz[0] if not nofill[f]   # mov rax, ⊥(束)
 imm[fzp[f]]  <- fbot[f]            for (f) in 0 .. nflz[0] if not nofill[f]
 form[fzp[f] + 1] <- 3                  for (f) in 0 .. nflz[0] if not nofill[f]   # mov rcx, 0
@@ -2311,7 +2500,7 @@ imm[cend[gc] - 1]  <- cscr[0]   for (gc) in 0 .. ngcz[0] if inr1[gc]
 # ── 源5: 内側の所有者が座標を作り終えた所で読む ──────────────────
 field inrd : max bound 16384                    # 読みの命令の位置
 inrd[gc] <- cdpos[gc] + ctot[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-form[inrd[gc]] <- 100   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc]] <- fcr[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 imm[inrd[gc]]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 scb[inrd[gc]]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[inrd[gc] + 1] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
@@ -2336,7 +2525,7 @@ form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc
 imm[cdpos[gc] + 2]  <- fw[cdcf[gc],0] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cdpos[gc] + 4] <- 100  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # mov r9,[F_cf]
+form[cdpos[gc] + 4] <- fcr[cdcf[gc]]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # mov r9,[F_cf]
 imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 form[cdpos[gc] + 5] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r9, ⊥
@@ -2552,15 +2741,25 @@ jt[jb[r] - 3]   <- vsf[rrwf[r]]  for (r) in 0 .. nrlz[0] if vchk[r] == 4
 
 # ── join。**束が替えるのはここだけ**（項も座標も束によらない）──────────
 # min / max: 違いは飛びの向きだけ（jge / jle）
-form[jb[r]] <- 41      for (r) in 0 .. nrlz[0] if rrlt[r] < 3
+form[jb[r]] <- 41      for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
 scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3
-form[jb[r] + 1] <- 17  for (r) in 0 .. nrlz[0] if rrlt[r] == 1
-form[jb[r] + 1] <- 48  for (r) in 0 .. nrlz[0] if rrlt[r] == 2
-jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
-form[jb[r] + 2] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
-imm[jb[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3
-scb[jb[r] + 2]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3
+form[jb[r] + 1] <- 17  for (r) in 0 .. nrlz[0] if rrlt[r] == 1 if not rxw[r]
+form[jb[r] + 1] <- 48  for (r) in 0 .. nrlz[0] if rrlt[r] == 2 if not rxw[r]
+jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
+form[jb[r] + 2] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
+imm[jb[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
+scb[jb[r] + 2]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
+# ⊥ を 0 に置いた場: 今の値を rsi に解く → cmp rsi,rax → 飛ぶ → 置き直して書く。
+# `cmp rsi,rax` は向きが逆なので、飛びも裏返す（min は jle、max は jge）。
+form[jb[r]] <- fjr[rrwf[r]]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
+form[jb[r] + 1] <- 67  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]     # cmp rsi,rax
+form[jb[r] + 2] <- 48  for (r) in 0 .. nrlz[0] if rrlt[r] == 1 if rxw[r]
+form[jb[r] + 2] <- 17  for (r) in 0 .. nrlz[0] if rrlt[r] == 2 if rxw[r]
+jt[jb[r] + 2]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
+form[jb[r] + 3] <- fjw[rrwf[r]]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
+imm[jb[r] + 3]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
+scb[jb[r] + 3]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
 
 # or: 既に真なら次へ
 form[jb[r]] <- fc1[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 3
@@ -2601,7 +2800,7 @@ tdang[lpbf[gl]] <- true  for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 tdang[outf[z]] <- true   for (z) in 0 .. 0 if outw[z] == 1   # 定数で引いた書き座標は焼けない
 field frdr : or bound 8192                  # 規則 r の書き先の ⊤ は誤読される
 frdr[r] <- true        for (r) in 0 .. nrlz[0] if tdang[rrwf[r]]
-form[jb[r]] <- 65      for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+form[jb[r]] <- fjr[rrwf[r]]      for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 scb[jb[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 form[jb[r] + 1] <- 66  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
@@ -2621,7 +2820,7 @@ form[jb[r] + 6] <- 78  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]    # j
 jt[jb[r] + 6]   <- tpx[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if frdr[r]
 form[jb[r] + 7] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 7]  <- ftop[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-form[jb[r] + 8] <- 42  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+form[jb[r] + 8] <- fjw[rrwf[r]]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 imm[jb[r] + 8]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 scb[jb[r] + 8]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 
@@ -2878,7 +3077,7 @@ form[ebz[z]] <- 3        for (z) in 0 .. 0 if outw[0] == 1   # mov rcx, 0
 imm[ebz[z]]  <- 0 + bias[0]        for (z) in 0 .. 0 if outw[0] == 1
 form[ebz[z] + 1] <- 37   for (z) in 0 .. 0 if outw[0] == 1   # mov rdx, PBUF
 imm[ebz[z] + 1]  <- pbuf[0] + bias[0]   for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 2] <- 125  for (z) in 0 .. 0 if outw[0] == 1   # mov rax,[rbx+rcx*8+foff]
+form[ebz[z] + 2] <- fer[ofz[z]]  for (z) in 0 .. 0 if outw[0] == 1   # mov rax,[rbx+rcx*8+foff]
 imm[ebz[z] + 2]  <- foff[ofz[z]] + bias[0] for (z) in 0 .. 0 if outw[0] == 1
 scb[ebz[z] + 2]  <- fscb[ofz[z]] for (z) in 0 .. 0 if outw[0] == 1
 form[ebz[z] + 3] <- 12   for (z) in 0 .. 0 if outw[0] == 1   # cmp rax, ⊥
@@ -2905,7 +3104,63 @@ jt[ebz[z] + 11]   <- ebase[0] + 2  for (z) in 0 .. 0 if outw[0] == 1
 # ── 書き出し。**部分書き込みに耐える**（パイプは一度で全部受け取らない）
 # 読みが回るなら書きも回る —— 同じ形を二度書かない理由は無い。
 field wb : max bound 1
-wb[0] <- ebase[0] + pklen[0]   for (z) in 0 .. 0
+# ── **⊥ を 0 に置いた場を解く**（場の面を書き出すときだけ）─────────────────
+# 場の面は境界面である（試験も attest も値そのものを読む）。置き方は焼いた符号の内側の
+# 事情なので、外へ出す前に xor で戻す。**描く本は証人（fd 3）を頼まれたときだけ**解く ——
+# 頼まれていないのに解けば、塗るのをやめた頁を出口で全部触ることになる。頼まれたかは
+# 零バイトの write(3) で聞く（閉じていれば EBADF）。描く本の rdx（詰め終わった位置）は守る。
+field dbz : max bound 1                     # 解く所の頭
+dbz[0] <- ebase[0] + pklen[0]   for (z) in 0 .. 0
+field dhd : max bound 1                     # 頭の命令数（描く本は証人を聞く八命令）
+dhd[0] <- 0
+dhd[z] <- 8                          for (z) in 0 .. 0 if outw[z] == 1
+field zd6 : max bound 1024                  # 解く場だけを数えた鎖
+zd6[0] <- 0
+zd6[f] <- zd6[f-1] + 6               for (f) in 0 .. nflz[0] if f > 0 if fxr[f-1]
+zd6[f] <- zd6[f-1]                   for (f) in 0 .. nflz[0] if f > 0 if not fxr[f-1]
+field ndc : max bound 1                     # 解く輪の命令数
+ndc[0] <- 0
+ndc[z] <- zd6[f] + 6                 for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if fxr[f]
+field dclen : max bound 1                   # 解く所の長さ（解く場が無ければ 0）
+dclen[0] <- 0
+dclen[z] <- ndc[0]                   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 8
+dclen[z] <- ndc[0] + 9               for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+field dcp : max bound 1024                  # 場 f を解く六命令の頭
+dcp[f] <- dbz[0] + dhd[0] + zd6[f]   for (f) in 0 .. nflz[0] if fxr[f]
+field dcz : max bound 1                     # dbz を計数器で引ける形に
+dcz[z] <- dbz[0]                     for (z) in 0 .. 0
+field dce : max bound 1                     # 解き終わり（描く本の pop rdx）
+dce[z] <- dbz[0] + dclen[0] - 1      for (z) in 0 .. 0
+form[dcz[z]]     <- 33   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # push rdx
+form[dcz[z] + 1] <- 24   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # mov eax, 1 (sys_write)
+imm[dcz[z] + 1]  <- 1 + bias[0]     for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+form[dcz[z] + 2] <- 38   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # mov rdi, 3
+imm[dcz[z] + 2]  <- 3 + bias[0]     for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+form[dcz[z] + 3] <- 36   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # mov rsi, 詰め直しの置き場
+imm[dcz[z] + 3]  <- pbuf[0] + bias[0]   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+form[dcz[z] + 4] <- 37   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # mov rdx, 0
+imm[dcz[z] + 4]  <- 0 + bias[0]     for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+form[dcz[z] + 5] <- 25   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # syscall
+form[dcz[z] + 6] <- 26   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # test rax,rax
+form[dcz[z] + 7] <- 22   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # jne -> 解き終わり
+jt[dcz[z] + 7]   <- dce[z]          for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1
+form[dce[z]]     <- 35   for (z) in 0 .. 0 if nxr[z] == 4 if outw[z] == 1   # pop rdx
+form[dcp[f]] <- 2                  for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]   # mov rax, 鍵
+imm[dcp[f]]  <- 2147483647 + bias[0]          for (f) in 0 .. nflz[0] if fxr[f] if not fxm[f]
+form[dcp[f]] <- 2                  for (f) in 0 .. nflz[0] if fxm[f]
+imm[dcp[f]]  <- 0 - 2147483647 + bias[0]      for (f) in 0 .. nflz[0] if fxm[f]
+form[dcp[f] + 1] <- 3              for (f) in 0 .. nflz[0] if fxr[f]   # mov rcx, 0
+imm[dcp[f] + 1]  <- 0 + bias[0]    for (f) in 0 .. nflz[0] if fxr[f]
+form[dcp[f] + 2] <- 39             for (f) in 0 .. nflz[0] if fxr[f]   # xor [rbx+rcx*8+foff],rax
+imm[dcp[f] + 2]  <- foff[f] + bias[0]   for (f) in 0 .. nflz[0] if fxr[f]
+scb[dcp[f] + 2]  <- fscb[f]        for (f) in 0 .. nflz[0] if fxr[f]
+form[dcp[f] + 3] <- 5              for (f) in 0 .. nflz[0] if fxr[f]   # add rcx, 1
+imm[dcp[f] + 3]  <- 1 + bias[0]    for (f) in 0 .. nflz[0] if fxr[f]
+form[dcp[f] + 4] <- 20             for (f) in 0 .. nflz[0] if fxr[f]   # cmp rcx, 升目の数
+imm[dcp[f] + 4]  <- fsz[f] + bias[0]    for (f) in 0 .. nflz[0] if fxr[f]
+form[dcp[f] + 5] <- 7              for (f) in 0 .. nflz[0] if fxr[f]   # jb -> 解く輪の頭
+jt[dcp[f] + 5]   <- dcp[f] + 2     for (f) in 0 .. nflz[0] if fxr[f]
+wb[0] <- ebase[0] + pklen[0] + dclen[0]   for (z) in 0 .. 0
 field wbz : max bound 1                     # wb を計数器で引ける形に
 wbz[z] <- wb[0]                      for (z) in 0 .. 0
 # ── 出す先を決める（argv[2]。無ければ stdout）────────────────────
