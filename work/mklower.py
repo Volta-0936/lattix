@@ -12,7 +12,7 @@
 render が飛ばすので可変長に詰まって出る（⊥ は幅 0 の glue）。これは組む道具であって、
 下ろす道には居ない（焼いた `lower` は Python を知らない）。
 """
-import os, re
+import os, re, runpy
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 型紙の番号は lib/lower.lx の規則が名指しする（番号を動かすときは両方を見る）。
@@ -70,6 +70,31 @@ TEMPLATES = [
     (45, "]"),
     (46, ", _r{1:1}]"),
     (47, ", %]"),
+    # 集合: 宣言 / 書き先の要素 / 値
+    (48, "or bound {0:7}"),                             # 鍵の無い集合 → 一次元の or
+    (49, "or bound {0:7} {1:7}"),                       # 鍵が一つの集合 → 二次元の or
+    (50, "%"),                                          # 要素が区間の変数（`s[]` の中に）
+    (51, ", _t{0:2}c{1:2}[_r{2:1}]]"),                  # `s[k]` の後ろに要素（表の変数）
+    (52, ", %]"),                                       #                    （区間の変数）
+    (53, ", {0:7}]"),                                   #                    （数・文字列）
+    (54, "true"),                                       # 値 `{e}` → `true`
+    # 集合の print: 行の番号（数の要素は綴りの順 `_sc`）・要素・組の頭・印
+    (55, "\n_pr{0:2}[_k] <- _sc[{0:2}, _sP[_k]] + {1:7}"),
+    (56, "\n      for (_k) in 0 .. {2:7}"),
+    (57, "\n_pr{0:2}[_k, _m] <- _k * {1:7} + _sc[{0:2}, _sP[_m]] + {2:7}"),
+    (58, "\n_pe[_pr{0:2}[_k]] <- _k   for (_k) in 0 .. {2:6}"),
+    (59, "\n_pgs[_pr{0:2}[_k]] <- {1:7}   for (_k) in 0 .. {2:6}"),
+    (60, "\n_pe[_pr{0:2}[_k, _m]] <- _m"),
+    (61, "\n_pgs[_pr{0:2}[_k, _m]] <- _k * {1:7} + {2:7}"),
+    (62, "\n_pst[{0:2}] <- true"),
+    (63, "\n_pea[{0:2}] <- true"),
+    (64, "\n_psi[{0:2}] <- true"),
+    (65, "\n_sh[{0:2}, _sP[_k]] <- true   for (_k) in 0 .. {2:6}"),
+    # `is`
+    (66, "<="),
+    (67, ">="),
+    (68, "=="),
+    (69, "@"),                                          # 十七文字以上の場の名前 → `_f<宣言の番号>`
 ]
 WIDTH = 63                                         # 型紙の升（lx の 1..63）
 
@@ -109,10 +134,14 @@ def seeds():
                 lines.append(f"tph[{k}, {j}] <- {h}")
                 lines.append(f"tpd[{k}, {j}] <- {d}")
     # print の機械（下ろした本の末尾に一度だけ置く字の並び）と `table ch`
+    runpy.run_path(os.path.join(ROOT, 'work', 'lower', 'mkengine.py'), run_name='__main__')
     eng = open(os.path.join(ROOT, 'work', 'lower', 'engine.lx'), encoding='utf-8').read()
     bt = ": ⊥ everywhere (no coordinate reached a definite value)\n".encode()
     eng += "".join(f"_bt[{i}] <- {b}\n" for i, b in enumerate(bt))
     eng += "table ch = (0,32)\n"
+    # 畳む前に注釈と詰め物の空白を落とす（読む本は work/lower/engine.lx。種の数は焼き手の文の面に効く）
+    eng = "\n".join(re.sub(r' +', ' ', re.sub(r'\s+#.*$', '', l)) for l in eng.split("\n")
+                    if not l.startswith('#'))
     data = ("\n" + eng).encode()
     data += b" " * (-len(data) % 3)                  # 三バイトずつ畳む（端は空白で埋める）
     assert len(data) <= 3 * 4096, len(data)
@@ -137,7 +166,7 @@ def digit_rules():
             out.append(f"lx[crow[c], j + 1] <- {val}   {L}\n      if tph[cti[c], j] == {h + 1}"
                        f" if tpd[cti[c], j] == {d}{g}")
     for k in range(16):
-        out.append(f"lx[crow[c], j + 1] <- dch[cnd[c], {k}]   {L} if tpn[cti[c], j] == {k + 1}")
+        out.append(f"lx[crow[c], j + 1] <- lnw[cnd[c], {k}]   {L} if tpn[cti[c], j] == {k + 1}")
     for k in range(8):
         out.append(f"lx[crow[c], j + 1] <- tch[cnm[c], {k}]   {L} if tpm[cti[c], j] == {k + 1}")
     out.append("# ── 穴の桁ここまで ──")

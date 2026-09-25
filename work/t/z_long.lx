@@ -1,0 +1,11 @@
+# 十七文字以上の場の名前 —— 付け替えて焼き、print は元の綴りで
+field doubled_values_of_i : max
+field shifted_pairs_by_j : max
+doubled_values_of_i[i] <- i * 2            for (i) in 0 .. 3
+shifted_pairs_by_j[i, j] <- doubled_values_of_i[i] + j
+      for (i) in 0 .. 3 for (j) in 0 .. 1 if doubled_values_of_i[i] > 2
+field an_unreached_long_name : or
+an_unreached_long_name[i] <- true          for (i) in 0 .. 3 if i > 5
+print doubled_values_of_i
+print shifted_pairs_by_j
+print an_unreached_long_name

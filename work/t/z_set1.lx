@@ -1,0 +1,22 @@
+# 集合 —— 鍵の無い集合・鍵が一つの集合、要素は数（綴りの順: 10 < 2）・原子・文字列
+table e = (0, 2), (0, 10), (0, 3), (1, 12), (1, 1), (2, 7)
+table c = (tokyo, 1), (osaka, 2), (kyoto, 1)
+field small : set
+small[] <- {y}         for (x, y) in e if y < 11
+field adj : set
+adj[x] <- {y}          for (x, y) in e
+field cities : set
+cities[g] <- {c}       for (c, g) in c
+field tag : set
+tag[] <- {"b"}         for (x, y) in e if x == 2
+tag[] <- {"a"}         for (x, y) in e if x == 1
+field rng : set
+rng[] <- {k}           for (k) in 0 .. 12 if k % 5 == 0
+field none : set
+none[] <- {k}          for (k) in 0 .. 3 if k > 5
+print small
+print adj
+print cities
+print tag
+print rng
+print none
