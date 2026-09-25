@@ -520,6 +520,7 @@ ninx[z] <- nin2[z]   for (z) in 0 .. 0
 un1[3] <- true   for (z) in 0 .. 0 if ninx[z] > NIV                   # 実例が多すぎる
 un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が言語の上限より広い
 un1[3] <- true   for (g) in 0 .. nglz[0] if li[g] >= 3              # 四重以上のループ（枠は三つ）
+un1[3] <- true   for (g) in 0 .. nglz[0] if lk[g] == 3              # 上端が外の変数で引いた場の区間
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
 un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
@@ -656,7 +657,7 @@ nl(3, FST)
 for line, k, s in [(4, 0, "  a chain of reads deeper than 3, or top read in a coordinate or comparison"),
                    (5, 1, "  a value beyond +-2^60, or past the mark of its min / max field"),
                    (6, 2, "  a rule with more than 16 reads or 16 guard rows"),
-                   (7, 3, "  more rule instances than attest holds, a range wider than 4194304, or 4+ nested loops"),
+                   (7, 3, "  more rule instances than attest holds, a range over 4194304, 4+ loops, or a dependent range"),
                    (8, 4, "  a flat top that only a cycle supports (it needs the value before top)")]:
     text(line, 0, s, UNS + f" if un1[{k}]")
     nl(line, UNS + f" if un1[{k}]")

@@ -173,6 +173,9 @@ class Checker:
                 if kind == 2:
                     h = self.rd(bf, bc)
                     if h is None: return
+                elif kind == 3:                      # 上端の添字が外の計数器（bc はそのループの番号）
+                    h = self.rd(bf, env['k'][bc])
+                    if h is None: return
                 else: h = hi
                 for x in range(lo, h + 1):
                     k = list(env['k']); k[li] = x

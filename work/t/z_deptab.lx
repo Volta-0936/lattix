@@ -1,0 +1,14 @@
+# 依存する区間（13g）: 上端を表の変数で引く —— 下ろすと `n[_t0c0[_r0]]` の入れ子になるので
+# 下ろしが上端を持ち上げ（`_g[_r0] <- n[_t0c0[_r0]]`）、焼き手は種3（上端が外の変数で引いた場）で焼く
+table rows = (0,3),(1,1),(2,0),(3,4)
+field n : max
+n[i] <- v for (i,v) in rows
+field tri : max
+tri[i, j] <- i * 10 + j   for (i,v) in rows for (j) in 0 .. n[i]
+field cnt : count
+cnt[i] <- 1   for (i,v) in rows for (j) in 1 .. v
+field tot : sum
+tot[0] <- j   for (i,v) in rows for (j) in 0 .. n[i] - 1
+print tri
+print cnt
+print tot

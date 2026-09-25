@@ -240,6 +240,43 @@ a[g, q] <- q * h + d - f + r   for (b) in 0 .. 1 for (d) in 0 .. 1 for (f) in 0 
 """, data=b"ab")
 # **一つの文の束縛は十まで**（鍵で引く —— 前は焼き手の前段が六つ、下ろしの前段が十と、
 # 同じ判断を二箇所に別々の上限で持っていた）。表の六列を束ねてから区間を四つ重ねる。
+# **依存する区間**（13g）: 上端の添字が外の区間の変数（`for (j) in 0 .. n[i]`）。多面体でいえば箱でなく
+# 半空間で切られた反復空間 —— 焼く側は入るたびに上端を読み直し、段ごとの升に置いて比べる。
+case("依存する区間（上端が外の変数で引いた場）", """table ch = (0,32)
+field n : max bound 4
+n[0] <- 2
+n[1] <- 0
+n[3] <- 5
+field t : max bound 4 8
+t[i, j] <- i * 10 + j   for (i) in 0 .. 3 for (j) in 0 .. n[i]
+field s : sum bound 4
+s[i] <- 1   for (i) in 0 .. 0 for (k) in 0 .. 3 for (j) in 1 .. n[k]
+""")
+case("依存する区間（升の計数器・内側の変数・負の上端）", """table ch = (0,32)
+field n : max bound 8
+n[0] <- 3
+n[1] <- 1
+n[2] <- 0 - 2   for (z) in 0 .. 0
+n[4] <- 2
+field t : max bound 8 8
+t[a, j] <- a + b + d + j * 100   for (a) in 0 .. 1 for (b) in 0 .. 1 for (d) in 0 .. 4 for (j) in 0 .. n[d]
+field u : max bound 8 8
+u[i, j] <- j + k * 10   for (i) in 0 .. 4 for (k) in 0 .. n[i] for (j) in 1 .. n[k]
+field w : max bound 8 8
+w[p, q] <- a + q   for (a) in 0 .. 1 for (b) in 0 .. 0 for (d) in 0 .. 0 for (p) in 0 .. 4 for (q) in 0 .. n[p]
+""")
+case("依存する区間の上端が ⊥ / 場の広さの外なら回らない", """table ch = (0,32)
+field n : max bound 4
+n[1] <- 2
+field t : max bound 8 8
+t[i, j] <- j + 1   for (i) in 0 .. 6 for (j) in 0 .. n[i]
+""")
+case("依存する区間の添字が表の変数（言う —— 下ろしが持ち上げる形）", """table ch = (0,32)
+field n : max bound 4
+n[1] <- 2
+field u : max bound 8 8
+u[i, j] <- j   for (i,c) in ch for (j) in 0 .. n[i]
+""", data=b"ab", exit=7, why=(5,8))
 case("束縛 十（表の六列 + 区間四つ）", """table t = (0,0,0,0,0,0)
 field a : max bound 8 4
 a[p, j] <- q + r + s + u + v + i + k + m   for (p,q,r,s,u,v) in t for (i) in 0 .. 1 for (j) in 0 .. 3 for (k) in 0 .. 1 for (m) in 0 .. 2

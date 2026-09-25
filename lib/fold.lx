@@ -664,7 +664,13 @@ badk[z] <- tlin[hotok[s]] * 16 + 9   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 i
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isop[t] if tdep[t] == 0
       if cnum[t] >= 1 if not clif2[snum[t], cnum[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]
-      if isocc[int4[t]] if not isnum[int4b[t]]
+      if isocc[int4[t]] if not isnum[int4b[t]] if not lbv[t]
+# **種3: 上端の添字が外の区間の変数**なら焼ける（13g。`for (j) in 0 .. len[i]`）。
+# 変数は同じ文の、**このループより外**の区間のループに束ねられていること（表の変数は列の値で
+# 計数器ではない —— 下ろしが `_t<k>c<j>[_r]` の読みにしたものは入れ子の読みなので持ち上げる）。
+field lbv : or bound 589824              # 上端の添字は外の区間の変数（種3）
+lbv[t] <- true   for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+      if not isnum[int4b[t]] if vbnd[int4b[t]] >= 0 if ivl[t] < lz[t] if lkd[snum[t], ivl[t]] >= 1
 # 上端の読みの添字は **数一つ**（`n[0+2]` のずれも二次元も焼く側は持たない —— `n[0+2]` を n[0] と
 # 読み、⊥ のはずの区間を 3 .. 10 と回していた）
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]

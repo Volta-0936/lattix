@@ -131,6 +131,10 @@ TEMPLATES = [
     (154, "\n_ptp[_pr{0:2}[_k, _m]] <- true"),                     # 二次元: ⊤ の行（+ 輪 18）
     (155, " if @[_k, _m] < 0"),
     (156, " if @[_k, _m] >= 0"),
+    (157, "_g{0:6}[0]"),                                               # ループに依らない上端の参照（13g）
+    (158, "field"),                                                    # `source` → `field`（13h）
+    (159, "_e{0:6}[0]"),                                               # `emit "ch"` → 誰も読まない場の頭
+    (111, "\nfield _e{0:6} : flat bound 1"),                           # （160 からは句の番号 —— MACRO0）
 ]
 
 # ── 出現ごとの塊（型紙の塊）──────────────────────────────────────────────
@@ -210,8 +214,10 @@ def rows_rules():
     for i, (nm, lat, w) in enumerate(ENGINE_ROWS):
         n, e = divmod(i, 8)
         out.append(f"iti[{n}, {e}] <- {70 + i}")
-        out.append(f"ih0[{n}, {e}] <- lrz[0]   for (z) in 0 .. 0")
-        if w == "O":
+        out.append(f"ih0[{n}, {e}] <- {'lrzv' if w == 'V' else 'lrz'}[0]   for (z) in 0 .. 0")
+        if w == "V":
+            out.append(f"ih1[{n}, {e}] <- lcwv[0]   for (z) in 0 .. 0")
+        elif w == "O":
             out.append(f"ih1[{n}, {e}] <- lcw[0]   for (z) in 0 .. 0")
         elif w == "T":
             out.append(f"ih1[{n}, {e}] <- ltw[0]   for (z) in 0 .. 0")
@@ -241,6 +247,9 @@ def cells(text):
 
 
 MACRO0 = 160                                        # 句の型紙の番号の始まり（句のバイト 128 + m → 型紙 160 + m）
+# **型紙の番号は句の手前まで。** 160 に型紙を足した日、句 160 が黙って上書きして型紙が消えた（13h）
+assert all(k < MACRO0 for k, _ in TEMPLATES), [k for k, _ in TEMPLATES if k >= MACRO0]
+assert len({k for k, _ in TEMPLATES}) == len(TEMPLATES), "型紙の番号がぶつかっている"
 
 
 def compress(text, limit=90):
