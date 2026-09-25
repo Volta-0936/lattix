@@ -1360,6 +1360,28 @@ encb[224,0] <- 72                    # 48 2B 83 d32  sub rax, [rbx+d32]    （�
 encb[224,1] <- 43
 encb[224,2] <- 131
 shp[224] <- 28868
+# **区間の集約の印はビットの並び**（14）: 計数器 - 下端 を番号にして、場の下の升に一ビットずつ立てる。
+encb[225,0] <- 72                    # 48 8D B1 d32  lea rsi, [rcx+d32]     （計数器 - 下端）
+encb[225,1] <- 141
+encb[225,2] <- 177
+shp[225] <- 28868
+encb[226,0] <- 72                    # 48 0F AB B3 d32  bts [rbx+d32], rsi  （印を立てる。立っていれば CF）
+encb[226,1] <- 15
+encb[226,2] <- 171
+encb[226,3] <- 179
+shp[226] <- 33028
+# **置き場は二枚の面がそれぞれ 2 GB まで**（14）: 階数の面の頭は rbx から引き（lea）、証人の長さは
+# 零拡張の mov で渡す（値 + 階数は 4 GB まで）。
+encb[227,0] <- 186                   # BA imm32  mov edx, imm32（上位を 0 に —— 2 GB を越える長さ）
+shp[227] <- 20548
+encb[228,0] <- 76                    # 4C 8D 93 d32  lea r10, [rbx+d32]（階数の面の頭）
+encb[228,1] <- 141
+encb[228,2] <- 147
+shp[228] <- 28868
+encb[229,0] <- 72                    # 48 2B B3 d32  sub rsi, [rbx+d32]（計数器 - 下端の升。下端が場の区間の印）
+encb[229,1] <- 43
+encb[229,2] <- 179
+shp[229] <- 28868
 
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
@@ -1409,7 +1431,9 @@ field fmsc : max bound 256           # 形がいま持っている倍率ビッ�
 fmsc[f] <- encb[f, shsb[f]] - sibb[f]   for (f) in 0 .. nfm[0] if hassib[f]
 # 長さと、穴の位置・幅。kind 4 = imm32/d32 / 1 = imm8 / 5 = rel32
 # ── 配置 ─────────────────────────────────────────────────────────
-#   コード 0x400078  データ 0x401000  場 F 0x402000+foff[f]  階数 K はその後ろ
+#   像（total）→ 地上 dbase（表・dgap）→ 表の印（ft2）→ 生（rcap）→ 詰め直し（pbsz）→ 区間の印（mtz）
+#   → 日程の二枚と升（gpz）→ 場 F（fbase、頁の頭）→ 階数 K（fbase + ftot）。F の手前までは即値の番地、
+#   F は rbx から・K は r10 から引く（14）
 # 地上データの頭は **像の後ろ**（4194304 + total）。踏むと黙って壊れる。
 field dbase : max bound 1
 # **像の後ろ**は像の大きさが決める。4718592 と書いてあったのは
@@ -1438,7 +1462,7 @@ gap[0] <- nrl[0] * 8 + epsz[0] + 512   for (z) in 0 .. 0
 # 引く前に閉じる。それだけで写像は単調に戻る。
 field gpz : max bound 1                     # 閉じた gap（引き算に使えるのはこちら）
 gpz[0] <- gap[0]   for (z) in 0 .. 0 if gap[0] >= 1
-dcap[0] <- fbase[0] - dbase[0] - gpz[0]   for (z) in 0 .. 0
+dcap[0] <- dgap[0]   for (z) in 0 .. 0
 
 # ── 入力の口。**8 なら語の列、1 なら生バイト**（源を読むのはこちら）──────
 # バイトのときは生を後ろに読み、(位置, 文字) の二列の表に展開する ——
@@ -1464,7 +1488,14 @@ field dneed : max bound 1                   # 表に要るバイト（一文字 
 dneed[z] <- rcap[0] * 16   for (z) in 0 .. 0
 field dgap : max bound 1                    # 地上ぜんぶ（表 + 余白 1 MB）
 dgap[z] <- dneed[0] + 1048576   for (z) in 0 .. 0
-fbase[z] <- dbase[0] + dgap[0]   for (z) in 0 .. 0
+# **場の頭は小さい置き場ぜんぶの後ろ**（14）。前は [地上][F][K][印][生][詰め直し] の順で、
+# 番地を符号つき 32 ビットの即値で焼くので **全部で** 2 GB の手前までだった。だが F は rbx から、
+# K は r10 から引く —— 変位が 32 ビットなのは **面ごと**である。小さい置き場を F の前に寄せれば
+# （[地上][表の印][生][詰め直し][区間の印][日程の二枚][F][K]）、即値の番地はどれも F の頭より下に
+# 収まり、F と K はそれぞれ 2 GB まで持てる。下ろしが 2 GB の手前（2,039 MB）に来ていた。
+field fbq : max bound 1                     # 場の頭の手前（小さい置き場の終わり + 区間の印 + 日程）
+fbq[z] <- pbuf[0] + pbsz[0] + mtz[0] + gpz[0] + 4095   for (z) in 0 .. 0
+fbase[z] <- fbq[0] / 4096 * 4096   for (z) in 0 .. 0
 field pb : max bound 1                      # 前置きの長さ（⊥ 埋めが始まる所）
 pb[0] <- 50
 pb[z] <- 55                          for (z) in 0 .. 0 for (z) in 0 .. 0 if inpw[0] == 1
@@ -1605,22 +1636,22 @@ field ftot2 : max bound 1                   # 場の置き場（値 F と 階数
 ftot2[0] <- ftot[0] + ktot[0]   for (z) in 0 .. 0
 field kbase : max bound 1
 kbase[0] <- fbase[0] + ftot[0]   for (z) in 0 .. 0
-field rbuf : max bound 1                    # 生バイトの置き場（場と階数の後ろ）
-rbuf[0] <- fbase[0] + ftot2[0] + ft2[0]   for (z) in 0 .. 0
+field rbuf : max bound 1                    # 生バイトの置き場（地上と表の印の後ろ）
+rbuf[0] <- dbase[0] + dgap[0] + ft2[0]   for (z) in 0 .. 0
 
 # 集約の「一度だけ撃つ印」。規則ごとに表と同じ広さ。**規則番号に沿った鎖。**
 field fsz2 : max bound 16384                    # この規則の印の場の大きさ
-fsz2[r] <- 0                        for (r) in 0 .. nrlz[0] if rrlt[r] < 8
-fsz2[r] <- dcap[0]                   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
+fsz2[r] <- 0                        for (r) in 0 .. nrlz[0]
+fsz2[r] <- dcap[0]                   for (r) in 0 .. nrlz[0] if atab[r]
 field foff2 : max bound 16384
 foff2[0] <- 0
 foff2[r] <- foff2[r-1] + fsz2[r-1]  for (r) in 0 .. nrlz[0] if r > 0
 field ft2 : max bound 1
 ft2[z] <- foff2[r] + fsz2[r]         for (r) in 0 .. nrlz[0] for (z) in 0 .. 0
 ft2[0] <- 0
-# 印の場の rcx からの変位: FIRED = 0x402000 + 2*ftot + foff2、rcx は 0x401000 起点
+# 表の印の rcx からの変位（rcx は地上の行を指す。印は地上のすぐ後ろ）
 field fdsp : max bound 16384
-fdsp[r] <- fbase[0] - dbase[0] + ftot2[0] + foff2[r]   for (r) in 0 .. nrlz[0]
+fdsp[r] <- dgap[0] + foff2[r]   for (r) in 0 .. nrlz[0]
 
 
 # **即値は 2^32 だけ持ち上げて持つ。** 焼いた機械語は「無い」を値で見分ける
@@ -2067,8 +2098,8 @@ jlen[r] <- 5 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
 jlen[r] <- 6 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 jlen[r] <- 11 + vchk[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # 足す + jo（溢れ）
-jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 9
+jlen[r] <- 6 + amx[r]    for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # 足す + jo（溢れ）
+jlen[r] <- 6 + amx[r]    for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 field jb : max bound 16384                      # join の位置
 jb[r] <- wpos[r] + 1 + wof[r] + tvx[r] + vchk[r]   for (r) in 0 .. nrlz[0]
 
@@ -2170,8 +2201,8 @@ form[14] <- 59                       # mov rbp, rax       （fd を持つ）
 # ── 前置き ──────────────────────────────────────────────────────
 form[15] <- 1                        # mov rbx, FBASE
 imm[15]  <- fbase[0] + bias[0]   for (z) in 0 .. 0
-form[16] <- 34                       # mov r10, KBASE
-imm[16]  <- kbase[0] + bias[0]   for (z) in 0 .. 0
+form[16] <- 228                      # lea r10, [rbx + ftot]（K の頭。2 GB を越えうるので即値にしない）
+imm[16]  <- ftot[0] + bias[0]   for (z) in 0 .. 0
 
 # 標準入力 → 表。部分読みに耐えるまで回す（パイプは一度で全部くれない）
 # **読めないこと・置き場より大きいことを黙らない。** 前は「残り 0 で read を呼ぶ」と
@@ -3261,12 +3292,62 @@ imm[jb[r] + 8]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] =
 scb[jb[r] + 8]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 
 # sum / count: 印が冪等を持つ（行は一度しか数えない）。count は値を 1 に直す
-form[jb[r]] <- 68      for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
-imm[jb[r]]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
-form[jb[r] + 1] <- 22  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
-jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
-form[jb[r] + 2] <- 69  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
-imm[jb[r] + 2]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+form[jb[r]] <- 68      for (r) in 0 .. nrlz[0] if atab[r]
+imm[jb[r]]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if atab[r]
+form[jb[r] + 1] <- 22  for (r) in 0 .. nrlz[0] if atab[r]
+jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if atab[r]
+form[jb[r] + 2] <- 69  for (r) in 0 .. nrlz[0] if atab[r]
+imm[jb[r] + 2]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if atab[r]
+# **区間の集約の印**（14）。印の番地 `[rcx + fdsp]` は表の行（rcx が地上の行を指す）の形で、区間では
+# rcx が **計数器の値**なので、番地は `fdsp + i` —— どこでもない所だった。小さい本では地上の空きに
+# 落ちてたまたま動き、場が 4〜12 MB の本では **場の升を印と読んだ**（`big` が 7 で埋まっていると
+# 「もう数えた」と読み、`c[0] <- i for (i) in 0 .. 9` の count が 10 でなく 0 —— 黙って違う答え）。
+# 下ろした本は表を区間に書き換えるので、集約はほとんどこちらを通る。印を **計数器 - 下端** の
+# ビットにして、場の下（日程の二枚のさらに下）の升に規則ごとに並べる。三命令のまま:
+#   lea rsi, [rcx - 下端] / bts [rbx + 印], rsi / jc → 次の行（もう数えた）
+field atab : or bound 16384                     # 集約の規則で、ループが一つの表（印は行で引く）
+atab[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r] if l0k[r] == 0
+field arng : or bound 16384                     # 集約の規則で、ループが一つの区間（印は計数器のビット）
+arng[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r] if l0k[r] >= 1
+# 下端が場の区間は、頭が下端を升に置いている（13i）ので **計数器 - その升** を番号にする（一命令長い）。
+# 下端の場が同じ層（か上）で書かれるなら、下端が動いて番号がずれる —— 焼かない（理由 8）
+field alsa : or bound 16384                     # 規則 r の段0 の下端は、同じ層（か上）で書かれる場
+alsa[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lpi[gl] == 0 if lplk[gl] >= 1 if lplk[gl] <= 2
+      if fwr[lplf[gl]] if fwst[lplf[gl]] >= rrst[lpr[gl]]
+badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if arng[r] if alsa[r]
+field amx : max bound 16384                     # 印の命令の伸び（下端が場の区間は一命令）
+amx[r] <- 0                         for (r) in 0 .. nrlz[0]
+amx[r] <- 1                         for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] >= 1
+field amz : max bound 16384                     # 印のビットの並びの大きさ（バイト、八の倍数）
+amz[r] <- 0                         for (r) in 0 .. nrlz[0]
+field adif : max bound 16384                    # 上端 - 下端（丸括弧は焼けないので名前を置く）
+adif[r] <- l0hi[r] - l0lo[r]        for (r) in 0 .. nrlz[0] if arng[r] if l0k[r] == 1 if l0hi[r] >= l0lo[r]
+amz[r] <- adif[r] / 64 * 8 + 8      for (r) in 0 .. nrlz[0] if arng[r] if l0k[r] == 1 if l0hi[r] >= l0lo[r]
+      if l0lk[r] == 0
+amz[r] <- 8                         for (r) in 0 .. nrlz[0] if arng[r] if l0k[r] == 1 if l0hi[r] < l0lo[r]
+      if l0lk[r] == 0
+#   上端が場なら広さは言語の上限まで（上端 - 下端 ≤ 4,194,304 は頭が見る）
+amz[r] <- 524296                    for (r) in 0 .. nrlz[0] if arng[r] if l0k[r] >= 2
+amz[r] <- 524296                    for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] >= 1
+field moff : max bound 16384                    # 規則 r の印の頭（印の置き場の頭から。前置きの鎖）
+moff[0] <- 0
+moff[r] <- moff[r-1] + amz[r-1]     for (r) in 1 .. nrlz[0]
+field mtot : max bound 1                        # 印の置き場ぜんぶ
+mtot[0] <- 0
+mtot[z] <- moff[r] + amz[r]         for (r) in 0 .. nrlz[0] for (z) in 0 .. 0
+field mtz : max bound 1                         # 閉じた mtot（引き算に使えるのはこちら。気づき38）
+mtz[0] <- mtot[0]   for (z) in 0 .. 0 if mtot[0] >= 0
+form[jb[r]] <- 225     for (r) in 0 .. nrlz[0] if arng[r]                 # lea rsi, [rcx - 下端]
+imm[jb[r]]  <- bias[0] - l0lo[r]    for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] == 0
+imm[jb[r]]  <- bias[0]              for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] >= 1   # （rsi ← rcx）
+form[jb[r] + 1] <- 229 for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] >= 1 # sub rsi, [下端の升]
+imm[jb[r] + 1]  <- llcl[0]          for (r) in 0 .. nrlz[0] if arng[r] if l0lk[r] >= 1
+field ajb : max bound 16384                     # bts の位置
+ajb[r] <- jb[r] + 1 + amx[r]        for (r) in 0 .. nrlz[0] if arng[r]
+form[ajb[r]] <- 226    for (r) in 0 .. nrlz[0] if arng[r]                 # bts [rbx + 印], rsi
+imm[ajb[r]]  <- moff[r] + bias[0] - mtz[0] - gpz[0]   for (r) in 0 .. nrlz[0] if arng[r]
+form[ajb[r] + 1] <- 7  for (r) in 0 .. nrlz[0] if arng[r]                 # jc → 次の行
+jt[ajb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if arng[r]
 # **二重以上のループの集約は、印を持たずに一度だけ回す**（13f）。印は外側の行（rcx）でしか
 # 引いていないので、内側の実例は同じ印を踏んで数え落ちる（`for (i,c) in ch for (k) in 0 .. 2`
 # の count が 12 でなく 4）—— だから前段が断っていた。だが印が要るのは **規則がもう一度回る**
@@ -3287,12 +3368,14 @@ sagr[cdr[gc]] <- true   for (gc) in 0 .. ngcz[0] if cdrd[gc] if fwr[cdcf[gc]] if
 sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if fwr[lpbf[gl]] if fwst[lpbf[gl]] >= rrst[lpr[gl]]
 sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if fwr[lplf[gl]] if fwst[lplf[gl]] >= rrst[lpr[gl]]
 badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if sagr[r]
-form[jb[r] + 3] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
-imm[jb[r] + 3]  <- 1 + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
+field ajc : max bound 16384                     # count の mov rax,1 の位置（印の後ろ）
+ajc[r] <- jb[r] + 3 + amx[r]        for (r) in 0 .. nrlz[0] if rrlt[r] == 9
+form[ajc[r]] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
+imm[ajc[r]]  <- 1 + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 
 # 集約の束ごとの位置
 field jlp : max bound 16384
-jlp[r] <- jb[r] + rrlt[r] - 5      for (r) in 0 .. nrlz[0]
+jlp[r] <- jb[r] + rrlt[r] - 5 + amx[r]   for (r) in 0 .. nrlz[0]
 form[jlp[r]] <- 70  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 imm[jlp[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 scb[jlp[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
@@ -3712,7 +3795,7 @@ jt[wbz[z] + 27]  <- wb[0] + 19   for (z) in 0 .. 0
 # 答えを確かめる手が無かった。証人だけで [値][階数] が揃い、描いた答えはその値から確かめられる。
 form[wbz[z] + 28] <- 36   for (z) in 0 .. 0
 imm[wbz[z] + 28]  <- fbase[0] + bias[0]   for (z) in 0 .. 0
-form[wbz[z] + 29] <- 37   for (z) in 0 .. 0
+form[wbz[z] + 29] <- 227   for (z) in 0 .. 0   # mov edx, 値 + 階数（零拡張。4 GB まで）
 imm[wbz[z] + 29]  <- ftot2[0] + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 30] <- 24   for (z) in 0 .. 0
 imm[wbz[z] + 30]  <- 1 + bias[0]   for (z) in 0 .. 0
@@ -4293,21 +4376,30 @@ field psz : max bound 8                     # 描く場の升数の和（前置�
 psz[k] <- fsz[orz[k]]                for (k) in 0 .. 0 if outw[0] == 1
 psz[k] <- psz[k-1] + fsz[orz[k]]     for (k) in 1 .. nrfz[0] if outw[0] == 1
 pbsz[z] <- psz[k]            for (k) in 0 .. nrfz[0] for (z) in 0 .. 0 if outw[0] == 1
-msz[0] <- fbase[0] - 4194304 + ftot2[0] + ft2[0] + rcap[0] + pbsz[0]   for (z) in 0 .. 0
+msz[0] <- fbase[0] - 4194304 + ftot2[0]   for (z) in 0 .. 0
 # **場の置き場は 2 GB の手前まで**（理由 E）。番地は符号つき 32 ビットの即値で焼き、
 # p_memsz も四バイトしか書かないので、それを超える置き場は番地が折り返して **別の場か
 # 地図の外を指した**（15 億升の or の場を二つ置くと segfault、50000 × 50000 は読みが
 # 黙って失敗した）。行は 0 —— どの宣言のせいかではなく、足した大きさの話である。
-field mend : max bound 1                    # 置き場の終わりの番地
-mend[z] <- msz[0] + 4194304   for (z) in 0 .. 0
-badk[z] <- 14   for (z) in 0 .. 0 if mend[0] > 2147483647
-out[104] <- msz[0] % 256   for (z) in 0 .. 0
-out[105] <- msz[0] / 256 % 256   for (z) in 0 .. 0
-out[106] <- msz[0] / 65536 % 256   for (z) in 0 .. 0
+# （14）即値で焼く番地は F の頭まで、F と K はそれぞれ rbx / r10 からの変位 —— 三つを別々に見る。
+badk[z] <- 14   for (z) in 0 .. 0 if fbase[0] > 2143289343
+badk[z] <- 14   for (z) in 0 .. 0 if ftot[0] > 2143289343
+badk[z] <- 14   for (z) in 0 .. 0 if ktot[0] > 2143289343
+# **断るときの像は小さく**（14）。p_memsz が 4 GB を越えうるようになって、面が大きすぎると断る像まで
+# 10 GB の置き場を持ち、exec が置き場を取れずに SIGSEGV で落ちていた（知らせが出ない）。
+# 前は四バイトしか書かなかったので、折り返して小さくなり、たまたま知らせが出ていた。
+field mszo : max bound 1                    # 頭に書く p_memsz
+mszo[z] <- msz[0]   for (z) in 0 .. 0 if not bad[0]
+mszo[z] <- total[0] + 65536   for (z) in 0 .. 0 if bad[0]
+out[104] <- mszo[0] % 256   for (z) in 0 .. 0
+out[105] <- mszo[0] / 256 % 256   for (z) in 0 .. 0
+out[106] <- mszo[0] / 65536 % 256   for (z) in 0 .. 0
 # **四バイト目を書き忘れていた。** 16 MB までは三バイトで足りていたので、
 # 足りなくなるまで誰も間違いに気づかない類の穴である —— 場が 11 MB を
 # 超えた日に、⊥ を敷く最初のループが地図の外へ出て落ちた。
-out[107] <- msz[0] / 16777216 % 256   for (z) in 0 .. 0
+out[107] <- mszo[0] / 16777216 % 256   for (z) in 0 .. 0
+# 二枚の面がそれぞれ 2 GB まで持てるので、p_memsz は 4 GB を越えうる（五バイト目）
+out[108] <- mszo[0] / 4294967296 % 256   for (z) in 0 .. 0
 
 # ── 符号面は **バイトの並び**である ─────────────────────────────────
 # 「命令 n の p バイト目を 120+off[n]+p に置く」と書くと、座標が

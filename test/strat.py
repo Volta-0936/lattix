@@ -30,7 +30,9 @@ front = open(os.path.join(ROOT, 'examples', '33_self.lx'), encoding='utf-8').rea
 front = "\n".join(l for l in front.splitlines() if not l.startswith('print '))
 front += """
 
-field lvout : max bound 4096
+# 文の数の上限は前段と同じ 16384（`level` / `hasr` の bound）。4096 と書いていたら、lattix.lx の文が
+# 4096 を越えた日（14）に探針が広さを越えて止まった —— 上限は数えて言う（気づき33）
+field lvout : max bound 16384
 lvout[s] <- 32 for (s) in 0 .. nstz[0]
 lvout[s] <- level[s] + 48 for (s) in 0 .. nstz[0] if hasr[s]
 render lvout

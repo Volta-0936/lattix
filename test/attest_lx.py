@@ -192,10 +192,18 @@ def planes(tab, wit):
     return wit[:vt], wit[vt:vt + kt]
 
 
+RCAP = 983040        # 焼いた本が標準入力から読める上限（31_gen の rcap）—— attest.lx もこれ以上は読めない
+too_big = []
+
+
 def run(label, src, data, ntrial):
     got = make(src, data)
     if got is None: return False
     tab, out, wit = got
+    # **attest.lx の読み口より大きい証明書は、attest の限界として数える**（14 で 8 MB の場を持つ accept の本を
+    # 足した日、attest.lx が「入力が大きすぎる」（終了コード 6）と正しく断り、それを破れと数えていた）
+    if len(tab) + 2 * len(wit) + len(data) > RCAP:
+        too_big.append((label, len(tab) + 2 * len(wit) + len(data))); return False
     vals0, ranks0 = planes(tab, wit)
     check(label + ':元', tab, vals0, ranks0, data, out, src=src)   # 元は、本が実際に出した stdout で
     for _ in range(ntrial):
@@ -360,6 +368,7 @@ for (k, v1, v2), n in sorted(groups.items(), key=str):
     print(f"  {k:<10}{v1:<14}{v2:<14}{n:>6}{mark}")
 print("-" * W)
 print(f"  答えた本: accept {n_acc} 本、撒いた本 {n_prog} 本（一件あたり {NTRIAL} 回壊す）")
+if too_big: print(f"  attest の読み口（{RCAP} バイト）より大きい証明書の本 {len(too_big)} 本は数えない（最大 {max(b for _, b in too_big)} バイト）")
 if why_uns:
     print("  UNSUPPORTED の理由（.lx の限界）:")
     for w, n in why_uns.most_common(): print(f"    {n:>4}  {w}")

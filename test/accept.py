@@ -887,6 +887,57 @@ s[i] <- w[i, j] * k   for (i) in 0 .. 3 for (j) in 0 .. 3 for (k) in 1 .. 2
 field m : max bound 4
 m[i] <- s[i] + c[i]   for (i) in 0 .. 3
 """)
+# **区間の集約の印**（14）。印は `[rcx + 変位]` で、表なら rcx は地上の行を指すが、区間では rcx が
+# 計数器の値なので、番地は「変位 + i」—— どこでもない所だった。場が 4〜12 MB の本では場の升を印と読み、
+# count が 10 でなく 0 になった（黙って違う答え）。印を「計数器 - 下端」のビットにした。
+case("区間の集約の印（大きい場と並んでも数える）", """table ch = (0,32)
+field big : max bound 1000000
+big[i] <- 7   for (i) in 0 .. 999999
+field c : count bound 1
+c[0] <- i   for (i) in 0 .. 9
+field s : sum bound 1
+s[0] <- i   for (i) in 3 .. 12
+""")
+case("区間の集約の印（同じ層の読みで何周も回る・下端が 0 でない）", """table ch = (0,32)
+field nx : max bound 64
+nx[i] <- i + 1   for (i) in 5 .. 40
+field reach : or bound 64
+reach[5] <- true
+reach[j] <- true   for (i) in 5 .. 40 for (j) in 0 .. 63 if reach[i] if nx[i] == j
+field c : count bound 1
+c[0] <- v   for (v) in 5 .. 50 if reach[v]
+field s : sum bound 1
+s[0] <- v   for (v) in 3 .. 60 if reach[v]
+field n : max bound 1
+n[0] <- 44
+field u : sum bound 1
+u[0] <- v   for (v) in 0 .. n[0] if reach[v]
+""")
+case("区間の集約で下端が場（印は 計数器 - 下端の升）", """table ch = (0,32)
+field lo : max bound 1
+lo[0] <- 2
+field nx : max bound 64
+nx[i] <- i + 1   for (i) in 3 .. 30
+field reach : or bound 64
+reach[3] <- true
+reach[j] <- true   for (i) in 3 .. 30 for (j) in 0 .. 40 if reach[i] if nx[i] == j
+field c : count bound 1
+c[0] <- v   for (v) in (lo[0]) .. 25 if reach[v]
+field s : sum bound 1
+s[0] <- v   for (v) in (lo[0]) .. 25 if reach[v]
+""")
+case("区間の集約の下端の場が同じ層で動く（言う —— 印の番号がずれる）", """table ch = (0,32)
+field nx : max bound 16
+nx[i] <- i + 1   for (i) in 0 .. 9
+field r : or bound 16
+r[0] <- true
+r[j] <- true   for (i) in 0 .. 9 for (j) in 0 .. 15 if r[i] if nx[i] == j
+field lo : min bound 1
+lo[0] <- 9
+lo[0] <- 4   for (z) in 0 .. 0 if r[5]
+field c : count bound 1
+c[0] <- v   for (v) in (lo[0]) .. 12 if r[v]
+""", exit=7, why=(11,8))
 case("集約に二重のループで、自分を読み返す（言う）", """table ch = (0,32)
 field c : count bound 4
 c[0] <- 1
@@ -1202,7 +1253,12 @@ field x : count bound 4
 n[0] <- 5000000
 x[0] <- 1   for (i) in 0 .. n[0]
 """, exit=10)
-case("場の置き場が 2 GB を超える（言う）", """table ch = (0,32)
+# **面ごとに 2 GB まで**（14）。値の面 F は rbx から、階数の面 K は r10 から引くので、上限は面ごと。
+case("階数の面が 2 GB を超える（値の面は超えない —— 言う）", """table ch = (0,32)
+field x : or bound 40000 40000
+x[i,j] <- true   for (i) in 0 .. 2 for (j) in 0 .. 1
+""", exit=7, why=(0,14))
+case("値の面が 2 GB を超える（言う）", """table ch = (0,32)
 field x : or bound 50000 50000
 field y : max bound 4
 y[i] <- i + 1   for (i) in 0 .. 3
