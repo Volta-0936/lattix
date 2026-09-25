@@ -1,0 +1,9 @@
+# 部分和（書き先の座標に計数器と列の和）
+table item = (0,3),(1,5),(2,7)
+field can : or bound 4 16
+can[0, 0] <- true
+can[k+1, s] <- true   for (k,w) in item for (s) in 0 .. 15 if can[k, s]
+can[k+1, s + w] <- true   for (k,w) in item for (s) in 0 .. 15 if can[k, s] if s + w <= 15
+field n : count bound 1
+n[0] <- s   for (s) in 0 .. 15 if can[3, s]
+print n

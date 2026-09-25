@@ -1,0 +1,19 @@
+# ライフゲーム（瞬き）: 二つの場が互いを読む輪を時間の軸が切る
+field g : or bound 5 8 8
+g[0, 3, 2] <- true
+g[0, 3, 3] <- true
+g[0, 3, 4] <- true
+field nb : sum bound 5 8 8
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x - 1, y - 1]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x - 1, y]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x - 1, y + 1]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x, y - 1]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x, y + 1]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x + 1, y - 1]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x + 1, y]
+nb[t, x, y] <- 1   for (t) in 0 .. 3 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x + 1, y + 1]
+g[t, x, y] <- true   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t - 1, x, y] if nb[t - 1, x, y] >= 2 if nb[t - 1, x, y] <= 3
+g[t, x, y] <- true   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if not g[t - 1, x, y] if nb[t - 1, x, y] == 3
+field pop : count bound 5
+pop[t] <- x * 8 + y   for (t) in 0 .. 4 for (x) in 0 .. 7 for (y) in 0 .. 7 if g[t, x, y]
+print pop

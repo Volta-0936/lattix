@@ -649,14 +649,14 @@ field g : max bound 16
 g[0] <- 3
 g[n] <- n * g[n-1] + 1   for (n) in 1 .. 12
 """, data=b"a")
-# 束縛が数え切れない（積が 2^14 を越える）なら証さない —— 解釈実行も 20,000 で数えるのをやめる
-# （そのあと解釈実行は軸に沿った成層で受け取ることがあるが、焼き手はそれを持たないので断る —— 黙らない）。
-# 焼き手だけが単調と読めば、解釈実行が単調と読まない本を単調として焼いてしまう（控えめな側にだけ倒す）
-case("計数器を掛ける再帰（多すぎる。言う）", """table ch = (0,32)
+# 束縛が数え切れない（積が 2^14 を越える）なら極性は証さない —— 解釈実行も 20,000 で数えるのをやめ、
+# **軸に沿った成層**で受け取る（f[n] は f[n-1] だけを読む）。焼き手も 14l から軸で受け取る（前は理由 7）。
+# 答えは 29999! で 64 ビットに収まらないので、焼いた本は溢れと言って止まる（終了コード 3。解釈実行は多倍長）
+case("計数器を掛ける再帰（多すぎる。溢れと言う）", """table ch = (0,32)
 field f : max bound 30000
 f[0] <- 1
 f[n] <- f[n-1] * n   for (n) in 1 .. 29999
-""", data=b"a", exit=7, why=(4,7))
+""", data=b"a", exit=3)
 # **負の数の種**（14h）。`f[1] <- -3` は解釈実行では `0 - 3` の種。前は焼き手が理由 8 で断っていた ——
 # 下ろしが表の負の升を種にするようになって当たった。種の値は max の場を通るので、0 の既定値
 # （値の無い種のため）に負けないこと、sum の鎖が負の和を max で落とさないことも見る。
@@ -698,11 +698,13 @@ case("升の無い場（言う）", """table ch = (0,32)
 field up : max bound 0
 up[i] <- c - 32   for (i,c) in ch if c >= 97 if c <= 122
 """, data=b"abc", exit=6)
-case("負になりうる計数器を掛ける（言う）", """table ch = (0,32)
+# 負になりうる計数器を掛けると f[n-1] の読みは非単調で、場の粒度では成層できない（14k までは理由 7）。
+# だが読むのは小さい切り口だけなので、解釈実行は軸を開いて受け取る —— 焼き手も 14n から軸で受け取る
+case("負になりうる計数器を掛ける（軸で通る）", """table ch = (0,32)
 field f : max bound 16
 f[0] <- 1
-f[n] <- f[n-1] * m   for (n) in 1 .. 12 for (m) in 0 - 1 .. 1
-""", data=b"a", exit=7, why=(4,7))
+f[n] <- f[n-1] * m   for (n) in 1 .. 12 for (m) in -1 .. 1
+""", data=b"a")
 # **変数で割る**（14j。種17〜20）。長いあいだ「焼けない」の例だった（理由 8）。列（17 / 18）と
 # 計数器（19 / 20）で、床・負の割る数・0 で割る（⊥ —— 撃たない）を解釈実行と升まで比べる。
 case("列で割る・余り（通る）", """table edges = (0,0,0)
@@ -770,6 +772,165 @@ case("負の数の上端（言う）", """table ch = (0,32)
 field s : sum bound 1
 s[0] <- j   for (j) in -3 .. -1
 """, data=b"a", exit=7, why=(3,8))
+# **軸に沿った成層**（14l）。輪の中の否定が「同じ場の、書き先の軸より小さい切り口」だけを読むなら、
+# 規則を一つのループに融合して軸を昇れば一周で正しい（解釈実行は具体例に開いて成層する —— SPEC §4）。
+# 焼く側が許すのは融合が必ず起きる形だけ: ループ一つ・数の区間・同じ端・同じ場の規則が源の上で隣り合う
+case("軸に沿った成層（通る）", """table ch = (0,32)
+field win : max bound 16
+win[0] <- 0
+win[n] <- 1   for (n) in 1 .. 15 if win[n - 1] == 0
+win[n] <- 1   for (n) in 1 .. 15 if n >= 2 if win[n - 2] == 0
+win[n] <- 0   for (n) in 1 .. 15 if win[n - 1] == 1 if win[n - 2] == 1
+win[1] <- 1
+""", data=b"a")
+case("軸に沿った成層・not（通る）", """table ch = (0,32)
+field w : or bound 21
+w[n] <- true   for (n) in 1 .. 20 if not w[n - 1]
+w[n] <- true   for (n) in 1 .. 20 if n >= 3 if not w[n - 3]
+field c : count bound 1
+c[0] <- n   for (n) in 0 .. 20 if w[n]
+""", data=b"a")
+case("軸で同じ切り口を読む（言う）", """table ch = (0,32)
+field win : max bound 8
+win[0] <- 0
+win[n] <- 1   for (n) in 1 .. 5 if win[n] == 0
+""", data=b"a", exit=7, why=(4,7))
+case("軸で大きい切り口を読む（14p から降りる軸で通る）", """table ch = (0,32)
+field win : max bound 8
+win[7] <- 0
+win[n] <- 1   for (n) in 0 .. 5 if win[n + 1] == 0
+""", data=b"a")
+# 源の順に依らない（14o）: 軸の群は規則の番号の上で一続きに並ぶので、間に別の場の規則があってよい
+case("軸の規則の間に別の規則（通る）", """table ch = (0,32)
+field win : max bound 16
+field z : max bound 16
+win[0] <- 0
+win[n] <- 1   for (n) in 1 .. 15 if win[n - 1] == 0
+z[n] <- 3   for (n) in 0 .. 3
+win[n] <- 0   for (n) in 1 .. 15 if win[n - 1] == 1
+""", data=b"a")
+case("軸の規則の端が違う（言う —— 下ろせば揃う）", """table ch = (0,32)
+field win : max bound 16
+win[0] <- 0
+win[n] <- 1   for (n) in 1 .. 15 if win[n - 1] == 0
+win[n] <- 0   for (n) in 2 .. 15 if win[n - 1] == 1
+""", data=b"a", exit=7, why=(4,7))
+# **軸の群の入口は、群より前の層で閉じる**（14m）。前は軸の規則が別の場を単調に読むと同じ層に入り、
+# 一周目に途中の x を読んで `w[n - 1] < 15` が撃ち、取り消せなかった（全部 15 —— SILENT）
+case("軸の規則が同じ層で育つ場を読む（通る）", """table ch = (0,32)
+field x : max bound 16
+x[n] <- n   for (n) in 0 .. 15
+x[n] <- x[n + 1]   for (n) in 0 .. 14
+field w : max bound 16
+w[0] <- 0
+w[n] <- x[n]   for (n) in 1 .. 15 if w[n - 1] < 15
+""", data=b"a")
+# 軸の形をしていても、自分の小さい切り口を非単調に読まない場は軸の場にしない（14n）。14m は入口の +1 を
+# 全部の「軸の形」に掛けて、単調な相互再帰に輪の +1 を作り、成層できないと言った
+case("軸の形の単調な相互再帰（通る）", """table ch = (0,32)
+field a : max bound 11
+field b : max bound 11
+a[0] <- 0
+a[n] <- b[n - 1] + 1   for (n) in 1 .. 10
+b[n] <- a[n] * 2   for (n) in 0 .. 10
+""", data=b"a")
+# **内側にループのある軸**（14n）。生成器は群の段0 だけを融合し、内側の段は規則ごとに回す
+case("二重のループの軸（通る）", """table ch = (0,32)
+field c : or bound 16 33
+c[0, 16] <- true
+c[t, i] <- true   for (t) in 1 .. 15 for (i) in 1 .. 31 if c[t - 1, i - 1] if not c[t - 1, i + 1]
+c[t, i] <- true   for (t) in 1 .. 15 for (i) in 1 .. 31 if not c[t - 1, i - 1] if c[t - 1, i + 1]
+""", data=b"a")
+case("軸の群に一重と二重（通る）", """table ch = (0,32)
+field c : or bound 10 8
+c[0, 3] <- true
+c[t, i] <- true   for (t) in 1 .. 9 for (i) in 1 .. 6 if c[t - 1, i - 1] if not c[t - 1, i + 1]
+c[t, 0] <- true   for (t) in 1 .. 9 if not c[t - 1, 1]
+c[t, i] <- true   for (t) in 1 .. 9 for (i) in 1 .. 6 if not c[t - 1, i - 1] if c[t - 1, i + 1]
+""", data=b"a")
+case("四重のループの軸（通る）", """table ch = (0,32)
+field g : or bound 6 3 3
+g[0, 0, 0] <- true
+g[t, a, b] <- true   for (t) in 1 .. 5 for (a) in 0 .. 2 for (b) in 0 .. 2 for (c) in 0 .. 1 if not g[t - 1, b, a] if c >= 1
+g[t, a, b] <- true   for (t) in 1 .. 5 for (a) in 0 .. 2 for (b) in 0 .. 2 if g[t - 1, a, b] if not g[t - 1, b, b]
+""", data=b"a")
+# **軸の場の土台**（14n）: 軸の形でない書き手が自分の場を読まなければ、群より前の層で閉じる
+case("軸の場の土台（通る）", """table ch = (0,32)
+field s : max bound 9 5
+s[0, j] <- j   for (j) in 0 .. 4
+s[t, j] <- s[t - 1, j] + 1   for (t) in 1 .. 8 for (j) in 0 .. 4 if s[t - 1, 0] < 4
+s[t, 0] <- 0   for (t) in 1 .. 8 if s[t - 1, 0] >= 4
+""", data=b"a")
+# **二つ以上の場が軸をまたいで読み合う群**（14o）。グランディ数の mex: has[n] は gr[n - 1] を読み、gr[n] は
+# has[n] を否定で読む。群を段0 で融合し、切り口の中は「同じ切り口を読む文を、読む場の書き手の後」に回す
+case("二つの場の軸の群・mex（通る）", """table ch = (0,32)
+field has : or bound 40 5
+field gr : min bound 40
+gr[0] <- 0
+gr[n] <- v   for (n) in 4 .. 39 for (v) in 0 .. 4 if not has[n, v]
+has[n, v] <- true   for (n) in 4 .. 39 for (v) in 0 .. 4 if gr[n - 1] == v
+has[n, v] <- true   for (n) in 4 .. 39 for (v) in 0 .. 4 if gr[n - 3] == v
+has[n, v] <- true   for (n) in 4 .. 39 for (v) in 0 .. 4 if gr[n - 4] == v
+gr[1] <- 1
+gr[2] <- 0
+gr[3] <- 1
+""", data=b"a")
+# 源の順が切り口の中の順と逆（読む文が先）でも、規則の番号が並べ直す
+case("二つの場の軸の群・近傍の数（通る）", """table ch = (0,32)
+field g : or bound 5 8 8
+g[0, 3, 2] <- true
+g[0, 3, 3] <- true
+g[0, 3, 4] <- true
+field nb : sum bound 5 8 8
+nb[t, x, y] <- 1   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x - 1, y]
+nb[t, x, y] <- 1   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x + 1, y]
+nb[t, x, y] <- 1   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x, y - 1]
+nb[t, x, y] <- 1   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t, x, y + 1]
+g[t, x, y] <- true   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if g[t - 1, x, y] if nb[t - 1, x, y] >= 2
+g[t, x, y] <- true   for (t) in 1 .. 4 for (x) in 1 .. 6 for (y) in 1 .. 6 if not g[t - 1, x, y] if nb[t - 1, x, y] == 1
+""", data=b"a")
+# 切り口の中に輪（二つの場が同じ切り口を互いに否定で読む）—— 解釈実行も断る
+case("切り口の中の否定の輪（言う）", """table ch = (0,32)
+field p : or bound 8
+field q : or bound 8
+p[0] <- true
+p[n] <- true   for (n) in 1 .. 7 if not q[n] if p[n - 1]
+q[n] <- true   for (n) in 1 .. 7 if not p[n] if p[n - 1]
+""", data=b"a", exit=7, why=(5,7))
+# **降りる軸**（14p）: 大きい切り口を読む群は段0 を上から回す（後ろから解く石取り）
+case("降りる軸（通る）", """table ch = (0,32)
+field win : max bound 21
+win[20] <- 0
+win[19] <- 1
+win[n] <- 1   for (n) in 0 .. 18 if win[n + 1] == 0
+win[n] <- 1   for (n) in 0 .. 18 if win[n + 2] == 0
+win[n] <- 0   for (n) in 0 .. 18 if win[n + 1] == 1 if win[n + 2] == 1
+""", data=b"a")
+case("二つの場の降りる軸・二重ループ（通る）", """table ch = (0,32)
+field w : or bound 7 5
+field c : count bound 7
+w[6, x] <- true   for (x) in 0 .. 4 if x >= 3
+w[t, x] <- true   for (t) in 0 .. 5 for (x) in 0 .. 3 if not w[t + 1, x + 1] if c[t + 1] >= 1
+w[t, x] <- true   for (t) in 0 .. 5 for (x) in 1 .. 3 if not w[t + 1, x - 1]
+c[t] <- x   for (t) in 0 .. 5 for (x) in 0 .. 4 if w[t, x]
+c[6] <- 2
+""", data=b"a")
+# 昇る読みと降りる読みが一つの群に混ざる —— 焼かない（理由 7）
+case("昇る読みと降りる読みの群（言う）", """table ch = (0,32)
+field w : max bound 12
+w[0] <- 0
+w[11] <- 0
+w[n] <- 1   for (n) in 1 .. 10 if w[n - 1] == 0 if w[n + 1] == 0
+""", data=b"a", exit=7, why=(5,7))
+case("土台が同じ層で育つ場を読む（通る）", """table ch = (0,32)
+field x : max bound 16
+x[n] <- n   for (n) in 0 .. 15
+x[n] <- x[n + 1]   for (n) in 0 .. 14
+field w : max bound 16 2
+w[n, j] <- w[n - 1, j] + 1   for (n) in 1 .. 15 for (j) in 0 .. 1 if w[n - 1, j] < 15
+w[0, j] <- x[j]   for (j) in 0 .. 1
+w[n, j] <- 0   for (n) in 1 .. 15 for (j) in 0 .. 1 if w[n - 1, j] >= 15
+""", data=b"a")
 # 計数器の三つ目から先は register ではなく升に居る（形213）。四重の入れ子で割る
 case("四つ目の計数器で割る（通る）", """table ch = (0,32)
 field q : min bound 2 2 2

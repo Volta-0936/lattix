@@ -1,0 +1,8 @@
+# 後ろから解く石取り（一歩で 1 か 2 進む。ゴールに着いた方の勝ち —— 大きい切り口を読む降りる軸）
+field win : max bound 21
+win[20] <- 0
+win[n] <- 1   for (n) in 0 .. 19 if win[n + 1] == 0
+win[n] <- 1   for (n) in 0 .. 18 if win[n + 2] == 0
+win[n] <- 0   for (n) in 0 .. 19 if win[n + 1] == 1 if n == 19
+win[n] <- 0   for (n) in 0 .. 18 if win[n + 1] == 1 if win[n + 2] == 1
+print win

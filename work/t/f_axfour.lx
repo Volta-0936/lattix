@@ -1,0 +1,8 @@
+# 四重のループの軸（段 3 の計数器は升に住む）
+field g : or bound 6 3 3
+g[0, 0, 0] <- true
+g[t, a, b] <- true   for (t) in 1 .. 5 for (a) in 0 .. 2 for (b) in 0 .. 2 for (c) in 0 .. 1 if not g[t - 1, b, a] if c == a % 2
+g[t, a, b] <- true   for (t) in 1 .. 5 for (a) in 0 .. 2 for (b) in 0 .. 2 if g[t - 1, a, b] if not g[t - 1, b, b]
+field cnt : count bound 6
+cnt[t] <- a * 3 + b   for (t) in 0 .. 5 for (a) in 0 .. 2 for (b) in 0 .. 2 if g[t, a, b]
+print cnt

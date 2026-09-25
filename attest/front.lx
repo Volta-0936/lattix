@@ -457,6 +457,198 @@ tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if cnum[t] >= 1
 # 式の辺は焼かない（種15）が、**成層は焼けるかどうかに寄りかからない**
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if ifocl[gcl[t]]
 
+# ══ 軸に沿った成層（14l）═══════════════════════════════════════════════
+# 解釈実行は輪の中の否定を、書き先の **軸**（静的な区間の計数器）で具体例に開いて成層する（SPEC §4
+# 「層は座標である」）。石取りの勝ち負け `win[n] <- 1 for (n) in 1 .. 15 if win[n - 1] == 0` は、場の
+# 粒度では win → win の否定の輪だが、読むのはいつも **自分より小さい切り口** n - 1 である。
+# 焼く側は、その形の規則を **一つのループに融合して n を昇る**（31_gen の融合）: 切り口 n を作るとき、
+# 読む n - c（c >= 1）は前の周回の中で既に閉じている —— だから一周で正しく、二周目は何も動かさない。
+# **二つの判断を一つにする**: ここで輪を許すのは、融合が必ず起きる形だけ（ループ一つ・数の区間・同じ端・
+# 同じ場を書く規則が源の上で隣り合う）。生成器は、許された規則が融合しなかったら断る（31_gen、理由 7）
+# —— 前段だけが許して生成器が融合しなければ、非単調な読みが途中の値を読んで **黙って間違える**。
+# 読みは二段まで（自己検査の古い道の限界 —— sedv2 の註）。
+field shof : max bound 16384             # 文 s の書き先の出現
+shof[osn[o]] <- o for (o) in 0 .. nocz[0] if ohd[o]
+field ohof : or bound 32768              # 出現 o の次元0 にずれがある
+ohof[o] <- true for (o) in 0 .. nocz[0] if c0hf[o] >= 1
+field sax1 : or bound 16384              # 文 s は軸の規則の形: 段0 が数の区間・書き先の次元0 がその計数器そのもの
+# 内側にループがあってもよい（14n）—— 生成器は群の段0 だけを融合し、内側の段は規則ごとに回す
+sax1[s] <- true for (s) in 0 .. nstz[0] if isrec[s] if lkd[s, 0] == 1 if llhv[s, 0]
+      if c0sr[shof[s]] == 1 if c0cc[shof[s]] == 0 if not ohof[shof[s]]
+field ohz : max bound 32768              # 出現 o の文の書き先の場（0 起点）
+ohz[o] <- hfz[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field ohl : max bound 32768              # 同じもの（1 起点 —— ofl と比べる）
+ohl[o] <- hfl[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field osx : or bound 32768               # 出現 o の文は軸の規則の形
+osx[o] <- true for (o) in 0 .. nocz[0] if oin[o] if sax1[osn[o]]
+field oax1 : or bound 32768              # 出現 o は同じ場の、書き先の軸より小さい切り口を読む（`f[n - c]`、c >= 1）
+oax1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o]
+      if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1 if c0of[o] >= 128
+# **軸の形でない書き手は、自分の場を読まなければ土台である**（14n）。`s[0, j] <- j for (j) in 0 .. 4` は
+# 切り口 0 を敷くだけで、輪に入っていない —— 群より前の層で閉じていれば（下の wlvlb）、群は閉じた
+# 切り口を読む。自分の場を読む書き手（`s[0, j] <- s[5, j]`）は輪の中なので、軸では受け取らない
+field sfrd : or bound 16384              # 文 s は自分の書き先の場を読む
+sfrd[osn[o]] <- true for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if ofl[o] == ohl[o]
+field fxw : or bound 2048                # 場 f を書く規則に、軸の形でなく、f を読むものがある
+fxw[hfz[s]] <- true for (s) in 0 .. nstz[0] if isrec[s] if not sax1[s] if sfrd[s]
+field fxrd : or bound 2048               # 場 f を書く軸の規則が、f を軸の形でなく読む（同じ切り口や大きい切り口）
+fxrd[ohz[o]] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o] if not oax1[o]
+field fxl0 : min bound 2048              # 場 f の軸の規則の下端の最小 / 最大（同じでなければ融合しない）
+fxl0[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxl1 : max bound 2048
+fxl1[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh0 : min bound 2048              # 上端の最小 / 最大
+fxh0[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh1 : max bound 2048
+fxh1[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field isrl : or bound 16384              # 文 s は規則（isrec の写し。鎖の中で読む）
+isrl[s] <- true for (s) in 0 .. nstz[0] if isrec[s]
+field prr : max bound 16384              # 文 s より前の、最後の規則の文
+prr[s] <- s - 1 for (s) in 1 .. nstz[0] if isrl[s-1]
+prr[s] <- prr[s-1] for (s) in 1 .. nstz[0] if not isrl[s-1]
+field prh : max bound 16384              # その規則の書き先の場
+prh[s] <- hfz[prr[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+field fxfs : min bound 2048              # 場 f の最初の軸の規則の文
+fxfs[hfz[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sxfs : max bound 16384             # 文 s の書き先の場の最初の軸の規則の文
+sxfs[s] <- fxfs[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field fxg : or bound 2048                # 場 f の軸の規則のあいだに、別の場を書く規則がある
+fxg[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sxfs[s] if prh[s] != hfz[s]
+# **軸の成層が要る場だけを軸の場にする**（14n）。形だけ見れば `x[n] <- … for (n) in 0 .. 9` はみな軸の規則の
+# 形をしている。それを全部軸の群にすると、入口の +1（oxin）が **単調な相互再帰**（下ろしの機械の
+# `_kf1[k, j + 1] <- _kg1[k, j] …` と `_kg1[k, j] <- _kf1[k, j] …`）に輪の +1 を作り、層が昇り続けて
+# 成層できないと言った（内側にループを許した日に出た。一重でも同じ形は在った）。軸が要るのは、
+# 自分の小さい切り口を **非単調に**読むときだけである
+field fxnd : or bound 2048               # 場 f の軸の規則が、f の小さい切り口を非単調に読む
+fxnd[ohz[o]] <- true for (o) in 0 .. nocz[0] if oax1[o] if onm[o]
+field fax1 : or bound 2048               # 場 f は **一つで**軸に沿って成層できる（14l〜14n の形）
+fax1[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if not fxw[hfz[s]] if not fxrd[hfz[s]]
+      if fxl0[hfz[s]] == fxl1[hfz[s]] if fxh0[hfz[s]] == fxh1[hfz[s]] if fxnd[hfz[s]]
+# ── **二つ以上の場が軸をまたいで読み合う群**（14o）────────────────────────────────
+# グランディ数の mex（`has[n, v] <- … if gr[n - 1] == v` と `gr[n] <- v … if not has[n, v]`）・ライフゲーム
+# （`nb[t, x, y] <- 1 … if g[t, …]` と `g[t, x, y] <- … if nb[t - 1, x, y] == 3`）は、場の粒度では否定の輪で、
+# 一つの場の軸（上）でも受け取れない —— 輪が場をまたぐ。だが解釈実行が開く具体例は **切り口 n の中で
+# 閉じる順序** を持つ: 切り口 n の has は gr[n - 1] だけを読み、切り口 n の gr は has[n] を読む。だから
+# 群の規則を段0 で融合し、各 n で **源の順に** 回せば一周で正しい —— 読む切り口が n - c（c ≥ 1）なら前の周回で
+# 閉じていて、同じ切り口 n を読むなら、その場の群の書き手が全部 **源の上で前に**いればこの周回で閉じている。
+# 群は「軸の形の規則が、軸の形で読まれる場を軸の形で読む」繋がりの成分（いちばん小さい場の番号が名 ——
+# min の鎖）。誰にも軸の形で読まれない場（`live[t] <- … if c[t, i]` の live）は群に入れない。
+# 群が成り立たなければ、一つの場の軸（fax1）に戻る —— 14n までに受け取った本は同じに受け取る。
+field ofzx : max bound 32768              # 出現 o の読む場（0 起点）
+ofzx[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+field oxc0 : or bound 32768              # 出現 o は軸の規則の、同じ切り口の読み（`g[n, …]`）
+oxc0[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if not ohof[o]
+field oxc1 : or bound 32768              # 小さい切り口の読み（`g[n - c, …]`、c >= 1）
+oxc1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 128
+# **降りる軸**（14p）: 大きい切り口を読む（`g[n + c, …]`、c >= 1）群は、段0 を上から下へ回せば同じ主張が立つ ——
+# 切り口 n を作るとき、n + c は前の周回（上の切り口）で閉じている。後ろから解くゲーム・後ろ向きの動的計画法
+field oxc2 : or bound 32768              # 大きい切り口の読み（`g[n + c, …]`、c >= 1）
+oxc2[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 1 if c0of[o] <= 127
+field fxs : or bound 2048                # 場 f を書く軸の形の規則がある
+fxs[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field fxrb : or bound 2048               # 場 f は軸の形の規則に、軸の形で読まれる
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o]
+# 群に入れるのは **読まれもし、読みもする**場だけ（輪の上に居うる場）。誰にも軸の形で読まれない場（`live`）も、
+# 群の場を軸の形で読まない場（後ろ向きの本の `big[n, k] <- … if v[n] > k`）も、群の入口か出口であって輪の外 ——
+# 入口は下の層で閉じる（oxin）。前は入口まで群に入れて同じ層に置き、解釈実行（入口を先の層に置く）と
+# 層が食い違っていた（答えは同じだったが、strat.py の破れになった —— 14p）
+field fxro : or bound 2048               # 場 f の軸の形の書き手が、軸の形の規則の書く場を軸の形で読む
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]]
+field oxl : or bound 32768               # 出現 o は群を繋ぐ
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+field bid : min bound 2048               # 場 f の群の名（成分のいちばん小さい場）
+bid[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s]
+bid[ohz[o]] <- bid[ofzx[o]] for (o) in 0 .. nocz[0] if oxl[o]
+bid[ofzx[o]] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oxl[o]
+field sbid : max bound 16384             # 文 s の書き先の群（読みを二段に保つ写し）
+sbid[s] <- bid[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field oxbk : max bound 32768              # 出現 o の文の書き先の群（頭の座標を一段に保つ写し —— 自己検査の古い道）
+oxbk[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if osx[o]
+field obid : or bound 32768              # 出現 o は、軸の形の規則が自分の群の場を読む
+obid[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fxs[ofzx[o]] if bid[ofzx[o]] == bid[ohz[o]]
+field bnd : or bound 2048                # 群 b の中に非単調な読みがある（群が要る）
+bnd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxl[o] if onm[o] if obid[o]
+field bxrd : or bound 2048               # 群の規則が群の場を軸の形でなく読む
+bxrd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if not oxc0[o] if not oxc1[o] if not oxc2[o]
+field bup : or bound 2048                # 群 b は小さい切り口を読む（昇る軸）/ 大きい切り口を読む（降りる軸）
+bup[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc1[o]
+field bdn : or bound 2048
+bdn[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc2[o]
+# **切り口の中の順序は源の順ではなく、読みが決める**（Lattix の答えは文の順に依らない —— 06_order_free）。
+# 同じ切り口 n を読む文は、読む場の書き手より後に回す: 切り口の中の段 = 同じ切り口の読みに沿った最長路。
+# 規則の番号（lib/fold.lx の rno）が群の中でこの段の順に並ぶので、融合した一周もこの順に回る。
+# 段が昇り続けるなら（自分の切り口を読む・互いに同じ切り口を読む）切り口の中に輪がある —— 群にしない
+field bsl : or bound 16384 8             # 文 s は切り口の中で k 段目以降に回る
+bsl[s, 0] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field wsl : or bound 2048 8              # 場 f の軸の形の書き手が k 段目以降にいる
+wsl[hfz[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if sax1[s] if bsl[s, k]
+bsl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 6 if oxc0[o] if obid[o] if wsl[ofzx[o], k]
+field ssl : max bound 16384              # 文 s の切り口の中の段
+ssl[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if bsl[s, k]
+field bxor : or bound 2048               # 切り口の中に輪がある
+bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
+field bxfs : min bound 2048              # 群 b の最初の文
+bxfs[sbid[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sbfs : max bound 16384             # 文 s の群の最初の文
+sbfs[s] <- bxfs[sbid[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field prb : max bound 16384              # 文 s の前の規則の書き先の群
+prb[s] <- bid[prh[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+# 群の文が源の上で離れていてもよい（14o）—— 規則の番号（lib/fold.lx）が群を一続きに並べる。bxg は数えるだけ
+field bxg : or bound 2048                # 群の文のあいだに、群の外の場を書く規則がある
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if not fxs[prh[s]]
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if prb[s] != sbid[s]
+field bxw : or bound 2048                # 軸の形でない書き手が群の場を読む（土台になれない）
+field obw : max bound 32768              # 出現 o の文（軸の形でない書き手）の書き先の群
+obw[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if not osx[o] if fxs[ohz[o]]
+bxw[obw[o]] <- true for (o) in 0 .. nocz[0] if obw[o] >= 0 if fxs[ofzx[o]] if bid[ofzx[o]] == obw[o]
+field bxl0 : min bound 2048              # 群の段0 の下端の最小 / 最大、上端の最小 / 最大
+bxl0[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxl1 : max bound 2048
+bxl1[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh0 : min bound 2048
+bxh0[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh1 : max bound 2048
+bxh1[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bax0 : or bound 2048               # 群 b は成り立つ（端の違いは下ろしが揃える）
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bup[sbid[s]]
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bdn[sbid[s]]
+field bax : or bound 2048                # 群 b は焼ける（端も揃っている）
+bax[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bax0[sbid[s]]
+      if bxl0[sbid[s]] == bxl1[sbid[s]] if bxh0[sbid[s]] == bxh1[sbid[s]]
+field fbk : max bound 2048               # 場 f の軸の群（群が成り立てば群の名、一つで成り立てば f）
+fbk[hfz[s]] <- sbid[s] for (s) in 0 .. nstz[0] if sax1[s] if bax[sbid[s]]
+fbk[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s] if not bax[sbid[s]] if fax1[hfz[s]]
+field fax : or bound 2048                # 場 f は軸に沿って成層できる
+fax[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if fbk[hfz[s]] >= 0
+field sax : or bound 16384               # 文 s は軸に沿って成層した規則（生成器が融合を確かめる）
+sax[s] <- true for (s) in 0 .. nstz[0] if sax1[s] if fax[hfz[s]]
+field sfb : max bound 16384              # 文 s の軸の群
+sfb[s] <- fbk[hfz[s]] for (s) in 0 .. nstz[0] if sax[s]
+field ofb : or bound 32768               # 出現 o は、軸の規則が自分の軸の群の場を読む
+ofb[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fax[ofzx[o]] if fbk[ofzx[o]] == fbk[ohz[o]]
+field oax : or bound 32768               # 出現 o は軸で安全（非単調な読みでも層を切らない）
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if ofb[o] if sax[osn[o]]
+field sxdn : or bound 16384              # 文 s は降りる軸の群の規則（段0 を上から回す）
+sxdn[s] <- true for (s) in 0 .. nstz[0] if sax[s] if bax[sbid[s]] if bdn[sbid[s]]
+# **軸の群の入口は、群より前の層で閉じていなければならない**（h01 で見つけた SILENT）。融合した一周が
+# 正しいのは「n - c の切り口は閉じている」からだが、その切り口の値が **同じ層で育つ別の場**を読んでいれば、
+# 一周目に読んだのは途中の値で、非単調な読み（`if w[n - 1] < 15`）がそれを見て撃った実例は取り消せない。
+# だから軸の規則が群の外の場を読むときは、単調な読みでも層を一つ上げる（入口を閉じてから回る）。
+field oxin : or bound 32768              # 出現 o は、軸の規則が読む群の外の場
+oxin[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if sax[osn[o]] if not oax[o]
+
 # ══ 成層 ═══════════════════════════════════════════════════════════
 # 辺の表は要らない。**場の番号を座標にして**書き手と読み手を繋ぐ。
 # 重み付き最長路がそのまま層になる —— 非単調な辺だけが +1 する。
@@ -474,9 +666,25 @@ lvl[s,0] <- true for (s) in 0 .. nstz[0] if hasr[s]
 wlvl[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
       if hfl[s] >= 0 if lvl[s,k]
 lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
-      if not ohd[o] if not onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if not onm[o] if not oxin[o] if wlvl[ofl[o], k]
 lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
-      if not ohd[o] if onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if onm[o] if not oax[o] if wlvl[ofl[o], k]
+# 軸の群の入口（単調な読みでも）は層を一つ上げる（上の oxin）
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if not onm[o] if oxin[o] if wlvl[ofl[o], k]
+# 軸で安全な非単調な読みは層を切らない（上の「軸に沿った成層」）
+lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
+      if not ohd[o] if onm[o] if oax[o] if wlvl[ofl[o], k]
+# ただし軸の場の **土台**（軸の群でない書き手 —— 種や `s[0, j] <- j for (j) …`）は、群より前の層で閉じる（14n）
+field wlvlb : or bound 2048 128          # 場 f の、軸の群でない書き手が層 k 以上にいる
+wlvlb[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
+      if hfl[s] >= 0 if not sax[s] if lvl[s,k]
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if oax[o] if wlvlb[ofl[o], k]
+# 軸の群の文は **全部同じ層**にいる（段0 で融合するので。群の中の読みは層を分けない —— 14o）
+field blv : or bound 2048 128            # 群 b の文が層 k 以上にいる
+blv[sfb[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if lvl[s, k]
+lvl[s, k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if blv[sfb[s], k]
 field level : max bound 16384            # 文 s の層（＝上にいる最大の k）
 level[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if lvl[s,k]
 field toodeep : or bound 8              # 層が深すぎる（＝成層できない源）
@@ -1525,9 +1733,16 @@ field rcnt : max bound 16384 128          # 文 s までに層 k で数えた規
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
-      if isrec[s] if rst[s] == k
+      if isrec[s] if rst[s] == k if not sax[s]
 rcnt[s,k] <- 1                      for (s) in 0 .. 0 for (k) in 0 .. 127
       if isrec[s] if rst[s] == k
+# **軸の群は一続きの番号を持つ**（14o）: 群の最初の文の所で群の大きさだけ数え、残りの文では数えない。
+# 群の文が源の上で離れていても（間に別の場の規則があっても）、群は番号の上で隣り合い、段0 で融合できる
+field bsz : count bound 2048            # 軸の群 b の文の数
+bsz[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+rcnt[s,k] <- rcnt[s-1,k] + bsz[sfb[s]]   for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+      if sax[s] if rst[s] == k if sef[s] == s
+rcnt[s,k] <- bsz[sfb[s]]            for (s) in 0 .. 0 for (k) in 0 .. 127 if sax[s] if rst[s] == k
 field rtot : max bound 128               # 層 k の規則の数
 # 層 k の規則の数は「最後の文までに数えた数」＝ **s についての最大**である
 # （鎖は増える一方なので、最大がそのまま最後の値）。4095 番を読むのはやめる。
@@ -1537,7 +1752,34 @@ rbase[0] <- 0
 rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
 field rno : max bound 16384             # 文 s の規則番号
 rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
-      for (s) in 0 .. nstz[0] if isrec[s]
+      for (s) in 0 .. nstz[0] if isrec[s] if not sax[s]
+# **軸の群の中は、切り口の中の段の順**（14o。33_self の ssl）。群の文は源の上で隣り合い（間に居てよいのは
+# 下の層の土台だけ）、全部同じ層にいるので、群は番号の続いた一区間を占める —— その中で (段, 源の順) に並べ直す
+field efb : min bound 2048              # 軸の群 b の最初 / 最後の文
+efb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field elb : max bound 2048
+elb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field sef : max bound 16384             # 文 s の群の最初 / 最後の文
+sef[s] <- efb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field sel : max bound 16384
+sel[s] <- elb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field bxrk : count bound 16384           # 群の中の順位（1 起点。自分も数える —— count の 0 は ⊥）
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] < ssl[s]
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] == ssl[s] if s2 <= s
+field sbz : max bound 16384             # 文 s の群の大きさ（読みを二段に保つ写し）
+sbz[s] <- bsz[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+rno[s] <- rbase[rst[s]] + rcnt[sef[s],rst[s]] - sbz[s] + bxrk[s] - 1
+      for (s) in 0 .. nstz[0] if sax[s]
+field rax : or bound 16384              # 規則 r は軸に沿って成層した規則（33_self の sax。14l）
+rax[rno[s]] <- true for (s) in 0 .. nstz[0] if sax[s]
+field raxf : max bound 16384            # その軸の群
+raxf[rno[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]      # 群の名（14o。一つの場の群なら場）
+field raxd : or bound 16384             # 規則 r は降りる軸の群（段0 を上から回す —— 14p）
+raxd[rno[s]] <- true for (s) in 0 .. nstz[0] if sxdn[s]
+field raxb : max bound 2048             # 場 f の軸の群（14o。群の中の読みは周回の入口で見ない）
+raxb[hfz[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]
 
 field nrl : max bound 1                        # 規則の数
 # **規則が一本も無い源もある**（宣言と種だけ）。数えるものが無いと数は ⊥ で、

@@ -467,6 +467,198 @@ tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if cnum[t] >= 1
 # 式の辺は焼かない（種15）が、**成層は焼けるかどうかに寄りかからない**
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if ifocl[gcl[t]]
 
+# ══ 軸に沿った成層（14l）═══════════════════════════════════════════════
+# 解釈実行は輪の中の否定を、書き先の **軸**（静的な区間の計数器）で具体例に開いて成層する（SPEC §4
+# 「層は座標である」）。石取りの勝ち負け `win[n] <- 1 for (n) in 1 .. 15 if win[n - 1] == 0` は、場の
+# 粒度では win → win の否定の輪だが、読むのはいつも **自分より小さい切り口** n - 1 である。
+# 焼く側は、その形の規則を **一つのループに融合して n を昇る**（31_gen の融合）: 切り口 n を作るとき、
+# 読む n - c（c >= 1）は前の周回の中で既に閉じている —— だから一周で正しく、二周目は何も動かさない。
+# **二つの判断を一つにする**: ここで輪を許すのは、融合が必ず起きる形だけ（ループ一つ・数の区間・同じ端・
+# 同じ場を書く規則が源の上で隣り合う）。生成器は、許された規則が融合しなかったら断る（31_gen、理由 7）
+# —— 前段だけが許して生成器が融合しなければ、非単調な読みが途中の値を読んで **黙って間違える**。
+# 読みは二段まで（自己検査の古い道の限界 —— sedv2 の註）。
+field shof : max bound 16384             # 文 s の書き先の出現
+shof[osn[o]] <- o for (o) in 0 .. nocz[0] if ohd[o]
+field ohof : or bound 32768              # 出現 o の次元0 にずれがある
+ohof[o] <- true for (o) in 0 .. nocz[0] if c0hf[o] >= 1
+field sax1 : or bound 16384              # 文 s は軸の規則の形: 段0 が数の区間・書き先の次元0 がその計数器そのもの
+# 内側にループがあってもよい（14n）—— 生成器は群の段0 だけを融合し、内側の段は規則ごとに回す
+sax1[s] <- true for (s) in 0 .. nstz[0] if isrec[s] if lkd[s, 0] == 1 if llhv[s, 0]
+      if c0sr[shof[s]] == 1 if c0cc[shof[s]] == 0 if not ohof[shof[s]]
+field ohz : max bound 32768              # 出現 o の文の書き先の場（0 起点）
+ohz[o] <- hfz[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field ohl : max bound 32768              # 同じもの（1 起点 —— ofl と比べる）
+ohl[o] <- hfl[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field osx : or bound 32768               # 出現 o の文は軸の規則の形
+osx[o] <- true for (o) in 0 .. nocz[0] if oin[o] if sax1[osn[o]]
+field oax1 : or bound 32768              # 出現 o は同じ場の、書き先の軸より小さい切り口を読む（`f[n - c]`、c >= 1）
+oax1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o]
+      if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1 if c0of[o] >= 128
+# **軸の形でない書き手は、自分の場を読まなければ土台である**（14n）。`s[0, j] <- j for (j) in 0 .. 4` は
+# 切り口 0 を敷くだけで、輪に入っていない —— 群より前の層で閉じていれば（下の wlvlb）、群は閉じた
+# 切り口を読む。自分の場を読む書き手（`s[0, j] <- s[5, j]`）は輪の中なので、軸では受け取らない
+field sfrd : or bound 16384              # 文 s は自分の書き先の場を読む
+sfrd[osn[o]] <- true for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if ofl[o] == ohl[o]
+field fxw : or bound 2048                # 場 f を書く規則に、軸の形でなく、f を読むものがある
+fxw[hfz[s]] <- true for (s) in 0 .. nstz[0] if isrec[s] if not sax1[s] if sfrd[s]
+field fxrd : or bound 2048               # 場 f を書く軸の規則が、f を軸の形でなく読む（同じ切り口や大きい切り口）
+fxrd[ohz[o]] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o] if not oax1[o]
+field fxl0 : min bound 2048              # 場 f の軸の規則の下端の最小 / 最大（同じでなければ融合しない）
+fxl0[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxl1 : max bound 2048
+fxl1[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh0 : min bound 2048              # 上端の最小 / 最大
+fxh0[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh1 : max bound 2048
+fxh1[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field isrl : or bound 16384              # 文 s は規則（isrec の写し。鎖の中で読む）
+isrl[s] <- true for (s) in 0 .. nstz[0] if isrec[s]
+field prr : max bound 16384              # 文 s より前の、最後の規則の文
+prr[s] <- s - 1 for (s) in 1 .. nstz[0] if isrl[s-1]
+prr[s] <- prr[s-1] for (s) in 1 .. nstz[0] if not isrl[s-1]
+field prh : max bound 16384              # その規則の書き先の場
+prh[s] <- hfz[prr[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+field fxfs : min bound 2048              # 場 f の最初の軸の規則の文
+fxfs[hfz[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sxfs : max bound 16384             # 文 s の書き先の場の最初の軸の規則の文
+sxfs[s] <- fxfs[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field fxg : or bound 2048                # 場 f の軸の規則のあいだに、別の場を書く規則がある
+fxg[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sxfs[s] if prh[s] != hfz[s]
+# **軸の成層が要る場だけを軸の場にする**（14n）。形だけ見れば `x[n] <- … for (n) in 0 .. 9` はみな軸の規則の
+# 形をしている。それを全部軸の群にすると、入口の +1（oxin）が **単調な相互再帰**（下ろしの機械の
+# `_kf1[k, j + 1] <- _kg1[k, j] …` と `_kg1[k, j] <- _kf1[k, j] …`）に輪の +1 を作り、層が昇り続けて
+# 成層できないと言った（内側にループを許した日に出た。一重でも同じ形は在った）。軸が要るのは、
+# 自分の小さい切り口を **非単調に**読むときだけである
+field fxnd : or bound 2048               # 場 f の軸の規則が、f の小さい切り口を非単調に読む
+fxnd[ohz[o]] <- true for (o) in 0 .. nocz[0] if oax1[o] if onm[o]
+field fax1 : or bound 2048               # 場 f は **一つで**軸に沿って成層できる（14l〜14n の形）
+fax1[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if not fxw[hfz[s]] if not fxrd[hfz[s]]
+      if fxl0[hfz[s]] == fxl1[hfz[s]] if fxh0[hfz[s]] == fxh1[hfz[s]] if fxnd[hfz[s]]
+# ── **二つ以上の場が軸をまたいで読み合う群**（14o）────────────────────────────────
+# グランディ数の mex（`has[n, v] <- … if gr[n - 1] == v` と `gr[n] <- v … if not has[n, v]`）・ライフゲーム
+# （`nb[t, x, y] <- 1 … if g[t, …]` と `g[t, x, y] <- … if nb[t - 1, x, y] == 3`）は、場の粒度では否定の輪で、
+# 一つの場の軸（上）でも受け取れない —— 輪が場をまたぐ。だが解釈実行が開く具体例は **切り口 n の中で
+# 閉じる順序** を持つ: 切り口 n の has は gr[n - 1] だけを読み、切り口 n の gr は has[n] を読む。だから
+# 群の規則を段0 で融合し、各 n で **源の順に** 回せば一周で正しい —— 読む切り口が n - c（c ≥ 1）なら前の周回で
+# 閉じていて、同じ切り口 n を読むなら、その場の群の書き手が全部 **源の上で前に**いればこの周回で閉じている。
+# 群は「軸の形の規則が、軸の形で読まれる場を軸の形で読む」繋がりの成分（いちばん小さい場の番号が名 ——
+# min の鎖）。誰にも軸の形で読まれない場（`live[t] <- … if c[t, i]` の live）は群に入れない。
+# 群が成り立たなければ、一つの場の軸（fax1）に戻る —— 14n までに受け取った本は同じに受け取る。
+field ofzx : max bound 32768              # 出現 o の読む場（0 起点）
+ofzx[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+field oxc0 : or bound 32768              # 出現 o は軸の規則の、同じ切り口の読み（`g[n, …]`）
+oxc0[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if not ohof[o]
+field oxc1 : or bound 32768              # 小さい切り口の読み（`g[n - c, …]`、c >= 1）
+oxc1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 128
+# **降りる軸**（14p）: 大きい切り口を読む（`g[n + c, …]`、c >= 1）群は、段0 を上から下へ回せば同じ主張が立つ ——
+# 切り口 n を作るとき、n + c は前の周回（上の切り口）で閉じている。後ろから解くゲーム・後ろ向きの動的計画法
+field oxc2 : or bound 32768              # 大きい切り口の読み（`g[n + c, …]`、c >= 1）
+oxc2[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 1 if c0of[o] <= 127
+field fxs : or bound 2048                # 場 f を書く軸の形の規則がある
+fxs[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field fxrb : or bound 2048               # 場 f は軸の形の規則に、軸の形で読まれる
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o]
+# 群に入れるのは **読まれもし、読みもする**場だけ（輪の上に居うる場）。誰にも軸の形で読まれない場（`live`）も、
+# 群の場を軸の形で読まない場（後ろ向きの本の `big[n, k] <- … if v[n] > k`）も、群の入口か出口であって輪の外 ——
+# 入口は下の層で閉じる（oxin）。前は入口まで群に入れて同じ層に置き、解釈実行（入口を先の層に置く）と
+# 層が食い違っていた（答えは同じだったが、strat.py の破れになった —— 14p）
+field fxro : or bound 2048               # 場 f の軸の形の書き手が、軸の形の規則の書く場を軸の形で読む
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]]
+field oxl : or bound 32768               # 出現 o は群を繋ぐ
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+field bid : min bound 2048               # 場 f の群の名（成分のいちばん小さい場）
+bid[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s]
+bid[ohz[o]] <- bid[ofzx[o]] for (o) in 0 .. nocz[0] if oxl[o]
+bid[ofzx[o]] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oxl[o]
+field sbid : max bound 16384             # 文 s の書き先の群（読みを二段に保つ写し）
+sbid[s] <- bid[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field oxbk : max bound 32768              # 出現 o の文の書き先の群（頭の座標を一段に保つ写し —— 自己検査の古い道）
+oxbk[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if osx[o]
+field obid : or bound 32768              # 出現 o は、軸の形の規則が自分の群の場を読む
+obid[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fxs[ofzx[o]] if bid[ofzx[o]] == bid[ohz[o]]
+field bnd : or bound 2048                # 群 b の中に非単調な読みがある（群が要る）
+bnd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxl[o] if onm[o] if obid[o]
+field bxrd : or bound 2048               # 群の規則が群の場を軸の形でなく読む
+bxrd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if not oxc0[o] if not oxc1[o] if not oxc2[o]
+field bup : or bound 2048                # 群 b は小さい切り口を読む（昇る軸）/ 大きい切り口を読む（降りる軸）
+bup[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc1[o]
+field bdn : or bound 2048
+bdn[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc2[o]
+# **切り口の中の順序は源の順ではなく、読みが決める**（Lattix の答えは文の順に依らない —— 06_order_free）。
+# 同じ切り口 n を読む文は、読む場の書き手より後に回す: 切り口の中の段 = 同じ切り口の読みに沿った最長路。
+# 規則の番号（lib/fold.lx の rno）が群の中でこの段の順に並ぶので、融合した一周もこの順に回る。
+# 段が昇り続けるなら（自分の切り口を読む・互いに同じ切り口を読む）切り口の中に輪がある —— 群にしない
+field bsl : or bound 16384 8             # 文 s は切り口の中で k 段目以降に回る
+bsl[s, 0] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field wsl : or bound 2048 8              # 場 f の軸の形の書き手が k 段目以降にいる
+wsl[hfz[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if sax1[s] if bsl[s, k]
+bsl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 6 if oxc0[o] if obid[o] if wsl[ofzx[o], k]
+field ssl : max bound 16384              # 文 s の切り口の中の段
+ssl[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if bsl[s, k]
+field bxor : or bound 2048               # 切り口の中に輪がある
+bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
+field bxfs : min bound 2048              # 群 b の最初の文
+bxfs[sbid[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sbfs : max bound 16384             # 文 s の群の最初の文
+sbfs[s] <- bxfs[sbid[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field prb : max bound 16384              # 文 s の前の規則の書き先の群
+prb[s] <- bid[prh[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+# 群の文が源の上で離れていてもよい（14o）—— 規則の番号（lib/fold.lx）が群を一続きに並べる。bxg は数えるだけ
+field bxg : or bound 2048                # 群の文のあいだに、群の外の場を書く規則がある
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if not fxs[prh[s]]
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if prb[s] != sbid[s]
+field bxw : or bound 2048                # 軸の形でない書き手が群の場を読む（土台になれない）
+field obw : max bound 32768              # 出現 o の文（軸の形でない書き手）の書き先の群
+obw[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if not osx[o] if fxs[ohz[o]]
+bxw[obw[o]] <- true for (o) in 0 .. nocz[0] if obw[o] >= 0 if fxs[ofzx[o]] if bid[ofzx[o]] == obw[o]
+field bxl0 : min bound 2048              # 群の段0 の下端の最小 / 最大、上端の最小 / 最大
+bxl0[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxl1 : max bound 2048
+bxl1[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh0 : min bound 2048
+bxh0[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh1 : max bound 2048
+bxh1[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bax0 : or bound 2048               # 群 b は成り立つ（端の違いは下ろしが揃える）
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bup[sbid[s]]
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bdn[sbid[s]]
+field bax : or bound 2048                # 群 b は焼ける（端も揃っている）
+bax[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bax0[sbid[s]]
+      if bxl0[sbid[s]] == bxl1[sbid[s]] if bxh0[sbid[s]] == bxh1[sbid[s]]
+field fbk : max bound 2048               # 場 f の軸の群（群が成り立てば群の名、一つで成り立てば f）
+fbk[hfz[s]] <- sbid[s] for (s) in 0 .. nstz[0] if sax1[s] if bax[sbid[s]]
+fbk[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s] if not bax[sbid[s]] if fax1[hfz[s]]
+field fax : or bound 2048                # 場 f は軸に沿って成層できる
+fax[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if fbk[hfz[s]] >= 0
+field sax : or bound 16384               # 文 s は軸に沿って成層した規則（生成器が融合を確かめる）
+sax[s] <- true for (s) in 0 .. nstz[0] if sax1[s] if fax[hfz[s]]
+field sfb : max bound 16384              # 文 s の軸の群
+sfb[s] <- fbk[hfz[s]] for (s) in 0 .. nstz[0] if sax[s]
+field ofb : or bound 32768               # 出現 o は、軸の規則が自分の軸の群の場を読む
+ofb[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fax[ofzx[o]] if fbk[ofzx[o]] == fbk[ohz[o]]
+field oax : or bound 32768               # 出現 o は軸で安全（非単調な読みでも層を切らない）
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if ofb[o] if sax[osn[o]]
+field sxdn : or bound 16384              # 文 s は降りる軸の群の規則（段0 を上から回す）
+sxdn[s] <- true for (s) in 0 .. nstz[0] if sax[s] if bax[sbid[s]] if bdn[sbid[s]]
+# **軸の群の入口は、群より前の層で閉じていなければならない**（h01 で見つけた SILENT）。融合した一周が
+# 正しいのは「n - c の切り口は閉じている」からだが、その切り口の値が **同じ層で育つ別の場**を読んでいれば、
+# 一周目に読んだのは途中の値で、非単調な読み（`if w[n - 1] < 15`）がそれを見て撃った実例は取り消せない。
+# だから軸の規則が群の外の場を読むときは、単調な読みでも層を一つ上げる（入口を閉じてから回る）。
+field oxin : or bound 32768              # 出現 o は、軸の規則が読む群の外の場
+oxin[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if sax[osn[o]] if not oax[o]
+
 # ══ 成層 ═══════════════════════════════════════════════════════════
 # 辺の表は要らない。**場の番号を座標にして**書き手と読み手を繋ぐ。
 # 重み付き最長路がそのまま層になる —— 非単調な辺だけが +1 する。
@@ -484,9 +676,25 @@ lvl[s,0] <- true for (s) in 0 .. nstz[0] if hasr[s]
 wlvl[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
       if hfl[s] >= 0 if lvl[s,k]
 lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
-      if not ohd[o] if not onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if not onm[o] if not oxin[o] if wlvl[ofl[o], k]
 lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
-      if not ohd[o] if onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if onm[o] if not oax[o] if wlvl[ofl[o], k]
+# 軸の群の入口（単調な読みでも）は層を一つ上げる（上の oxin）
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if not onm[o] if oxin[o] if wlvl[ofl[o], k]
+# 軸で安全な非単調な読みは層を切らない（上の「軸に沿った成層」）
+lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
+      if not ohd[o] if onm[o] if oax[o] if wlvl[ofl[o], k]
+# ただし軸の場の **土台**（軸の群でない書き手 —— 種や `s[0, j] <- j for (j) …`）は、群より前の層で閉じる（14n）
+field wlvlb : or bound 2048 128          # 場 f の、軸の群でない書き手が層 k 以上にいる
+wlvlb[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
+      if hfl[s] >= 0 if not sax[s] if lvl[s,k]
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if oax[o] if wlvlb[ofl[o], k]
+# 軸の群の文は **全部同じ層**にいる（段0 で融合するので。群の中の読みは層を分けない —— 14o）
+field blv : or bound 2048 128            # 群 b の文が層 k 以上にいる
+blv[sfb[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if lvl[s, k]
+lvl[s, k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if blv[sfb[s], k]
 field level : max bound 16384            # 文 s の層（＝上にいる最大の k）
 level[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if lvl[s,k]
 field toodeep : or bound 8              # 層が深すぎる（＝成層できない源）
@@ -1535,9 +1743,16 @@ field rcnt : max bound 16384 128          # 文 s までに層 k で数えた規
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
-      if isrec[s] if rst[s] == k
+      if isrec[s] if rst[s] == k if not sax[s]
 rcnt[s,k] <- 1                      for (s) in 0 .. 0 for (k) in 0 .. 127
       if isrec[s] if rst[s] == k
+# **軸の群は一続きの番号を持つ**（14o）: 群の最初の文の所で群の大きさだけ数え、残りの文では数えない。
+# 群の文が源の上で離れていても（間に別の場の規則があっても）、群は番号の上で隣り合い、段0 で融合できる
+field bsz : count bound 2048            # 軸の群 b の文の数
+bsz[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+rcnt[s,k] <- rcnt[s-1,k] + bsz[sfb[s]]   for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+      if sax[s] if rst[s] == k if sef[s] == s
+rcnt[s,k] <- bsz[sfb[s]]            for (s) in 0 .. 0 for (k) in 0 .. 127 if sax[s] if rst[s] == k
 field rtot : max bound 128               # 層 k の規則の数
 # 層 k の規則の数は「最後の文までに数えた数」＝ **s についての最大**である
 # （鎖は増える一方なので、最大がそのまま最後の値）。4095 番を読むのはやめる。
@@ -1547,7 +1762,34 @@ rbase[0] <- 0
 rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
 field rno : max bound 16384             # 文 s の規則番号
 rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
-      for (s) in 0 .. nstz[0] if isrec[s]
+      for (s) in 0 .. nstz[0] if isrec[s] if not sax[s]
+# **軸の群の中は、切り口の中の段の順**（14o。33_self の ssl）。群の文は源の上で隣り合い（間に居てよいのは
+# 下の層の土台だけ）、全部同じ層にいるので、群は番号の続いた一区間を占める —— その中で (段, 源の順) に並べ直す
+field efb : min bound 2048              # 軸の群 b の最初 / 最後の文
+efb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field elb : max bound 2048
+elb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field sef : max bound 16384             # 文 s の群の最初 / 最後の文
+sef[s] <- efb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field sel : max bound 16384
+sel[s] <- elb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field bxrk : count bound 16384           # 群の中の順位（1 起点。自分も数える —— count の 0 は ⊥）
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] < ssl[s]
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] == ssl[s] if s2 <= s
+field sbz : max bound 16384             # 文 s の群の大きさ（読みを二段に保つ写し）
+sbz[s] <- bsz[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+rno[s] <- rbase[rst[s]] + rcnt[sef[s],rst[s]] - sbz[s] + bxrk[s] - 1
+      for (s) in 0 .. nstz[0] if sax[s]
+field rax : or bound 16384              # 規則 r は軸に沿って成層した規則（33_self の sax。14l）
+rax[rno[s]] <- true for (s) in 0 .. nstz[0] if sax[s]
+field raxf : max bound 16384            # その軸の群
+raxf[rno[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]      # 群の名（14o。一つの場の群なら場）
+field raxd : or bound 16384             # 規則 r は降りる軸の群（段0 を上から回す —— 14p）
+raxd[rno[s]] <- true for (s) in 0 .. nstz[0] if sxdn[s]
+field raxb : max bound 2048             # 場 f の軸の群（14o。群の中の読みは周回の入口で見ない）
+raxb[hfz[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]
 
 field nrl : max bound 1                        # 規則の数
 # **規則が一本も無い源もある**（宣言と種だけ）。数えるものが無いと数は ⊥ で、
@@ -4033,8 +4275,15 @@ l0lc[lpr[gl]] <- lplc[gl]           for (gl) in 0 .. nglz[0] if lpi[gl] == 0
 field nofus : or bound 16384                    # 規則 r は群の先頭（前と融合しない）
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r == 0
 nofus[r+1] <- true                  for (r) in 0 .. nrlz[0] if r == nrlz[0]
-nofus[r] <- true                    for (r) in 0 .. nrlz[0] if gnl[r] != 1
-nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r-1] != 1
+# **多重のループは、軸の群の中でだけ段0 を融合する**（14n）。群の頭が段0 の頭を、群の尻尾が段0 の進めを
+# 持ち、規則ごとの内側の段は自分の頭と進めを持つ: [段0 の頭][内の頭 本体1 内の進め][内の頭 本体2 内の進め]…[段0 の進め]。
+# 切り口 n の中は規則の順に全部回る —— 軸の群は n を昇りながら、各 n で群の規則を一つずつ最後まで回す
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if gnl[r] != 1 if not rax[r]
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r-1] != 1 if not rax[r-1]
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r] != 1 if not rax[r-1]
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r-1] != 1 if not rax[r]
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r] != 1 if raxf[r] != raxf[r-1]
+nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if gnl[r-1] != 1 if raxf[r] != raxf[r-1]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if rrst[r] != rrst[r-1]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0k[r] != l0k[r-1]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0a[r] != l0a[r-1]
@@ -4045,6 +4294,11 @@ nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0bc[r] 
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0lk[r] != l0lk[r-1]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0lf[r] != l0lf[r-1]
 nofus[r] <- true                    for (r) in 0 .. nrlz[0] if r > 0 if l0lc[r] != l0lc[r-1]
+# **軸に沿って成層した規則は、必ず融合する**（14l）。前段は「融合が必ず起きる形」だけに輪を許した
+# （33_self の「軸に沿った成層」）が、融合の条件はここにある —— 同じ場の軸の規則が隣り合いながら
+# 融合しなかったら、非単調な読みが途中の値を読む。黙って間違える代わりに断る（理由 7）
+badk[z] <- rlin[r] * 16 + 7   for (r) in 1 .. nrlz[0] for (z) in 0 .. 0 if rax[r] if rax[r-1]
+      if raxf[r] == raxf[r-1] if nofus[r]
 
 # **空の区間は一度も回らない。** 焼いた側のループは do-while だったので、
 # `for (k) in 1 .. 0` が本体を一度実行していた（解釈実行は実行しない）。
@@ -4066,9 +4320,13 @@ field gnl4 : max bound 16384                    # ループの前置き（頭は
 gnl4[r] <- 0                        for (r) in 0 .. nrlz[0]
 gnl4[r] <- gnlh[r] + gnl3[r]        for (r) in 0 .. nrlz[0] if nofus[r]
 gnl4[r] <- gnl3[r]                  for (r) in 0 .. nrlz[0] if not nofus[r]
+gnl4[r] <- gnlh[r] - lph0[r] + gnl3[r]   for (r) in 0 .. nrlz[0] if not nofus[r] if gnl[r] >= 2   # 内の頭だけ（14n）
+field lph0 : max bound 16384                    # 段0 の頭の命令数（群の中の規則は段0 の頭を持たない —— 14n）
+lph0[lpr[gl]] <- lph[gl]            for (gl) in 0 .. nglz[0] if lpi[gl] == 0
 field gnl3 : max bound 16384                    # 進めの分だけ（群の末尾にだけ在る）
 gnl3[r] <- 0                        for (r) in 0 .. nrlz[0]
 gnl3[r] <- gnl[r] * 3 + gnlx[r]     for (r) in 0 .. nrlz[0] if nofus[r+1]
+gnl3[r] <- gnl[r] * 3 - 3 + gnlx[r]   for (r) in 0 .. nrlz[0] if not nofus[r+1] if gnl[r] >= 2   # 内の進めだけ（14n）
 field lrng : or bound 16384                     # 番号 l のループは区間か
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
@@ -4355,6 +4613,7 @@ av[r] <- rend[r] - gnl3[r]   for (r) in 0 .. nrlz[0]
 field bb : max bound 16384                      # 本体の始まり（ループの頭のあと）
 bb[r] <- rb[r] + gnlh[r]             for (r) in 0 .. nrlz[0] if nofus[r]
 bb[r] <- rb[r]                       for (r) in 0 .. nrlz[0] if not nofus[r]
+bb[r] <- rb[r] + gnlh[r] - lph0[r]   for (r) in 0 .. nrlz[0] if not nofus[r] if gnl[r] >= 2
 field gend : max bound 16384                    # 群の終わり（飛ばすときの行き先）
 gend[r] <- rend[r]                   for (r) in 0 .. nrlz[0] if nofus[r+1]
 gend[r] <- gend[r+1]                 for (r) in 0 .. nrlz[0] if not nofus[r+1]
@@ -4667,7 +4926,17 @@ field lcm : max bound 8
 lcm[l] <- l * 8 + 40                for (l) in 3 .. 7
 field lce : max bound 8                         # その升の即値（bias 込み）
 lce[l] <- bias[0] - lcm[l]          for (l) in 3 .. 7
-lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0]
+lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl]]
+lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] == 0
+# 群の中の規則の内側の段は、自分の持ち場に頭を持つ（段0 の頭のぶんを引く —— 14n）
+lhp[gl] <- rb[lpr[gl]] + lpi8[gl] - lph0[lpr[gl]]   for (gl) in 0 .. nglz[0] if not nofus[lpr[gl]] if lpi[gl] >= 1
+# 区間が空のときの行き先: その段の進めの後ろ。段0 と群の尻尾は群の終わりから数え、群の中の規則の内側の段は
+# 自分の終わりから数える（段0 の進め三命令が無いぶん後ろへ —— 14n）
+field lskp : max bound 16384
+lskp[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] == 0
+lskp[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
+lskp[gl] <- rend[lpr[gl]] - lpi3[gl] + lpa[gl] + 3   for (gl) in 0 .. nglz[0] if lpi[gl] >= 1
+      if not nofus[lpr[gl] + 1]
 field lht : max bound 16384                     # 頭の尻尾（初期化と比べ）の基（種3 は前置きが四命令長い）
 lht[gl] <- lhp[gl] + lhx[gl]        for (gl) in 0 .. nglz[0]
 # 上端を比べる相手の番地（種2 は場の升、種3 は頭が上端を置いた升）
@@ -4691,14 +4960,14 @@ imm[lhp[gl]]  <- lce[lpbc[gl]]      for (gl) in 0 .. nglz[0] if lpk[gl] == 3 if 
 form[lhp[gl] + 1] <- 50   for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # cmp r9, 広さ
 imm[lhp[gl] + 1]  <- fw[lpbf[gl], 0] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 2] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # jae → 出る（⊥）
-jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
+jt[lhp[gl] + 2]   <- lskp[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 3] <- frd[lpbf[gl]]  for (gl) in 0 .. nglz[0] if lpk[gl] == 3          # rax ← 上端の升
 imm[lhp[gl] + 3]  <- foff[lpbf[gl]] + bias[0]    for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 scb[lhp[gl] + 3]  <- fscb[lpbf[gl]] for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 4] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # cmp rax, ⊥
 imm[lhp[gl] + 4]  <- fbot[lpbf[gl]] for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 5] <- 13   for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # je → 出る
-jt[lhp[gl] + 5]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
+jt[lhp[gl] + 5]   <- lskp[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 6] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # cmp rax, 下端 + 上限
 imm[lhp[gl] + 6]  <- lplo[gl] + 4194304 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 3
 form[lhp[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 3                    # jg → 区間の踏み台
@@ -4717,7 +4986,7 @@ imm[lhp[gl]]      <- foff[lpbf[gl]] + lpbc8[gl] + bias[0]   for (gl) in 0 .. ngl
 form[lhp[gl] + 1] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, ⊥
 imm[lhp[gl] + 1]  <- fbot[lpbf[gl]]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 2] <- 13   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # je -> 出る（空）
-jt[lhp[gl] + 2]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
+jt[lhp[gl] + 2]   <- lskp[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 3] <- 12   for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # cmp rax, 下端 + 上限
 imm[lhp[gl] + 3]  <- lplo[gl] + 4194304 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 2
 form[lhp[gl] + 4] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] == 2    # jg -> 区間の踏み台
@@ -4747,7 +5016,7 @@ llp[gl] <- lhp[gl] + 5 + lux[gl]    for (gl) in 0 .. nglz[0] if lplk[gl] >= 1
 field llq : max bound 16384                     # 広さの検査の位置
 llq[gl] <- llp[gl] + lly[gl] - 3    for (gl) in 0 .. nglz[0] if lplk[gl] >= 1
 field llx : max bound 16384                     # 空の飛び先（一つ外の進め —— 上端の ⊥ と同じ）
-llx[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lplk[gl] >= 1
+llx[gl] <- lskp[gl]   for (gl) in 0 .. nglz[0] if lplk[gl] >= 1
 field llsf : max bound 16384                    # 広さを越えたときの踏み台（上端が場ならその場）
 llsf[gl] <- rsf[lplf[gl]]           for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lpk[gl] <= 1
 llsf[gl] <- rsf[lpbf[gl]]           for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lpk[gl] >= 2
@@ -4810,16 +5079,24 @@ badk[z] <- rlin[lpr[gl]] * 16 + 15   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0
 # （進めは内側から並ぶので、一つ外の進めは自分の進めのすぐ後ろ）。
 form[lht[gl] + 6] <- 79   for (gl) in 0 .. nglz[0] if lpk[gl] == 0        # cmp rcx, 表の終わり
 form[lht[gl] + 6] <- 20   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0
+# **降りる軸**（14p）: 群の段0 を上から回す。頭は `mov rcx, 上端 / cmp rcx, 下端 / jl 出る`、
+# 進めは `add rcx, -1 / cmp rcx, 下端 / jge 頭`。数の区間（前段が軸の形に要る）だけ
+field ldn : or bound 16384                      # 段 l は降りる軸の段0
+ldn[gl] <- true                     for (gl) in 0 .. nglz[0] if lpi[gl] == 0 if raxd[lpr[gl]]
+badk[z] <- rlin[lpr[gl]] * 16 + 8   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0 if ldn[gl] if lpk[gl] != 1
+badk[z] <- rlin[lpr[gl]] * 16 + 8   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0 if ldn[gl] if lplk[gl] != 0
 form[lht[gl] + 6] <- 103  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 1
 form[lht[gl] + 6] <- 107  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 2
-imm[lht[gl] + 6]  <- lphi[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] <= 2
+imm[lht[gl] + 6]  <- lphi[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] <= 2 if not ldn[gl]
+imm[lht[gl] + 6]  <- lplo[gl] + bias[0]   for (gl) in 0 .. nglz[0] if ldn[gl]
 form[lht[gl] + 6] <- 142  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] == 0
 form[lht[gl] + 6] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] == 1
 form[lht[gl] + 6] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] == 2
 imm[lht[gl] + 6]  <- lbad[gl]       for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] <= 2
 form[lht[gl] + 7] <- 73   for (gl) in 0 .. nglz[0] if lpk[gl] == 0 if lpi[gl] <= 2    # jae -> 出る
-form[lht[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] <= 2    # jg（符号付き）
-jt[lht[gl] + 7]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
+form[lht[gl] + 7] <- 116  for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] <= 2 if not ldn[gl]   # jg（符号付き）
+form[lht[gl] + 7] <- 115  for (gl) in 0 .. nglz[0] if ldn[gl]                         # jl（降りる軸）
+jt[lht[gl] + 7]   <- lskp[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
 # **段 3 から（升の計数器）**: 下端を rax に作って升に置き、rax で上端と比べる（九命令）。
 # 表のループは段 0 にしか居ない（前段が一番外へ回す）ので、ここは区間だけである。
 form[lht[gl] + 5] <- 2    for (gl) in 0 .. nglz[0] if lpi[gl] >= 3 if lplk[gl] == 0   # mov rax, 下端
@@ -4833,11 +5110,13 @@ imm[lht[gl] + 7]  <- lphi[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] ==
 form[lht[gl] + 7] <- 214  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] >= 3   # cmp rax, [上端]
 imm[lht[gl] + 7]  <- lbad[gl]       for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] >= 3
 form[lht[gl] + 8] <- 116  for (gl) in 0 .. nglz[0] if lpi[gl] >= 3                   # jg（符号付き）
-jt[lht[gl] + 8]   <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
+jt[lht[gl] + 8]   <- lskp[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 form[lht[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # mov rcx, データの先頭
 imm[lht[gl] + 5]  <- dbase[0] + bias[0]  for (gl) in 0 .. nglz[0] if lpk[gl] == 0
 form[lht[gl] + 5] <- 3      for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0 if lplk[gl] == 0  # mov rcx, 下端
 imm[lht[gl] + 5]  <- lplo[gl] + bias[0]     for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0 if lplk[gl] == 0
+      if not ldn[gl]
+imm[lht[gl] + 5]  <- lphi[gl] + bias[0]     for (gl) in 0 .. nglz[0] if ldn[gl]      # mov rcx, 上端（降りる軸）
 form[lht[gl] + 5] <- 101    for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 1 if lplk[gl] == 0  # mov r13, 下端
 imm[lht[gl] + 5]  <- lplo[gl] + bias[0]     for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 1 if lplk[gl] == 0
 form[lht[gl] + 5] <- 105    for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 2 if lplk[gl] == 0  # mov r14, 下端
@@ -5648,7 +5927,8 @@ sagr[gdr[gg]] <- true   for (gg) in 0 .. nggz[0] if gisr[gg] if fwr[gdf[gg]] if 
 sagr[cdr[gc]] <- true   for (gc) in 0 .. ngcz[0] if cdrd[gc] if fwr[cdcf[gc]] if fwst[cdcf[gc]] >= rrst[cdr[gc]]
 sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if fwr[lpbf[gl]] if fwst[lpbf[gl]] >= rrst[lpr[gl]]
 sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if fwr[lplf[gl]] if fwst[lplf[gl]] >= rrst[lpr[gl]]
-badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if sagr[r]
+# 軸の群の集約は、群が一度だけ回る（14o）ので二周目が無い —— 群の場を読んでも断らない
+badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if sagr[r] if not rax[r]
 field ajc : max bound 16384                     # count の mov rax,1 の位置（印の後ろ）
 ajc[r] <- jb[r] + 3 + amx[r]        for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 form[ajc[r]] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
@@ -5711,13 +5991,16 @@ lpx2[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
 lpx2[gl] <- lpi[gl] - 2             for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 lpi3[gl] <- lpi[gl] * 3 + 3 + lpx2[gl]   for (gl) in 0 .. nglz[0]
 ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
+ap[gl] <- rend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0] if lpi[gl] >= 1 if not nofus[lpr[gl] + 1]   # 14n
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # add rcx, 8*次数
 imm[ap[gl]]  <- lpar[gl] * 8 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 0
 form[ap[gl] + 1] <- 79   for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # cmp rcx, 表の終わり
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0  # add rcx, 1
-imm[ap[gl]]  <- 1 + bias[0]        for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0
+imm[ap[gl]]  <- 1 + bias[0]        for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 0 if not ldn[gl]
+imm[ap[gl]]  <- 255 + bias[0]      for (gl) in 0 .. nglz[0] if ldn[gl]      # add rcx, -1（imm8 は mod 256）
 form[ap[gl] + 1] <- 20   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0  # cmp rcx, 上端+1
-imm[ap[gl] + 1]  <- lphi[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0
+imm[ap[gl] + 1]  <- lphi[gl] + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 0 if not ldn[gl]
+imm[ap[gl] + 1]  <- lplo[gl] + bias[0]   for (gl) in 0 .. nglz[0] if ldn[gl]
 form[ap[gl]] <- 102      for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 1  # add r13, 1
 imm[ap[gl]]  <- 1 + bias[0]        for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] == 1
 form[ap[gl] + 1] <- 103  for (gl) in 0 .. nglz[0] if lpk[gl] == 1 if lpi[gl] == 1  # cmp r13, 上端+1
@@ -5735,7 +6018,8 @@ form[ap[gl] + 1] <- 143  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] == 
 form[ap[gl] + 1] <- 144  for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] == 2
 imm[ap[gl] + 1]  <- lbad[gl]   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if lpi[gl] <= 2
 form[ap[gl] + 2] <- 7    for (gl) in 0 .. nglz[0] if lpk[gl] == 0 if lpi[gl] <= 2   # jb -> 一つ内側の頭
-form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] <= 2   # jle（符号付き）
+form[ap[gl] + 2] <- 145  for (gl) in 0 .. nglz[0] if lpk[gl] >= 1 if lpi[gl] <= 2 if not ldn[gl]   # jle（符号付き）
+form[ap[gl] + 2] <- 17   for (gl) in 0 .. nglz[0] if ldn[gl]                   # jge（降りる軸）
 jt[ap[gl] + 2]   <- lhp[gl] + lph[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
 # **段 3 から（升の計数器）**: 升を一つ進め、rax に読んで上端と比べる（四命令）。
 form[ap[gl]] <- 215      for (gl) in 0 .. nglz[0] if lpi[gl] >= 3            # inc [升]
@@ -5776,14 +6060,24 @@ jt[ap[gl] + 3]   <- lhp[gl] + lph[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 # 答えが実行順に依存する。この言語が禁じている唯一のことである。
 # 変わり目は場と場の比較（`tmr[gt-1] == tmr[gt]`）で言える。それで足りる。
 
+# **軸の群は一度だけ回る**（14o）。群が読む群の外の場は下の層で閉じていて（33_self の oxin）、群の中の
+# 読みは融合した一周の中で閉じる —— だから群の中の読みは周回の入口で見ない。見ると、群が自分で書いた
+# 升を「動いた」と読んで二周目に回り、印を持たない二重ループの集約（ライフゲームの近傍の数 `nb[t, x, y]
+# <- 1`）が二度数える。見なければ、群は入口（群の外）が動いたときだけ —— 一度だけ —— 回る
+field fxax : or bound 2048                      # 場 f は軸の群の場
+fxax[f] <- true                     for (f) in 0 .. nflz[0] if raxb[f] >= 0
+field ckt : or bound 16384                      # 項 gt の読みを周回の入口で見る
+ckt[gt] <- true                     for (gt) in 0 .. ngtz[0] if isrd[gt] if not rax[tmr[gt]]
+ckt[gt] <- true                     for (gt) in 0 .. ngtz[0] if isrd[gt] if not fxax[tmf[gt]]
+ckt[gt] <- true                     for (gt) in 0 .. ngtz[0] if isrd[gt] if raxb[tmf[gt]] != raxf[tmr[gt]]
 # 項の読み（種 3 / 9 / 10）
 field tcn : max bound 16384                     # 規則の中で何番目の読みか（二つ刻み）
 tcn[gt] <- 0                        for (gt) in 0 .. ngtz[0]
 tcn[gt] <- tcn[gt-1]                for (gt) in 0 .. ngtz[0] if gt > 0 if tmr[gt-1] == tmr[gt]
-tcn[gt] <- tcn[gt-1] + 2            for (gt) in 0 .. ngtz[0] if gt > 0 if tmr[gt-1] == tmr[gt] if isrd[gt-1]
+tcn[gt] <- tcn[gt-1] + 2            for (gt) in 0 .. ngtz[0] if gt > 0 if tmr[gt-1] == tmr[gt] if ckt[gt-1]
 field ntm : max bound 16384                     # 規則 r が項で読む場の数（二倍）
 ntm[r] <- 0                         for (r) in 0 .. nrlz[0]
-ntm[tmr[gt]] <- tcn[gt] + 2         for (gt) in 0 .. ngtz[0] if isrd[gt]
+ntm[tmr[gt]] <- tcn[gt] + 2         for (gt) in 0 .. ngtz[0] if ckt[gt]
 
 # ガードの読み（種 2 / 3 / 4 / 7 以上）。**辺が場かどうかは ok が言う**
 field gisr : or bound 16384                     # このガードは場を読む
@@ -5791,13 +6085,17 @@ gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] >= 7 if 
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 2
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
 gisr[gg] <- true                    for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+field ckg : or bound 16384                      # ガード gg の読みを周回の入口で見る（14o）
+ckg[gg] <- true                     for (gg) in 0 .. nggz[0] if gisr[gg] if not rax[gdr[gg]]
+ckg[gg] <- true                     for (gg) in 0 .. nggz[0] if gisr[gg] if not fxax[gdf[gg]]
+ckg[gg] <- true                     for (gg) in 0 .. nggz[0] if gisr[gg] if raxb[gdf[gg]] != raxf[gdr[gg]]
 field ggn : max bound 16384
 ggn[gg] <- 0                        for (gg) in 0 .. nggz[0]
 ggn[gg] <- ggn[gg-1]                for (gg) in 0 .. nggz[0] if gg > 0 if gdr[gg-1] == gdr[gg]
-ggn[gg] <- ggn[gg-1] + 2            for (gg) in 0 .. nggz[0] if gg > 0 if gdr[gg-1] == gdr[gg] if gisr[gg-1]
+ggn[gg] <- ggn[gg-1] + 2            for (gg) in 0 .. nggz[0] if gg > 0 if gdr[gg-1] == gdr[gg] if ckg[gg-1]
 field ngd : max bound 16384
 ngd[r] <- 0                         for (r) in 0 .. nrlz[0]
-ngd[gdr[gg]] <- ggn[gg] + 2         for (gg) in 0 .. nggz[0] if gisr[gg]
+ngd[gdr[gg]] <- ggn[gg] + 2         for (gg) in 0 .. nggz[0] if ckg[gg]
 
 # 座標の読み（`f[g[i]]` の g）。源 2 / 3 が場を引き、源 5（内側の所有者 `o[p[i, j]]` の p）も引く。
 # 前は源 5 を数えていなかった —— 座標の読みはいつも下の層だったので、周回の入口で見なくても
@@ -5805,22 +6103,30 @@ ngd[gdr[gg]] <- ggn[gg] + 2         for (gg) in 0 .. nggz[0] if gisr[gg]
 field cdrd : or bound 32768                     # 座標のスロット gc は場を読む
 cdrd[gc] <- true                    for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 cdrd[gc] <- true                    for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+field ckc : or bound 32768                      # 座標のスロット gc の読みを周回の入口で見る（14o）
+ckc[gc] <- true                     for (gc) in 0 .. ngcz[0] if cdrd[gc] if not rax[cdr[gc]]
+ckc[gc] <- true                     for (gc) in 0 .. ngcz[0] if cdrd[gc] if not fxax[cdcf[gc]]
+ckc[gc] <- true                     for (gc) in 0 .. ngcz[0] if cdrd[gc] if raxb[cdcf[gc]] != raxf[cdr[gc]]
 field ccn : max bound 32768
 ccn[gc] <- 0                        for (gc) in 0 .. ngcz[0]
 ccn[gc] <- ccn[gc-1]                for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc]
-ccn[gc] <- ccn[gc-1] + 2            for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc] if cdrd[gc-1]
+ccn[gc] <- ccn[gc-1] + 2            for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc] if ckc[gc-1]
 field ncd : max bound 16384
 ncd[r] <- 0                         for (r) in 0 .. nrlz[0]
-ncd[cdr[gc]] <- ccn[gc] + 2         for (gc) in 0 .. ngcz[0] if cdrd[gc]
+ncd[cdr[gc]] <- ccn[gc] + 2         for (gc) in 0 .. ngcz[0] if ckc[gc]
 
 # ループの端の読み（上端が場 = 種 2/3、下端が場 = 13i）。**回る回数は宣言ではなく実測**。
 # 一つのループが二つ読むことがある（`for (j) in s[i] .. e[i]`）ので、ループごとの数を鎖に足す。
 field lcu : max bound 16384                     # 上端の読み（二つ刻み）
 lcu[gl] <- 0                        for (gl) in 0 .. nglz[0]
-lcu[gl] <- 2                        for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
+lcu[gl] <- 2                        for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if not rax[lpr[gl]]
+lcu[gl] <- 2                        for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if not fxax[lpbf[gl]]
+lcu[gl] <- 2                        for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if raxb[lpbf[gl]] != raxf[lpr[gl]]
 field lcl : max bound 16384                     # 下端の読み
 lcl[gl] <- 0                        for (gl) in 0 .. nglz[0]
-lcl[gl] <- 2                        for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2
+lcl[gl] <- 2                        for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if not rax[lpr[gl]]
+lcl[gl] <- 2                        for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if not fxax[lplf[gl]]
+lcl[gl] <- 2                        for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if raxb[lplf[gl]] != raxf[lpr[gl]]
 field lrd : max bound 16384
 lrd[gl] <- lcu[gl] + lcl[gl]        for (gl) in 0 .. nglz[0]
 field lcn : max bound 16384
@@ -5863,35 +6169,35 @@ jt[ckp[r] + 2]   <- ckj[r] + 1       for (r) in 0 .. nrlz[0] if nofus[r] if gcnt
 
 # 項の読み
 field tck : max bound 16384
-tck[gt] <- tcn[gt] + ckp[tmr[gt]] + roff[tmr[gt]] + 1   for (gt) in 0 .. ngtz[0] if isrd[gt]
-form[tck[gt]] <- 160                 for (gt) in 0 .. ngtz[0] if isrd[gt]
-imm[tck[gt]]  <- tmf[gt] * 8 + bias[0] - gpz[0]   for (gt) in 0 .. ngtz[0] if isrd[gt]
-form[tck[gt] + 1] <- 73              for (gt) in 0 .. ngtz[0] if isrd[gt]
-jt[tck[gt] + 1]   <- ckj[tmr[gt]] + 1   for (gt) in 0 .. ngtz[0] if isrd[gt]
+tck[gt] <- tcn[gt] + ckp[tmr[gt]] + roff[tmr[gt]] + 1   for (gt) in 0 .. ngtz[0] if ckt[gt]
+form[tck[gt]] <- 160                 for (gt) in 0 .. ngtz[0] if ckt[gt]
+imm[tck[gt]]  <- tmf[gt] * 8 + bias[0] - gpz[0]   for (gt) in 0 .. ngtz[0] if ckt[gt]
+form[tck[gt] + 1] <- 73              for (gt) in 0 .. ngtz[0] if ckt[gt]
+jt[tck[gt] + 1]   <- ckj[tmr[gt]] + 1   for (gt) in 0 .. ngtz[0] if ckt[gt]
 
 # ガードの読み
 field gck : max bound 16384
-gck[gg] <- ggn[gg] + ntm[gdr[gg]] + ckp[gdr[gg]] + roff[gdr[gg]] + 1   for (gg) in 0 .. nggz[0] if gisr[gg]
-form[gck[gg]] <- 160                 for (gg) in 0 .. nggz[0] if gisr[gg]
-imm[gck[gg]]  <- gdf[gg] * 8 + bias[0] - gpz[0]   for (gg) in 0 .. nggz[0] if gisr[gg]
-form[gck[gg] + 1] <- 73              for (gg) in 0 .. nggz[0] if gisr[gg]
-jt[gck[gg] + 1]   <- ckj[gdr[gg]] + 1   for (gg) in 0 .. nggz[0] if gisr[gg]
+gck[gg] <- ggn[gg] + ntm[gdr[gg]] + ckp[gdr[gg]] + roff[gdr[gg]] + 1   for (gg) in 0 .. nggz[0] if ckg[gg]
+form[gck[gg]] <- 160                 for (gg) in 0 .. nggz[0] if ckg[gg]
+imm[gck[gg]]  <- gdf[gg] * 8 + bias[0] - gpz[0]   for (gg) in 0 .. nggz[0] if ckg[gg]
+form[gck[gg] + 1] <- 73              for (gg) in 0 .. nggz[0] if ckg[gg]
+jt[gck[gg] + 1]   <- ckj[gdr[gg]] + 1   for (gg) in 0 .. nggz[0] if ckg[gg]
 
 # 座標の読み
 field cck : max bound 32768
-cck[gc] <- ccn[gc] + ntm[cdr[gc]] + ngd[cdr[gc]] + ckp[cdr[gc]] + roff[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if cdrd[gc]
-form[cck[gc]] <- 160                 for (gc) in 0 .. ngcz[0] if cdrd[gc]
-imm[cck[gc]]  <- cdcf[gc] * 8 + bias[0] - gpz[0]   for (gc) in 0 .. ngcz[0] if cdrd[gc]
-form[cck[gc] + 1] <- 73              for (gc) in 0 .. ngcz[0] if cdrd[gc]
-jt[cck[gc] + 1]   <- ckj[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if cdrd[gc]
+cck[gc] <- ccn[gc] + ntm[cdr[gc]] + ngd[cdr[gc]] + ckp[cdr[gc]] + roff[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if ckc[gc]
+form[cck[gc]] <- 160                 for (gc) in 0 .. ngcz[0] if ckc[gc]
+imm[cck[gc]]  <- cdcf[gc] * 8 + bias[0] - gpz[0]   for (gc) in 0 .. ngcz[0] if ckc[gc]
+form[cck[gc] + 1] <- 73              for (gc) in 0 .. ngcz[0] if ckc[gc]
+jt[cck[gc] + 1]   <- ckj[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if ckc[gc]
 
 # ループの端の読み（上端が先、下端が後）
 field lck : max bound 16384
 lck[gl] <- lcn[gl] + ntm[lpr[gl]] + ngd[lpr[gl]] + ncd[lpr[gl]] + ckp[lpr[gl]] + roff[lpr[gl]] + 1   for (gl) in 0 .. nglz[0]
-form[lck[gl]] <- 160                 for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
-imm[lck[gl]]  <- lpbf[gl] * 8 + bias[0] - gpz[0]   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
-form[lck[gl] + 1] <- 73              for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
-jt[lck[gl] + 1]   <- ckj[lpr[gl]] + 1   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2
+form[lck[gl]] <- 160                 for (gl) in 0 .. nglz[0] if lcu[gl] == 2
+imm[lck[gl]]  <- lpbf[gl] * 8 + bias[0] - gpz[0]   for (gl) in 0 .. nglz[0] if lcu[gl] == 2
+form[lck[gl] + 1] <- 73              for (gl) in 0 .. nglz[0] if lcu[gl] == 2
+jt[lck[gl] + 1]   <- ckj[lpr[gl]] + 1   for (gl) in 0 .. nglz[0] if lcu[gl] == 2
 field lckl : max bound 16384
 lckl[gl] <- lck[gl] + lcu[gl]       for (gl) in 0 .. nglz[0] if lcl[gl] == 2
 form[lckl[gl]] <- 160                for (gl) in 0 .. nglz[0] if lcl[gl] == 2

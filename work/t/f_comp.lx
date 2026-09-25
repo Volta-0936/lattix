@@ -1,0 +1,10 @@
+# 連結成分（最小の番号を流す）
+table e = (0,1),(1,2),(3,4),(2,0),(4,6)
+field lab : min bound 8
+lab[i] <- i   for (i) in 0 .. 7
+lab[b] <- lab[a]   for (a,b) in e
+lab[a] <- lab[b]   for (a,b) in e
+field ncomp : count bound 1
+ncomp[0] <- i   for (i) in 0 .. 7 if lab[i] == i
+print lab
+print ncomp

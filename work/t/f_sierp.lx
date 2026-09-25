@@ -1,0 +1,9 @@
+# シェルピンスキーの三角形（パスカルの三角形を 2 で割った余り）: 内側の区間が軸の計数器に依る
+field p : or bound 12 12
+p[0, 0] <- true
+p[t, 0] <- true   for (t) in 1 .. 11
+p[t, j] <- true   for (t) in 1 .. 11 for (j) in 1 .. t if p[t - 1, j - 1] if not p[t - 1, j]
+p[t, j] <- true   for (t) in 1 .. 11 for (j) in 1 .. t if not p[t - 1, j - 1] if p[t - 1, j]
+field row : count bound 12
+row[t] <- j   for (t) in 0 .. 11 for (j) in 0 .. 11 if p[t, j]
+print row

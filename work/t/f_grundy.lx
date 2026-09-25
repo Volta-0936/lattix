@@ -1,0 +1,9 @@
+# グランディ数（1・3・4 個取る）: mex は二つの場が軸をまたいで読み合う
+field has : or bound 40 5
+field gr : min bound 40
+gr[0] <- 0
+has[n, v] <- true   for (n) in 1 .. 39 for (v) in 0 .. 4 if gr[n - 1] == v
+has[n, v] <- true   for (n) in 3 .. 39 for (v) in 0 .. 4 if gr[n - 3] == v
+has[n, v] <- true   for (n) in 4 .. 39 for (v) in 0 .. 4 if gr[n - 4] == v
+gr[n] <- v   for (n) in 1 .. 39 for (v) in 0 .. 4 if not has[n, v]
+print gr

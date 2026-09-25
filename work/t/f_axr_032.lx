@@ -1,0 +1,16 @@
+# 撒いた軸の本（sp/axgen.py 種 1）
+field a : min bound 9 5
+field b : max bound 9
+field c : or bound 9 5
+a[0, j] <- 2   for (j) in 0 .. 3
+b[0] <- 1
+b[1] <- 3
+c[0, j] <- true   for (j) in 0 .. 3 if j >= 1
+b[n] <- a[n, 0] + 0   for (n) in 1 .. 8 if a[n - 1, 0] == 3
+a[n, j] <- 4   for (n) in 3 .. 8 for (j) in 1 .. 3 
+a[n, j] <- 4   for (n) in 1 .. 8 for (j) in 1 .. 3 if a[n - 1, j - 1] == 0
+c[n, j] <- true   for (n) in 1 .. 8 for (j) in 1 .. 3 if c[n - 1, j - 1]
+b[n] <- a[n, 0] + 2   for (n) in 3 .. 8 if c[n, 1]
+print a
+print b
+print c

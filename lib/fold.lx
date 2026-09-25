@@ -50,9 +50,16 @@ field rcnt : max bound 16384 128          # 文 s までに層 k で数えた規
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
-      if isrec[s] if rst[s] == k
+      if isrec[s] if rst[s] == k if not sax[s]
 rcnt[s,k] <- 1                      for (s) in 0 .. 0 for (k) in 0 .. 127
       if isrec[s] if rst[s] == k
+# **軸の群は一続きの番号を持つ**（14o）: 群の最初の文の所で群の大きさだけ数え、残りの文では数えない。
+# 群の文が源の上で離れていても（間に別の場の規則があっても）、群は番号の上で隣り合い、段0 で融合できる
+field bsz : count bound 2048            # 軸の群 b の文の数
+bsz[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+rcnt[s,k] <- rcnt[s-1,k] + bsz[sfb[s]]   for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+      if sax[s] if rst[s] == k if sef[s] == s
+rcnt[s,k] <- bsz[sfb[s]]            for (s) in 0 .. 0 for (k) in 0 .. 127 if sax[s] if rst[s] == k
 field rtot : max bound 128               # 層 k の規則の数
 # 層 k の規則の数は「最後の文までに数えた数」＝ **s についての最大**である
 # （鎖は増える一方なので、最大がそのまま最後の値）。4095 番を読むのはやめる。
@@ -62,7 +69,34 @@ rbase[0] <- 0
 rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
 field rno : max bound 16384             # 文 s の規則番号
 rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
-      for (s) in 0 .. nstz[0] if isrec[s]
+      for (s) in 0 .. nstz[0] if isrec[s] if not sax[s]
+# **軸の群の中は、切り口の中の段の順**（14o。33_self の ssl）。群の文は源の上で隣り合い（間に居てよいのは
+# 下の層の土台だけ）、全部同じ層にいるので、群は番号の続いた一区間を占める —— その中で (段, 源の順) に並べ直す
+field efb : min bound 2048              # 軸の群 b の最初 / 最後の文
+efb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field elb : max bound 2048
+elb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field sef : max bound 16384             # 文 s の群の最初 / 最後の文
+sef[s] <- efb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field sel : max bound 16384
+sel[s] <- elb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field bxrk : count bound 16384           # 群の中の順位（1 起点。自分も数える —— count の 0 は ⊥）
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] < ssl[s]
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] == ssl[s] if s2 <= s
+field sbz : max bound 16384             # 文 s の群の大きさ（読みを二段に保つ写し）
+sbz[s] <- bsz[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+rno[s] <- rbase[rst[s]] + rcnt[sef[s],rst[s]] - sbz[s] + bxrk[s] - 1
+      for (s) in 0 .. nstz[0] if sax[s]
+field rax : or bound 16384              # 規則 r は軸に沿って成層した規則（33_self の sax。14l）
+rax[rno[s]] <- true for (s) in 0 .. nstz[0] if sax[s]
+field raxf : max bound 16384            # その軸の群
+raxf[rno[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]      # 群の名（14o。一つの場の群なら場）
+field raxd : or bound 16384             # 規則 r は降りる軸の群（段0 を上から回す —— 14p）
+raxd[rno[s]] <- true for (s) in 0 .. nstz[0] if sxdn[s]
+field raxb : max bound 2048             # 場 f の軸の群（14o。群の中の読みは周回の入口で見ない）
+raxb[hfz[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]
 
 field nrl : max bound 1                        # 規則の数
 # **規則が一本も無い源もある**（宣言と種だけ）。数えるものが無いと数は ⊥ で、

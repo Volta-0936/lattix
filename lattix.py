@@ -1047,6 +1047,7 @@ def _sign_sense(prog, rules):
 UBOUND = set()      # 前線下界を持てる場（証明書が licence する。下の注を読む）
 BOUND = {}          # 実行中の前線下界: 場 -> 未確定セルの最終値の下界
 SETTLED = {}        # 場 -> 確定済みのキー集合
+TARGET = {}         # 場 -> この層で書かれうるキー集合（それ以外の升は確定している —— ⊥ のままも含む）
 
 
 SIGNS = None      # いま検査している規則の「負にならない変数」（遅延して数える）
@@ -1945,8 +1946,16 @@ def ev(e, env, store, fields):
            and e[2][1] in BOUND:
             f = e[2][1]
             key = tuple(ev(x, env, store, fields) for x in e[2][2])
-            if key in SETTLED.get(f, ()):
-                a = fields[f].observe(store[f].get(key, fields[f].bot))
+            if key in SETTLED.get(f, ()) or (f in TARGET and key not in TARGET[f]):
+                # 確定した升（この層で誰も書かない升も）は本当の値で答える。⊥ なら比べない
+                raw = store[f].get(key, fields[f].bot)
+                if _is_bot(fields[f], raw): return None
+                a = fields[f].observe(raw)
+            elif _is_bot(fields[f], store[f].get(key, fields[f].bot)):
+                # **まだ ⊥ の升は、前線下界で答えてはいけない。** 最後まで ⊥ なら比べられない（SPEC）
+                # のに、前線下界で「B 以上」と答えると、届かない升に述語が立つ —— 取り出す順（ハッシュの
+                # 種）しだいで答えが変わった。値が来れば、その升を読む実例は積み直される
+                return None
             else:
                 a = BOUND[f]
             b = e[3][1]
@@ -2409,16 +2418,24 @@ def run_stratum_priority(rules, prog, store, rng, stats):
     # 「読んだセルが動いたら再発火」だけでは足りない。閉包を消費する側の再発火である。
     relaxed_items = [i for i, (r, _e, _t, _k) in enumerate(items)
                      if any(_ubound_guard(g, bnd) for g in r.guards)]
+    # **この層で誰も書かない升は、もう確定している**（下の層で閉じた升 —— 軸で開いた本では、読む切り口
+    # n - c は前の層にいる）。確定していない升だけが前線下界で答えてよい。前は下の層の升まで「まだ確定して
+    # いない」と数え、前線下界（この層の値）で比べていた。
+    tgk = {(r.target, t) for (r, _e, t, _k) in items}
     for f in bnd:
         BOUND[f] = 0 if not store[f] else min(
             [prog.fields[f].observe(v) for v in store[f].values()] or [0])
-        SETTLED[f] = set()
+        SETTLED[f] = {k for k in store[f] if (f, k) not in tgk}
+        TARGET[f] = {k for (g, k) in tgk if g == f}
     while heap:
         p, _, i = heapq.heappop(heap)
         if p > bestp[i]: continue        # stale entry
         moved = False
         for f in bnd:
-            if isinstance(p, (int, float)) and p != NEGINF and p != BOUND.get(f):
+            # **前線下界は上がるだけ**。積み直した規則実例（下界が動いたので真偽が変わりうる）は確定した升を
+            # 源に持つので、その値は今の前線より小さいことがある。それで下界を下げると、下げたことでまた積み
+            # 直し、上げてはまた積み直す —— 往復して終わらなかった（ハッシュの種しだいで止まらない本が出た）
+            if isinstance(p, (int, float)) and p != NEGINF and p > BOUND.get(f, NEGINF):
                 BOUND[f] = p; moved = True
         if moved:
             for q in relaxed_items: push(q)
@@ -2638,7 +2655,7 @@ ENGINES = {'naive': run_stratum_naive,
 
 def run(prog, seed=None, engine='auto', out=None, budget=None, ranks=False,
         host=None):
-    BOUND.clear(); SETTLED.clear()   # 前線下界は実行ごと。大域に持ち越さない
+    BOUND.clear(); SETTLED.clear(); TARGET.clear()   # 前線下界は実行ごと。大域に持ち越さない
     out = out if out is not None else sys.stdout
     rng = random.Random(seed) if seed is not None else None
     store = {f: {} for f in prog.fields}

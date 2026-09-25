@@ -1,0 +1,8 @@
+# 軸の規則が、同じ層で育つ場を値で読む（軸の群は入口が閉じてから回らなければならない）
+field x : max bound 16
+x[n] <- n   for (n) in 0 .. 15
+x[n] <- x[n + 1]   for (n) in 0 .. 14
+field w : max bound 16
+w[0] <- 0
+w[n] <- x[n]   for (n) in 1 .. 15 if w[n - 1] < 15
+print w

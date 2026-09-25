@@ -1,0 +1,6 @@
+# 棒の切り売り
+table price = (1,1),(2,5),(3,8),(4,9),(5,10),(6,17),(7,17),(8,20)
+field r : max bound 9
+r[0] <- 0
+r[n] <- r[n - l] + p   for (l,p) in price for (n) in 1 .. 8 if l <= n
+print r

@@ -1,0 +1,5 @@
+# 依存する区間の文の値の丸括弧（塊は書き先の次元の広さで包む区間 —— 14p）
+field c : flat bound 6 6
+c[n, 0] <- 1   for (n) in 0 .. 5
+c[n, k] <- (c[n - 1, k - 1] + 1) % 7   for (n) in 2 .. 5 for (k) in 1 .. n - 1
+print c

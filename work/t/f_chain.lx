@@ -1,0 +1,6 @@
+# 行列の連鎖積（区間の動的計画法）
+table dim = (0,10),(1,30),(2,5),(3,60),(4,10)
+field m : min bound 4 4
+m[i, i] <- 0   for (i) in 0 .. 3
+m[i, j] <- m[i, k] + m[k + 1, j] + p * q * r   for (i,p) in dim for (k,q) in dim for (j) in 0 .. 3 for (jj,r) in dim if jj == j + 1 if i <= k if k < j if q == q
+print m

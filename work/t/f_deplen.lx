@@ -1,0 +1,10 @@
+# 依存する区間の文の値の丸括弧（塊は書き先の次元の広さで包む区間 —— 14p）
+field a : flat bound 4
+field b : flat bound 4
+field len : flat bound 4
+a[i] <- i * 3 + 1   for (i) in 0 .. 3
+b[i] <- i * i + 2   for (i) in 0 .. 3
+len[i] <- 3 - i   for (i) in 0 .. 3
+field r : flat bound 4 4
+r[i, j] <- (a[i] + b[j]) % 7   for (i) in 0 .. 3 for (j) in 0 .. len[i]
+print r

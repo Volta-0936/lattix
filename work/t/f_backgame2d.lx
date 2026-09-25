@@ -1,0 +1,8 @@
+# 二次元の降りる軸: 残り手数 t を上から、各升の勝ち負け
+field w : or bound 7 5
+w[6, x] <- true   for (x) in 0 .. 4 if x >= 3
+w[t, x] <- true   for (t) in 0 .. 5 for (x) in 0 .. 3 if not w[t + 1, x + 1]
+w[t, x] <- true   for (t) in 0 .. 5 for (x) in 1 .. 4 if not w[t + 1, x - 1]
+field c : count bound 7
+c[t] <- x   for (t) in 0 .. 6 for (x) in 0 .. 4 if w[t, x]
+print c

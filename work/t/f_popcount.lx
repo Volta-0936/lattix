@@ -1,0 +1,7 @@
+# 立っている桁の数（読みの座標を割る）
+field pop : max bound 64
+pop[0] <- 0
+pop[n] <- pop[n / 2] + n % 2   for (n) in 1 .. 63
+field tot : sum bound 1
+tot[0] <- pop[n]   for (n) in 0 .. 63
+print tot

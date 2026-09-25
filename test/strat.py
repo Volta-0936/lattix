@@ -90,6 +90,9 @@ def refs_of(r):
     return out
 
 
+AXR = [0]                                   # 軸で守る読み（場の粒度の層では測れない）
+
+
 def check(path):
     raw = open(path, 'rb').read()
     r = subprocess.run([probe], input=raw, capture_output=True)
@@ -121,6 +124,11 @@ def check(path):
         if h: writers[h].append(s)
     lines = raw.decode('utf-8').split('\n')
     lvl = lambda s: None if s >= len(lv) or lv[s] == 32 else lv[s] - 48
+    # **軸に沿った成層**（14l）: 解釈実行は輪の中の否定を軸の具体例に開いて層を振る（p._axis に
+    # 軸の場が残る）。焼く側は同じ輪を **一つの層**に置き、融合した一周で軸を昇って順序を守る
+    # （生成器は融合しなければ理由 7 で断る）。だから軸の場どうしの、同じ層の非単調な読みは
+    # 場の粒度の層では測れない —— 数えて別に出す（破れには入れない）
+    ax = getattr(p, '_axis', {})
     n, bad = 0, []
     for rr in p.rules:
         if rr.lineno > len(lines) or not lines[rr.lineno - 1].startswith(rr.target + '['):
@@ -132,6 +140,11 @@ def check(path):
                 if lvl(w) is None: continue
                 n += 1
                 nm = f in rr.nonmono_reads
+                # 読み手が軸の場で、読む場の書き手が同じ層なら、焼く側では同じ軸の群にいる（群の外の入口は
+                # 層を一つ上げる —— 33_self の oxin）。読む場が解釈実行の軸に入っていなくてもよい（輪の外から
+                # 群に入った場。後ろ向きの本の `big` —— 14p）
+                if nm and rr.target in ax and lvl(s) == lvl(w):
+                    AXR[0] += 1; continue
                 if (lvl(s) <= lvl(w)) if nm else (lvl(s) < lvl(w)):
                     bad.append((rr.lineno, rr.target, f, lvl(s), lvl(w), '非単調' if nm else '単調'))
     return (n, bad, max((b - 48 for b in lv if b != 32), default=-1) + 1), None
@@ -159,7 +172,7 @@ if __name__ == '__main__':
         for b in bad[:3]:
             print(f"      行 {b[0]}: {b[1]} が {b[2]} を読む（{b[5]}）—— 層 {b[3]} / 書き手 {b[4]}")
     print("-" * W)
-    print(f"  読みの辺 {tot}  破れ {broken}  測れなかった源 {skipped}")
+    print(f"  読みの辺 {tot}  破れ {broken}  測れなかった源 {skipped}  軸で守る読み {AXR[0]}")
     if broken:
         print("  **破れがある** —— 焼く側は、書き終わる前の値を読む。")
         sys.exit(1)

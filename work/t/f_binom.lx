@@ -1,0 +1,8 @@
+# 二項係数を 1000 で割った余り（丸括弧の和を割る）
+field c : flat bound 30 30
+c[n, 0] <- 1   for (n) in 0 .. 29
+c[n, n] <- 1   for (n) in 1 .. 29
+c[n, k] <- (c[n - 1, k - 1] + c[n - 1, k]) % 1000   for (n) in 2 .. 29 for (k) in 1 .. n - 1
+field row : flat bound 30
+row[k] <- c[29, k]   for (k) in 0 .. 29
+print row

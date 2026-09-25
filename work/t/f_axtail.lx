@@ -1,0 +1,6 @@
+# 群の頭が二重、尻尾が一重（尻尾の規則だけが段0 の進めを持つ）
+field s : max bound 9 5
+s[0, j] <- j   for (j) in 0 .. 4
+s[t, j] <- s[t - 1, j] + 1   for (t) in 1 .. 8 for (j) in 0 .. 4 if s[t - 1, 0] < 4
+s[t, 0] <- 0   for (t) in 1 .. 8 if s[t - 1, 0] >= 4
+print s

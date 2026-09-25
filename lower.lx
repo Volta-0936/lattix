@@ -457,6 +457,198 @@ tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if cnum[t] >= 1
 # 式の辺は焼かない（種15）が、**成層は焼けるかどうかに寄りかからない**
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if ifocl[gcl[t]]
 
+# ══ 軸に沿った成層（14l）═══════════════════════════════════════════════
+# 解釈実行は輪の中の否定を、書き先の **軸**（静的な区間の計数器）で具体例に開いて成層する（SPEC §4
+# 「層は座標である」）。石取りの勝ち負け `win[n] <- 1 for (n) in 1 .. 15 if win[n - 1] == 0` は、場の
+# 粒度では win → win の否定の輪だが、読むのはいつも **自分より小さい切り口** n - 1 である。
+# 焼く側は、その形の規則を **一つのループに融合して n を昇る**（31_gen の融合）: 切り口 n を作るとき、
+# 読む n - c（c >= 1）は前の周回の中で既に閉じている —— だから一周で正しく、二周目は何も動かさない。
+# **二つの判断を一つにする**: ここで輪を許すのは、融合が必ず起きる形だけ（ループ一つ・数の区間・同じ端・
+# 同じ場を書く規則が源の上で隣り合う）。生成器は、許された規則が融合しなかったら断る（31_gen、理由 7）
+# —— 前段だけが許して生成器が融合しなければ、非単調な読みが途中の値を読んで **黙って間違える**。
+# 読みは二段まで（自己検査の古い道の限界 —— sedv2 の註）。
+field shof : max bound 8192             # 文 s の書き先の出現
+shof[osn[o]] <- o for (o) in 0 .. nocz[0] if ohd[o]
+field ohof : or bound 16384              # 出現 o の次元0 にずれがある
+ohof[o] <- true for (o) in 0 .. nocz[0] if c0hf[o] >= 1
+field sax1 : or bound 8192              # 文 s は軸の規則の形: 段0 が数の区間・書き先の次元0 がその計数器そのもの
+# 内側にループがあってもよい（14n）—— 生成器は群の段0 だけを融合し、内側の段は規則ごとに回す
+sax1[s] <- true for (s) in 0 .. nstz[0] if isrec[s] if lkd[s, 0] == 1 if llhv[s, 0]
+      if c0sr[shof[s]] == 1 if c0cc[shof[s]] == 0 if not ohof[shof[s]]
+field ohz : max bound 16384              # 出現 o の文の書き先の場（0 起点）
+ohz[o] <- hfz[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field ohl : max bound 16384              # 同じもの（1 起点 —— ofl と比べる）
+ohl[o] <- hfl[osn[o]] for (o) in 0 .. nocz[0] if oin[o]
+field osx : or bound 16384               # 出現 o の文は軸の規則の形
+osx[o] <- true for (o) in 0 .. nocz[0] if oin[o] if sax1[osn[o]]
+field oax1 : or bound 16384              # 出現 o は同じ場の、書き先の軸より小さい切り口を読む（`f[n - c]`、c >= 1）
+oax1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o]
+      if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1 if c0of[o] >= 128
+# **軸の形でない書き手は、自分の場を読まなければ土台である**（14n）。`s[0, j] <- j for (j) in 0 .. 4` は
+# 切り口 0 を敷くだけで、輪に入っていない —— 群より前の層で閉じていれば（下の wlvlb）、群は閉じた
+# 切り口を読む。自分の場を読む書き手（`s[0, j] <- s[5, j]`）は輪の中なので、軸では受け取らない
+field sfrd : or bound 8192              # 文 s は自分の書き先の場を読む
+sfrd[osn[o]] <- true for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if ofl[o] == ohl[o]
+field fxw : or bound 1024                # 場 f を書く規則に、軸の形でなく、f を読むものがある
+fxw[hfz[s]] <- true for (s) in 0 .. nstz[0] if isrec[s] if not sax1[s] if sfrd[s]
+field fxrd : or bound 1024               # 場 f を書く軸の規則が、f を軸の形でなく読む（同じ切り口や大きい切り口）
+fxrd[ohz[o]] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if ofl[o] == ohl[o] if not oax1[o]
+field fxl0 : min bound 1024              # 場 f の軸の規則の下端の最小 / 最大（同じでなければ融合しない）
+fxl0[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxl1 : max bound 1024
+fxl1[hfz[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh0 : min bound 1024              # 上端の最小 / 最大
+fxh0[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field fxh1 : max bound 1024
+fxh1[hfz[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field isrl : or bound 8192              # 文 s は規則（isrec の写し。鎖の中で読む）
+isrl[s] <- true for (s) in 0 .. nstz[0] if isrec[s]
+field prr : max bound 8192              # 文 s より前の、最後の規則の文
+prr[s] <- s - 1 for (s) in 1 .. nstz[0] if isrl[s-1]
+prr[s] <- prr[s-1] for (s) in 1 .. nstz[0] if not isrl[s-1]
+field prh : max bound 8192              # その規則の書き先の場
+prh[s] <- hfz[prr[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+field fxfs : min bound 1024              # 場 f の最初の軸の規則の文
+fxfs[hfz[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sxfs : max bound 8192             # 文 s の書き先の場の最初の軸の規則の文
+sxfs[s] <- fxfs[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field fxg : or bound 1024                # 場 f の軸の規則のあいだに、別の場を書く規則がある
+fxg[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sxfs[s] if prh[s] != hfz[s]
+# **軸の成層が要る場だけを軸の場にする**（14n）。形だけ見れば `x[n] <- … for (n) in 0 .. 9` はみな軸の規則の
+# 形をしている。それを全部軸の群にすると、入口の +1（oxin）が **単調な相互再帰**（下ろしの機械の
+# `_kf1[k, j + 1] <- _kg1[k, j] …` と `_kg1[k, j] <- _kf1[k, j] …`）に輪の +1 を作り、層が昇り続けて
+# 成層できないと言った（内側にループを許した日に出た。一重でも同じ形は在った）。軸が要るのは、
+# 自分の小さい切り口を **非単調に**読むときだけである
+field fxnd : or bound 1024               # 場 f の軸の規則が、f の小さい切り口を非単調に読む
+fxnd[ohz[o]] <- true for (o) in 0 .. nocz[0] if oax1[o] if onm[o]
+field fax1 : or bound 1024               # 場 f は **一つで**軸に沿って成層できる（14l〜14n の形）
+fax1[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if not fxw[hfz[s]] if not fxrd[hfz[s]]
+      if fxl0[hfz[s]] == fxl1[hfz[s]] if fxh0[hfz[s]] == fxh1[hfz[s]] if fxnd[hfz[s]]
+# ── **二つ以上の場が軸をまたいで読み合う群**（14o）────────────────────────────────
+# グランディ数の mex（`has[n, v] <- … if gr[n - 1] == v` と `gr[n] <- v … if not has[n, v]`）・ライフゲーム
+# （`nb[t, x, y] <- 1 … if g[t, …]` と `g[t, x, y] <- … if nb[t - 1, x, y] == 3`）は、場の粒度では否定の輪で、
+# 一つの場の軸（上）でも受け取れない —— 輪が場をまたぐ。だが解釈実行が開く具体例は **切り口 n の中で
+# 閉じる順序** を持つ: 切り口 n の has は gr[n - 1] だけを読み、切り口 n の gr は has[n] を読む。だから
+# 群の規則を段0 で融合し、各 n で **源の順に** 回せば一周で正しい —— 読む切り口が n - c（c ≥ 1）なら前の周回で
+# 閉じていて、同じ切り口 n を読むなら、その場の群の書き手が全部 **源の上で前に**いればこの周回で閉じている。
+# 群は「軸の形の規則が、軸の形で読まれる場を軸の形で読む」繋がりの成分（いちばん小さい場の番号が名 ——
+# min の鎖）。誰にも軸の形で読まれない場（`live[t] <- … if c[t, i]` の live）は群に入れない。
+# 群が成り立たなければ、一つの場の軸（fax1）に戻る —— 14n までに受け取った本は同じに受け取る。
+field ofzx : max bound 16384              # 出現 o の読む場（0 起点）
+ofzx[o] <- ofl[o] - 1 for (o) in 0 .. nocz[0] if oin[o] if ofl[o] >= 1
+field oxc0 : or bound 16384              # 出現 o は軸の規則の、同じ切り口の読み（`g[n, …]`）
+oxc0[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if not ohof[o]
+field oxc1 : or bound 16384              # 小さい切り口の読み（`g[n - c, …]`、c >= 1）
+oxc1[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 128
+# **降りる軸**（14p）: 大きい切り口を読む（`g[n + c, …]`、c >= 1）群は、段0 を上から下へ回せば同じ主張が立つ ——
+# 切り口 n を作るとき、n + c は前の周回（上の切り口）で閉じている。後ろから解くゲーム・後ろ向きの動的計画法
+field oxc2 : or bound 16384              # 大きい切り口の読み（`g[n + c, …]`、c >= 1）
+oxc2[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if c0sr[o] == 1 if c0cc[o] == 0 if c0hf[o] == 1
+      if c0of[o] >= 1 if c0of[o] <= 127
+field fxs : or bound 1024                # 場 f を書く軸の形の規則がある
+fxs[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field fxrb : or bound 1024               # 場 f は軸の形の規則に、軸の形で読まれる
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o]
+fxrb[ofzx[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o]
+# 群に入れるのは **読まれもし、読みもする**場だけ（輪の上に居うる場）。誰にも軸の形で読まれない場（`live`）も、
+# 群の場を軸の形で読まない場（後ろ向きの本の `big[n, k] <- … if v[n] > k`）も、群の入口か出口であって輪の外 ——
+# 入口は下の層で閉じる（oxin）。前は入口まで群に入れて同じ層に置き、解釈実行（入口を先の層に置く）と
+# 層が食い違っていた（答えは同じだったが、strat.py の破れになった —— 14p）
+field fxro : or bound 1024               # 場 f の軸の形の書き手が、軸の形の規則の書く場を軸の形で読む
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]]
+fxro[ohz[o]] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]]
+field oxl : or bound 16384               # 出現 o は群を繋ぐ
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+oxl[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if fxs[ofzx[o]] if fxrb[ohz[o]] if fxro[ofzx[o]]
+field bid : min bound 1024               # 場 f の群の名（成分のいちばん小さい場）
+bid[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s]
+bid[ohz[o]] <- bid[ofzx[o]] for (o) in 0 .. nocz[0] if oxl[o]
+bid[ofzx[o]] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oxl[o]
+field sbid : max bound 8192             # 文 s の書き先の群（読みを二段に保つ写し）
+sbid[s] <- bid[hfz[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field oxbk : max bound 16384              # 出現 o の文の書き先の群（頭の座標を一段に保つ写し —— 自己検査の古い道）
+oxbk[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if osx[o]
+field obid : or bound 16384              # 出現 o は、軸の形の規則が自分の群の場を読む
+obid[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fxs[ofzx[o]] if bid[ofzx[o]] == bid[ohz[o]]
+field bnd : or bound 1024                # 群 b の中に非単調な読みがある（群が要る）
+bnd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxl[o] if onm[o] if obid[o]
+field bxrd : or bound 1024               # 群の規則が群の場を軸の形でなく読む
+bxrd[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if not oxc0[o] if not oxc1[o] if not oxc2[o]
+field bup : or bound 1024                # 群 b は小さい切り口を読む（昇る軸）/ 大きい切り口を読む（降りる軸）
+bup[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc1[o]
+field bdn : or bound 1024
+bdn[oxbk[o]] <- true for (o) in 0 .. nocz[0] if obid[o] if oxc2[o]
+# **切り口の中の順序は源の順ではなく、読みが決める**（Lattix の答えは文の順に依らない —— 06_order_free）。
+# 同じ切り口 n を読む文は、読む場の書き手より後に回す: 切り口の中の段 = 同じ切り口の読みに沿った最長路。
+# 規則の番号（lib/fold.lx の rno）が群の中でこの段の順に並ぶので、融合した一周もこの順に回る。
+# 段が昇り続けるなら（自分の切り口を読む・互いに同じ切り口を読む）切り口の中に輪がある —— 群にしない
+field bsl : or bound 8192 8             # 文 s は切り口の中で k 段目以降に回る
+bsl[s, 0] <- true for (s) in 0 .. nstz[0] if sax1[s]
+field wsl : or bound 1024 8              # 場 f の軸の形の書き手が k 段目以降にいる
+wsl[hfz[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if sax1[s] if bsl[s, k]
+bsl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 6 if oxc0[o] if obid[o] if wsl[ofzx[o], k]
+field ssl : max bound 8192              # 文 s の切り口の中の段
+ssl[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if bsl[s, k]
+field bxor : or bound 1024               # 切り口の中に輪がある
+bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
+field bxfs : min bound 1024              # 群 b の最初の文
+bxfs[sbid[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
+field sbfs : max bound 8192             # 文 s の群の最初の文
+sbfs[s] <- bxfs[sbid[s]] for (s) in 0 .. nstz[0] if sax1[s]
+field prb : max bound 8192              # 文 s の前の規則の書き先の群
+prb[s] <- bid[prh[s]] for (s) in 0 .. nstz[0] if prr[s] >= 0
+# 群の文が源の上で離れていてもよい（14o）—— 規則の番号（lib/fold.lx）が群を一続きに並べる。bxg は数えるだけ
+field bxg : or bound 1024                # 群の文のあいだに、群の外の場を書く規則がある
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if not fxs[prh[s]]
+bxg[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if s > sbfs[s] if prb[s] != sbid[s]
+field bxw : or bound 1024                # 軸の形でない書き手が群の場を読む（土台になれない）
+field obw : max bound 16384              # 出現 o の文（軸の形でない書き手）の書き先の群
+obw[o] <- bid[ohz[o]] for (o) in 0 .. nocz[0] if oin[o] if not ohd[o] if not osx[o] if fxs[ohz[o]]
+bxw[obw[o]] <- true for (o) in 0 .. nocz[0] if obw[o] >= 0 if fxs[ofzx[o]] if bid[ofzx[o]] == obw[o]
+field bxl0 : min bound 1024              # 群の段0 の下端の最小 / 最大、上端の最小 / 最大
+bxl0[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxl1 : max bound 1024
+bxl1[sbid[s]] <- llo2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh0 : min bound 1024
+bxh0[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bxh1 : max bound 1024
+bxh1[sbid[s]] <- lhi2[s, 0] for (s) in 0 .. nstz[0] if sax1[s]
+field bax0 : or bound 1024               # 群 b は成り立つ（端の違いは下ろしが揃える）
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bup[sbid[s]]
+bax0[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bnd[sbid[s]] if not bxrd[sbid[s]] if not bxor[sbid[s]]
+      if not bxw[sbid[s]] if not bdn[sbid[s]]
+field bax : or bound 1024                # 群 b は焼ける（端も揃っている）
+bax[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bax0[sbid[s]]
+      if bxl0[sbid[s]] == bxl1[sbid[s]] if bxh0[sbid[s]] == bxh1[sbid[s]]
+field fbk : max bound 1024               # 場 f の軸の群（群が成り立てば群の名、一つで成り立てば f）
+fbk[hfz[s]] <- sbid[s] for (s) in 0 .. nstz[0] if sax1[s] if bax[sbid[s]]
+fbk[hfz[s]] <- hfz[s] for (s) in 0 .. nstz[0] if sax1[s] if not bax[sbid[s]] if fax1[hfz[s]]
+field fax : or bound 1024                # 場 f は軸に沿って成層できる
+fax[hfz[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if fbk[hfz[s]] >= 0
+field sax : or bound 8192               # 文 s は軸に沿って成層した規則（生成器が融合を確かめる）
+sax[s] <- true for (s) in 0 .. nstz[0] if sax1[s] if fax[hfz[s]]
+field sfb : max bound 8192              # 文 s の軸の群
+sfb[s] <- fbk[hfz[s]] for (s) in 0 .. nstz[0] if sax[s]
+field ofb : or bound 16384               # 出現 o は、軸の規則が自分の軸の群の場を読む
+ofb[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if fax[ofzx[o]] if fbk[ofzx[o]] == fbk[ohz[o]]
+field oax : or bound 16384               # 出現 o は軸で安全（非単調な読みでも層を切らない）
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if ofb[o] if sax[osn[o]]
+oax[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if ofb[o] if sax[osn[o]]
+field sxdn : or bound 8192              # 文 s は降りる軸の群の規則（段0 を上から回す）
+sxdn[s] <- true for (s) in 0 .. nstz[0] if sax[s] if bax[sbid[s]] if bdn[sbid[s]]
+# **軸の群の入口は、群より前の層で閉じていなければならない**（h01 で見つけた SILENT）。融合した一周が
+# 正しいのは「n - c の切り口は閉じている」からだが、その切り口の値が **同じ層で育つ別の場**を読んでいれば、
+# 一周目に読んだのは途中の値で、非単調な読み（`if w[n - 1] < 15`）がそれを見て撃った実例は取り消せない。
+# だから軸の規則が群の外の場を読むときは、単調な読みでも層を一つ上げる（入口を閉じてから回る）。
+field oxin : or bound 16384              # 出現 o は、軸の規則が読む群の外の場
+oxin[o] <- true for (o) in 0 .. nocz[0] if osx[o] if not ohd[o] if sax[osn[o]] if not oax[o]
+
 # ══ 成層 ═══════════════════════════════════════════════════════════
 # 辺の表は要らない。**場の番号を座標にして**書き手と読み手を繋ぐ。
 # 重み付き最長路がそのまま層になる —— 非単調な辺だけが +1 する。
@@ -474,9 +666,25 @@ lvl[s,0] <- true for (s) in 0 .. nstz[0] if hasr[s]
 wlvl[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
       if hfl[s] >= 0 if lvl[s,k]
 lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
-      if not ohd[o] if not onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if not onm[o] if not oxin[o] if wlvl[ofl[o], k]
 lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
-      if not ohd[o] if onm[o] if wlvl[ofl[o], k]
+      if not ohd[o] if onm[o] if not oax[o] if wlvl[ofl[o], k]
+# 軸の群の入口（単調な読みでも）は層を一つ上げる（上の oxin）
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if not onm[o] if oxin[o] if wlvl[ofl[o], k]
+# 軸で安全な非単調な読みは層を切らない（上の「軸に沿った成層」）
+lvl[osn[o], k] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 127 if oin[o]
+      if not ohd[o] if onm[o] if oax[o] if wlvl[ofl[o], k]
+# ただし軸の場の **土台**（軸の群でない書き手 —— 種や `s[0, j] <- j for (j) …`）は、群より前の層で閉じる（14n）
+field wlvlb : or bound 1024 128          # 場 f の、軸の群でない書き手が層 k 以上にいる
+wlvlb[hfl[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if hasr[s]
+      if hfl[s] >= 0 if not sax[s] if lvl[s,k]
+lvl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 126 if oin[o]
+      if not ohd[o] if oax[o] if wlvlb[ofl[o], k]
+# 軸の群の文は **全部同じ層**にいる（段0 で融合するので。群の中の読みは層を分けない —— 14o）
+field blv : or bound 1024 128            # 群 b の文が層 k 以上にいる
+blv[sfb[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if lvl[s, k]
+lvl[s, k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if sax[s] if blv[sfb[s], k]
 field level : max bound 8192            # 文 s の層（＝上にいる最大の k）
 level[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 127 if lvl[s,k]
 field toodeep : or bound 8              # 層が深すぎる（＝成層できない源）
@@ -1525,9 +1733,16 @@ field rcnt : max bound 8192 128          # 文 s までに層 k で数えた規�
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k]            for (s) in 1 .. nstz[0] for (k) in 0 .. 127
 rcnt[s,k] <- rcnt[s-1,k] + 1        for (s) in 1 .. nstz[0] for (k) in 0 .. 127
-      if isrec[s] if rst[s] == k
+      if isrec[s] if rst[s] == k if not sax[s]
 rcnt[s,k] <- 1                      for (s) in 0 .. 0 for (k) in 0 .. 127
       if isrec[s] if rst[s] == k
+# **軸の群は一続きの番号を持つ**（14o）: 群の最初の文の所で群の大きさだけ数え、残りの文では数えない。
+# 群の文が源の上で離れていても（間に別の場の規則があっても）、群は番号の上で隣り合い、段0 で融合できる
+field bsz : count bound 1024            # 軸の群 b の文の数
+bsz[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+rcnt[s,k] <- rcnt[s-1,k] + bsz[sfb[s]]   for (s) in 1 .. nstz[0] for (k) in 0 .. 127
+      if sax[s] if rst[s] == k if sef[s] == s
+rcnt[s,k] <- bsz[sfb[s]]            for (s) in 0 .. 0 for (k) in 0 .. 127 if sax[s] if rst[s] == k
 field rtot : max bound 128               # 層 k の規則の数
 # 層 k の規則の数は「最後の文までに数えた数」＝ **s についての最大**である
 # （鎖は増える一方なので、最大がそのまま最後の値）。4095 番を読むのはやめる。
@@ -1537,7 +1752,34 @@ rbase[0] <- 0
 rbase[k] <- rbase[k-1] + rtot[k-1]  for (k) in 1 .. 127
 field rno : max bound 8192             # 文 s の規則番号
 rno[s] <- rbase[rst[s]] + rcnt[s,rst[s]] - 1
-      for (s) in 0 .. nstz[0] if isrec[s]
+      for (s) in 0 .. nstz[0] if isrec[s] if not sax[s]
+# **軸の群の中は、切り口の中の段の順**（14o。33_self の ssl）。群の文は源の上で隣り合い（間に居てよいのは
+# 下の層の土台だけ）、全部同じ層にいるので、群は番号の続いた一区間を占める —— その中で (段, 源の順) に並べ直す
+field efb : min bound 1024              # 軸の群 b の最初 / 最後の文
+efb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field elb : max bound 1024
+elb[sfb[s]] <- s for (s) in 0 .. nstz[0] if sax[s]
+field sef : max bound 8192             # 文 s の群の最初 / 最後の文
+sef[s] <- efb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field sel : max bound 8192
+sel[s] <- elb[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+field bxrk : count bound 8192           # 群の中の順位（1 起点。自分も数える —— count の 0 は ⊥）
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] < ssl[s]
+bxrk[s] <- s2 for (s) in 0 .. nstz[0] for (s2) in (sef[s]) .. sel[s] if sax[s] if sax[s2] if sfb[s2] == sfb[s]
+      if ssl[s2] == ssl[s] if s2 <= s
+field sbz : max bound 8192             # 文 s の群の大きさ（読みを二段に保つ写し）
+sbz[s] <- bsz[sfb[s]] for (s) in 0 .. nstz[0] if sax[s]
+rno[s] <- rbase[rst[s]] + rcnt[sef[s],rst[s]] - sbz[s] + bxrk[s] - 1
+      for (s) in 0 .. nstz[0] if sax[s]
+field rax : or bound 8192              # 規則 r は軸に沿って成層した規則（33_self の sax。14l）
+rax[rno[s]] <- true for (s) in 0 .. nstz[0] if sax[s]
+field raxf : max bound 8192            # その軸の群
+raxf[rno[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]      # 群の名（14o。一つの場の群なら場）
+field raxd : or bound 8192             # 規則 r は降りる軸の群（段0 を上から回す —— 14p）
+raxd[rno[s]] <- true for (s) in 0 .. nstz[0] if sxdn[s]
+field raxb : max bound 1024             # 場 f の軸の群（14o。群の中の読みは周回の入口で見ない）
+raxb[hfz[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]
 
 field nrl : max bound 1                        # 規則の数
 # **規則が一本も無い源もある**（宣言と種だけ）。数えるものが無いと数は ⊥ で、
@@ -2324,21 +2566,21 @@ field lep : max bound 4096 3                # 種 i の j バイト目の位置
 field leb : max bound 12288                 # 位置 p のバイト
 field ex : max bound 12288 48               # 開いた字: 字は ex[p, 0]、句は ex[p, k] = 型紙 192 + m の字（⊥ は幅 0）
 # ── 帯を開く: 型紙の帯 `tv`（三バイトずつ）→ 位置 p のバイト → 型紙の番号と升の番号（区切り 0 の鎖）
-field tv : max bound 2048
+field tv : max bound 4096                   # 帯の三バイトの種（14l で 2048 を越えた —— 型紙 188〜190。五つとも一緒に上げる）
 field tvz : max bound 1
-field tvp : max bound 2048 3                # 種 i の j バイト目の位置
+field tvp : max bound 4096 3                # 種 i の j バイト目の位置
 tvp[i, j] <- i * 3 + j              for (i) in 0 .. tvz[0] for (j) in 0 .. 2
-field tvb : max bound 6144                  # 帯の位置 p のバイト
+field tvb : max bound 12288                 # 帯の位置 p のバイト
 tvb[tvp[i, 0]] <- tv[i] % 256       for (i) in 0 .. tvz[0]
 tvb[tvp[i, 1]] <- tv[i] / 256 % 256 for (i) in 0 .. tvz[0]
 tvb[tvp[i, 2]] <- tv[i] / 65536     for (i) in 0 .. tvz[0]
 field tvn : max bound 1                     # 帯の最後の位置
 tvn[z] <- tvz[0] * 3 + 2            for (z) in 0 .. 0
-field tvk : max bound 6144                  # 位置 p の型紙の番号（区切りを数える鎖）
+field tvk : max bound 12288                 # 位置 p の型紙の番号（区切りを数える鎖）
 tvk[0] <- 0
 tvk[p] <- tvk[p - 1] + 1            for (p) in 1 .. tvn[0] if tvb[p - 1] == 0
 tvk[p] <- tvk[p - 1]                for (p) in 1 .. tvn[0] if tvb[p - 1] >= 1
-field tvj : max bound 6144                  # 型紙の中の升の番号
+field tvj : max bound 12288                 # 型紙の中の升の番号
 tvj[0] <- 0
 tvj[p] <- 0                         for (p) in 1 .. tvn[0] if tvb[p - 1] == 0
 tvj[p] <- tvj[p - 1] + 1            for (p) in 1 .. tvn[0] if tvb[p - 1] >= 1
@@ -2537,6 +2779,9 @@ tpm[tvk[p], tvj[p]] <- tvb[p] - 207 for (p) in 0 .. tvn[0] if tvb[p] >= 208 if t
 # 185: '\n_t{0:2}c{1:2}[{2:7}] <- -{3:10}'
 # 186: '\n_psh1[{0:2}] <- {1:7}'
 # 187: '\n_psh2[{0:2}] <- {1:7}'
+# 188: '{0:7} if % >= {1:7}'
+# 189: '{0:7} if % <= {2:7}'
+# 190: '{0:7} if % >= {1:7} if % <= {2:7}'
 # 192: 句 ' for (r) in 0 .. _Rz[0]'
 # 193: 句 ') in 0 .. '
 # 194: 句 ' for (p) in 87 .. _TWx[0]'
@@ -2627,7 +2872,7 @@ tpm[tvk[p], tvj[p]] <- tvb[p] - 207 for (p) in 0 .. tvn[0] if tvb[p] >= 208 if t
 # 279: 句 'ck0[g'
 # 280: 句 'r\n_o'
 # 281: 句 '_dv1'
-# 型紙の帯（6042 バイトを三バイトずつ）
+# 型紙の帯（6156 バイトを三バイトずつ）
 tv[0] <- 6236192
 tv[1] <- 2719858
 tv[2] <- 7235872
@@ -4431,218 +4676,256 @@ tv[1799] <- 2964512
 tv[1800] <- 9803296
 tv[1801] <- 9606036
 tv[1802] <- 37009
-tv[1803] <- 0
-tv[1804] <- 6692864
-tv[1805] <- 2126447
-tv[1806] <- 2716200
-tv[1807] <- 7235872
-tv[1808] <- 2109472
-tv[1809] <- 2108974
-tv[1810] <- 8016479
-tv[1811] <- 6107227
-tv[1812] <- 2107648
-tv[1813] <- 2125417
-tv[1814] <- 3022896
-tv[1815] <- 8238
-tv[1816] <- 7300640
-tv[1817] <- 2629746
-tv[1818] <- 2107760
-tv[1819] <- 2125417
-tv[1820] <- 2111288
-tv[1821] <- 2108974
-tv[1822] <- 5723231
-tv[1823] <- 3169144
-tv[1824] <- 6094941
-tv[1825] <- 2964512
-tv[1826] <- 2097184
-tv[1827] <- 7499622
-tv[1828] <- 10272
-tv[1829] <- 2912859
-tv[1830] <- 2097184
-tv[1831] <- 7151674
-tv[1832] <- 2127969
-tv[1833] <- 7696226
-tv[1834] <- 2122862
-tv[1835] <- 6687232
-tv[1836] <- 7103849
-tv[1837] <- 6234212
-tv[1838] <- 6889472
-tv[1839] <- 8294
-tv[1840] <- 8016735
-tv[1841] <- 6107227
-tv[1842] <- 6773504
-tv[1843] <- 8236
-tv[1844] <- 7368799
-tv[1845] <- 6124123
-tv[1846] <- 6123520
-tv[1847] <- 8236
-tv[1848] <- 2112032
-tv[1849] <- 6384742
-tv[1850] <- 6430836
-tv[1851] <- 7239023
-tv[1852] <- 8292
-tv[1853] <- 6446858
-tv[1854] <- 23412
-tv[1855] <- 4276575
-tv[1856] <- 5201755
-tv[1857] <- 4071424
-tv[1858] <- 8253
-tv[1859] <- 3356209
-tv[1860] <- 13368
-tv[1861] <- 7630702
-tv[1862] <- 24352
-tv[1863] <- 2112032
-tv[1864] <- 2126447
-tv[1865] <- 7696226
-tv[1866] <- 2122862
-tv[1867] <- 6577920
-tv[1868] <- 6249329
-tv[1869] <- 5977201
-tv[1870] <- 5133919
-tv[1871] <- 2907392
-tv[1872] <- 6123552
-tv[1873] <- 2120960
-tv[1874] <- 8229
-tv[1875] <- 4005981
-tv[1876] <- 8253
-tv[1877] <- 7562079
-tv[1878] <- 5660507
-tv[1879] <- 2826240
-tv[1880] <- 12576
-tv[1881] <- 6124123
-tv[1882] <- 24330
-tv[1883] <- 6910815
-tv[1884] <- 23396
-tv[1885] <- 6249265
-tv[1886] <- 2687062
-tv[1887] <- 7235872
-tv[1888] <- 2109728
-tv[1889] <- 2108974
-tv[1890] <- 3683328
-tv[1891] <- 2108192
-tv[1892] <- 3158016
-tv[1893] <- 12336
-tv[1894] <- 5660507
-tv[1895] <- 3276878
-tv[1896] <- 3422262
-tv[1897] <- 3355955
-tv[1898] <- 7364352
-tv[1899] <- 7494518
-tv[1900] <- 2108416
-tv[1901] <- 23914
-tv[1902] <- 7238495
-tv[1903] <- 26459
-tv[1904] <- 7364443
-tv[1905] <- 5993319
-tv[1906] <- 23922
-tv[1907] <- 6118768
-tv[1908] <- 8236
-tv[1909] <- 7631728
-tv[1910] <- 2097243
-tv[1911] <- 6234155
-tv[1912] <- 2120960
-tv[1913] <- 3153980
-tv[1914] <- 24330
-tv[1915] <- 3617841
-tv[1916] <- 3552564
-tv[1917] <- 24330
-tv[1918] <- 2112032
-tv[1919] <- 7235949
-tv[1920] <- 7299616
-tv[1921] <- 6581877
-tv[1922] <- 3487264
-tv[1923] <- 5267200
-tv[1924] <- 3169146
-tv[1925] <- 6226013
-tv[1926] <- 5984371
-tv[1927] <- 3240799
-tv[1928] <- 7953200
-tv[1929] <- 2121053
-tv[1930] <- 7938091
-tv[1931] <- 2106656
-tv[1932] <- 12337
-tv[1933] <- 7630943
-tv[1934] <- 6094960
-tv[1935] <- 7298826
-tv[1936] <- 667904
-tv[1937] <- 28511
-tv[1938] <- 6844511
-tv[1939] <- 29275
-tv[1940] <- 6381322
-tv[1941] <- 6094967
-tv[1942] <- 6627372
-tv[1943] <- 2760704
-tv[1944] <- 12576
-tv[1945] <- 5063007
-tv[1946] <- 6226011
-tv[1947] <- 3238768
-tv[1948] <- 29275
-tv[1949] <- 7693151
-tv[1950] <- 23395
-tv[1951] <- 7697012
-tv[1952] <- 2097253
-tv[1953] <- 3219501
-tv[1954] <- 7035648
-tv[1955] <- 8236
-tv[1956] <- 2908507
-tv[1957] <- 2097184
-tv[1958] <- 6228532
-tv[1959] <- 667648
-tv[1960] <- 22111
-tv[1961] <- 3088477
-tv[1962] <- 3158304
-tv[1963] <- 7364352
-tv[1964] <- 5976683
-tv[1965] <- 3211378
-tv[1966] <- 3355184
-tv[1967] <- 2907392
-tv[1968] <- 12320
-tv[1969] <- 5660426
-tv[1970] <- 655438
-tv[1971] <- 4478559
-tv[1972] <- 7495424
-tv[1973] <- 7494515
-tv[1974] <- 5976320
-tv[1975] <- 3764575
-tv[1976] <- 7560960
-tv[1977] <- 7363427
-tv[1978] <- 8236
-tv[1979] <- 3289137
-tv[1980] <- 6225972
-tv[1981] <- 5992033
-tv[1982] <- 669696
-tv[1983] <- 28511
-tv[1984] <- 7762783
-tv[1985] <- 5963873
-tv[1986] <- 7431007
-tv[1987] <- 5976064
-tv[1988] <- 22111
-tv[1989] <- 6249266
-tv[1990] <- 6226006
-tv[1991] <- 7106145
-tv[1992] <- 24923
-tv[1993] <- 7499632
-tv[1994] <- 6226011
-tv[1995] <- 3176036
-tv[1996] <- 3421696
-tv[1997] <- 12576
-tv[1998] <- 6121307
-tv[1999] <- 6226013
-tv[2000] <- 5980481
-tv[2001] <- 7036672
-tv[2002] <- 5991534
-tv[2003] <- 23915
-tv[2004] <- 7693151
-tv[2005] <- 7691116
-tv[2006] <- 6226013
-tv[2007] <- 7561840
-tv[2008] <- 6488155
-tv[2009] <- 5976171
-tv[2010] <- 7471207
-tv[2011] <- 7298826
-tv[2012] <- 6577920
-tv[2013] <- 12662
-tvz[0] <- 2013
+tv[1803] <- 8684934
+tv[1804] <- 8487555
+tv[1805] <- 6889600
+tv[1806] <- 13639782
+tv[1807] <- 13882065
+tv[1808] <- 14079444
+tv[1809] <- 4071639
+tv[1810] <- 9838653
+tv[1811] <- 9671829
+tv[1812] <- 9474450
+tv[1813] <- 8750592
+tv[1814] <- 8553348
+tv[1815] <- 2130049
+tv[1816] <- 2123369
+tv[1817] <- 13816272
+tv[1818] <- 14013651
+tv[1819] <- 2152406
+tv[1820] <- 2112828
+tv[1821] <- 10790310
+tv[1822] <- 10592931
+tv[1823] <- 8781984
+tv[1824] <- 8619141
+tv[1825] <- 8421762
+tv[1826] <- 6711584
+tv[1827] <- 13750304
+tv[1828] <- 13947858
+tv[1829] <- 14145237
+tv[1830] <- 4013600
+tv[1831] <- 9803296
+tv[1832] <- 9606036
+tv[1833] <- 2134161
+tv[1834] <- 2123369
+tv[1835] <- 13816272
+tv[1836] <- 14013651
+tv[1837] <- 2152406
+tv[1838] <- 2112828
+tv[1839] <- 10790310
+tv[1840] <- 10592931
+tv[1841] <- 160
+tv[1842] <- 7300640
+tv[1843] <- 2629746
+tv[1844] <- 2107762
+tv[1845] <- 2125417
+tv[1846] <- 3022896
+tv[1847] <- 6234158
+tv[1848] <- 5995090
+tv[1849] <- 23856
+tv[1850] <- 6889513
+tv[1851] <- 3154030
+tv[1852] <- 3026464
+tv[1853] <- 2097184
+tv[1854] <- 7499622
+tv[1855] <- 7350304
+tv[1856] <- 6889513
+tv[1857] <- 3678318
+tv[1858] <- 3022903
+tv[1859] <- 6234158
+tv[1860] <- 7886676
+tv[1861] <- 6107227
+tv[1862] <- 2120960
+tv[1863] <- 2108732
+tv[1864] <- 6692864
+tv[1865] <- 2126447
+tv[1866] <- 5963816
+tv[1867] <- 2108530
+tv[1868] <- 3809280
+tv[1869] <- 6384928
+tv[1870] <- 6430840
+tv[1871] <- 7239023
+tv[1872] <- 8292
+tv[1873] <- 6907402
+tv[1874] <- 6581349
+tv[1875] <- 24352
+tv[1876] <- 6711584
+tv[1877] <- 6225952
+tv[1878] <- 5995091
+tv[1879] <- 23856
+tv[1880] <- 2910043
+tv[1881] <- 6225952
+tv[1882] <- 5992560
+tv[1883] <- 23922
+tv[1884] <- 2907504
+tv[1885] <- 2097184
+tv[1886] <- 6692922
+tv[1887] <- 7627116
+tv[1888] <- 7299616
+tv[1889] <- 6581877
+tv[1890] <- 655392
+tv[1891] <- 7627359
+tv[1892] <- 6226011
+tv[1893] <- 5980481
+tv[1894] <- 20319
+tv[1895] <- 4013600
+tv[1896] <- 3211296
+tv[1897] <- 3683126
+tv[1898] <- 7209012
+tv[1899] <- 2126959
+tv[1900] <- 2097247
+tv[1901] <- 7282746
+tv[1902] <- 6430834
+tv[1903] <- 7239023
+tv[1904] <- 8292
+tv[1905] <- 7431263
+tv[1906] <- 7429979
+tv[1907] <- 6249268
+tv[1908] <- 20054
+tv[1909] <- 2108509
+tv[1910] <- 23920
+tv[1911] <- 2433117
+tv[1912] <- 6094880
+tv[1913] <- 4013344
+tv[1914] <- 6225952
+tv[1915] <- 5993315
+tv[1916] <- 22111
+tv[1917] <- 2108192
+tv[1918] <- 5963825
+tv[1919] <- 679282
+tv[1920] <- 6226015
+tv[1921] <- 6580595
+tv[1922] <- 3211355
+tv[1923] <- 5660507
+tv[1924] <- 2107648
+tv[1925] <- 2125417
+tv[1926] <- 3022897
+tv[1927] <- 8238
+tv[1928] <- 2111540
+tv[1929] <- 8235
+tv[1930] <- 3158064
+tv[1931] <- 5963824
+tv[1932] <- 5133919
+tv[1933] <- 3551744
+tv[1934] <- 3355704
+tv[1935] <- 13109
+tv[1936] <- 7762015
+tv[1937] <- 29275
+tv[1938] <- 6955052
+tv[1939] <- 6226013
+tv[1940] <- 5992051
+tv[1941] <- 5963879
+tv[1942] <- 6778975
+tv[1943] <- 7494515
+tv[1944] <- 7340125
+tv[1945] <- 2907485
+tv[1946] <- 7340064
+tv[1947] <- 5993587
+tv[1948] <- 2826240
+tv[1949] <- 24352
+tv[1950] <- 3940445
+tv[1951] <- 667680
+tv[1952] <- 3211359
+tv[1953] <- 3422004
+tv[1954] <- 669237
+tv[1955] <- 2097247
+tv[1956] <- 7151674
+tv[1957] <- 2125417
+tv[1958] <- 7696226
+tv[1959] <- 2122862
+tv[1960] <- 13622
+tv[1961] <- 8015967
+tv[1962] <- 6107227
+tv[1963] <- 7560960
+tv[1964] <- 6249296
+tv[1965] <- 3158387
+tv[1966] <- 6125915
+tv[1967] <- 2826333
+tv[1968] <- 2128160
+tv[1969] <- 3219493
+tv[1970] <- 6225968
+tv[1971] <- 7369840
+tv[1972] <- 679168
+tv[1973] <- 28511
+tv[1974] <- 6228529
+tv[1975] <- 6226031
+tv[1976] <- 5990512
+tv[1977] <- 655474
+tv[1978] <- 7823711
+tv[1979] <- 2907392
+tv[1980] <- 25888
+tv[1981] <- 2107936
+tv[1982] <- 6225969
+tv[1983] <- 5983553
+tv[1984] <- 7364352
+tv[1985] <- 5976427
+tv[1986] <- 6226034
+tv[1987] <- 6518115
+tv[1988] <- 7602267
+tv[1989] <- 6649202
+tv[1990] <- 2957312
+tv[1991] <- 12576
+tv[1992] <- 2911067
+tv[1993] <- 5963808
+tv[1994] <- 2108513
+tv[1995] <- 3416064
+tv[1996] <- 24330
+tv[1997] <- 6228528
+tv[1998] <- 6094934
+tv[1999] <- 2109216
+tv[2000] <- 12337
+tv[2001] <- 7041119
+tv[2002] <- 7494450
+tv[2003] <- 3158272
+tv[2004] <- 13106
+tv[2005] <- 2108509
+tv[2006] <- 655408
+tv[2007] <- 5133919
+tv[2008] <- 6228480
+tv[2009] <- 17494
+tv[2010] <- 7565919
+tv[2011] <- 29275
+tv[2012] <- 6249265
+tv[2013] <- 14705
+tv[2014] <- 6517599
+tv[2015] <- 2912347
+tv[2016] <- 3211296
+tv[2017] <- 3420720
+tv[2018] <- 6381312
+tv[2019] <- 23406
+tv[2020] <- 6228536
+tv[2021] <- 6226031
+tv[2022] <- 6387315
+tv[2023] <- 6249216
+tv[2024] <- 29027
+tv[2025] <- 6249264
+tv[2026] <- 3276886
+tv[2027] <- 5660507
+tv[2028] <- 6381312
+tv[2029] <- 5991534
+tv[2030] <- 7340129
+tv[2031] <- 5993071
+tv[2032] <- 6577920
+tv[2033] <- 12406
+tv[2034] <- 2110518
+tv[2035] <- 5963825
+tv[2036] <- 6118759
+tv[2037] <- 4284160
+tv[2038] <- 23361
+tv[2039] <- 7236447
+tv[2040] <- 7035756
+tv[2041] <- 6226013
+tv[2042] <- 7107939
+tv[2043] <- 6124891
+tv[2044] <- 7364352
+tv[2045] <- 5993314
+tv[2046] <- 7037696
+tv[2047] <- 6773552
+tv[2048] <- 684544
+tv[2049] <- 28511
+tv[2050] <- 7758943
+tv[2051] <- 49
+tvz[0] <- 2051
 # print の機械（work/lower/engine.lx を句 90 で畳んだ 7911 バイトを三バイトずつ）
 lk[0] <- 6451335
 lk[1] <- 3573363
@@ -7959,6 +8242,50 @@ ih0[lin[t], 0] <- lngn[t]          for (t,zc) in ch if lngf[t]
 irw[lin[t], 0] <- lrw[lte[t]]      for (t,zc) in ch if lngf[t]
 ibd[lin[t], 0] <- true             for (t,zc) in ch if lngf[t]
 
+# ── 軸の規則の区間を揃える（14l）──────────────────────────────────────────────
+# 焼き手は **軸に沿った成層**（石取りの勝ち負け `win[n] <- 1 … if win[n-1] == 0`）を、同じ場を書く軸の規則を
+# 一つのループに融合して n を昇ることで焼く（33_self の「軸に沿った成層」・31_gen の融合）。融合するのは
+# 区間の端が同じ規則だけなので、端の違う規則（`1 .. 15` と `2 .. 15`）を **いちばん広い区間に揃え、元の端を
+# ガードにする**: `for (n) in 2 .. 15` → `for (n) in 1 .. 15 if n >= 2`。実例の集合は変わらない（広げた分は
+# ガードで撃たない）。下端は数を書き換え（型紙 9）、上端は数を消して「新しい上端 + ガード」を差す（型紙 188〜190。
+# 字の行には実例が一つしか住めないので、上端の行に一つにまとめる）。負の端と九文字以上の変数は揃えない
+# 揃えるのは **軸の群**ごと（14o。二つ以上の場の群 —— 33_self の bax0 —— なら群の端の最小と最大へ、
+# 成り立たなければ一つの場の軸（14l の形）へ）
+field lqaf : or bound 1024                  # 場 f の軸の規則は一つで揃えられる
+lqaf[hfz[s]] <- true   for (s) in 0 .. nstz[0] if sax1[s] if not fxw[hfz[s]] if not fxrd[hfz[s]]
+      if fxl0[hfz[s]] >= 0 if fxnd[hfz[s]]
+field lqbk : max bound 1024                 # 場 f の揃える群
+lqbk[hfz[s]] <- sbid[s]   for (s) in 0 .. nstz[0] if sax1[s] if bax0[sbid[s]] if bxl0[sbid[s]] >= 0
+lqbk[hfz[s]] <- hfz[s]    for (s) in 0 .. nstz[0] if sax1[s] if not bax0[sbid[s]] if lqaf[hfz[s]]
+field slq : max bound 8192                  # 文 s の揃える群
+slq[s] <- lqbk[hfz[s]]    for (s) in 0 .. nstz[0] if sax1[s]
+field lqlo : min bound 1024                 # 群の下端の最小 / 上端の最大
+lqlo[slq[s]] <- llo2[s, 0]   for (s) in 0 .. nstz[0] if slq[s] >= 0
+field lqhi : max bound 1024
+lqhi[slq[s]] <- lhi2[s, 0]   for (s) in 0 .. nstz[0] if slq[s] >= 0
+field lqal : or bound 8192                  # 文 s の下端を下げる（最小の下端へ）
+lqal[s] <- true   for (s) in 0 .. nstz[0] if slq[s] >= 0 if llo2[s, 0] > lqlo[slq[s]]
+field lqah : or bound 8192                  # 文 s の上端を上げる（最大の上端へ）
+lqah[s] <- true   for (s) in 0 .. nstz[0] if slq[s] >= 0 if lhi2[s, 0] < lqhi[slq[s]]
+field lqin : max bound 8192                 # 文 s のループ 0 の `in`
+lqin[snum[u]] <- u   for (u,zc) in ch if kwin[u] if lz[u] == 0
+field lqv : max bound 8192                  # その変数のトークン（八文字まで）
+lqv[s] <- lkv[s, 0]   for (s) in 0 .. nstz[0] if sax1[s] if tlen[lkv[s, 0]] <= 8
+field lqup : max bound 262144               # 書き換える上端の数のトークン → 文
+lqup[int4[lqin[s]]] <- s   for (s) in 0 .. nstz[0] if lqal[s] if lqv[s] >= 0
+lqup[int4[lqin[s]]] <- s   for (s) in 0 .. nstz[0] if lqah[s] if lqv[s] >= 0
+lngn[int1[lqin[s]]] <- lqlo[slq[s]]   for (s) in 0 .. nstz[0] if lqal[s] if lqv[s] >= 0
+ldl[i] <- true                     for (i,c) in ch if lqup[tnum[i]] >= 0
+iti[lin[t], 0] <- 188              for (t,zc) in ch if lqup[t] >= 0 if lqal[lqup[t]] if not lqah[lqup[t]]
+iti[lin[t], 0] <- 189              for (t,zc) in ch if lqup[t] >= 0 if lqah[lqup[t]] if not lqal[lqup[t]]
+iti[lin[t], 0] <- 190              for (t,zc) in ch if lqup[t] >= 0 if lqah[lqup[t]] if lqal[lqup[t]]
+ih0[lin[t], 0] <- lqhi[slq[lqup[t]]]   for (t,zc) in ch if lqup[t] >= 0
+ih1[lin[t], 0] <- llo2[lqup[t], 0]     for (t,zc) in ch if lqup[t] >= 0
+ih2[lin[t], 0] <- lhi2[lqup[t], 0]     for (t,zc) in ch if lqup[t] >= 0
+inm[lin[t], 0] <- lqv[lqup[t]]         for (t,zc) in ch if lqup[t] >= 0
+irw[lin[t], 0] <- lrw[lte[t]]          for (t,zc) in ch if lqup[t] >= 0
+ibd[lin[t], 0] <- true                 for (t,zc) in ch if lqup[t] >= 0
+
 # ── アクセサ（14d）──────────────────────────────────────────────────────────
 # 解釈実行は `constructor c(f, g)` から場 `c_f` / `c_g`（flat、項の番地で引く）と `_size`（max）を作り、
 # 構成子の出現ごとに `c_f[番地] <- 引数` を足す。焼いた場は番地（56 ビット）を座標にできないので、
@@ -8504,6 +8831,37 @@ lkb[snum[u], lz[u]] <- 4096        for (u,zc) in ch if kwin[u] if lz[u] >= 0 if 
 lkv[snum[t], lz[t]] <- nextw[nextw[t]]   for (t,zc) in ch if kwfor[t] if lz[t] >= 0 if lz[t] <= 7
 lkk[s, 0] <- 4                     for (s) in 0 .. nstz[0] if lsx[s]
 lkb[s, 0] <- 1                     for (s) in 0 .. nstz[0] if lsx[s]
+# **依存する区間（上端が `f[外の変数]`・式）を塊に写すときは、書き先の次元の広さで包む区間にする**（14p）。
+# 塊の型紙は上端に数か `f[数]` しか書けないので、`for (k) in 1 .. n - 1` の文の値の丸括弧（二項係数を 1000 で
+# 割る `(c[n - 1, k - 1] + c[n - 1, k]) % 1000`）は持ち上げられず、焼き手が理由 8 で断っていた。塊は式の値を
+# 鍵ごとに置くだけ（純粋）なので、区間を広げても本文が読む鍵は全部入っていて、広げた鍵は誰も読まない。
+# 広げる先は **その変数が裸で居る書き先の次元の、宣言した広さ** —— 本文の鍵はそこを越えられない
+# （越えれば書き先がはみ出す）。宣言の無い場・変数が書き先に裸で居ない文は、今まで通り持ち上げない
+field lfdb : or bound 1024                  # 場 f は広さを宣言した
+lfdb[fdno[t]] <- true              for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+# 変数が裸で居る次元は **トークンで見る**（次元の添字がその変数の一語だけ）。前段の c0sr / c1sr は、上端の
+# 読めない区間の変数を「区間の計数器」と数えないので使えない
+field lhdt : or bound 589824                # 出現のトークン t は書き先
+lhdt[t] <- true                    for (t,zc) in ch if isocc[t] if ohd[oseq[t]]
+field lhw : max bound 8192 8                # 文 s のループ L の変数が裸で居る書き先の次元の広さ
+lhw[snum[t], vlpz[ob1[t]]] <- fwid[fdno2[t]]    for (t,zc) in ch if lhdt[t] if lfdb[fdno2[t]]
+      if tkind[ob1[t]] == 1 if vbnd[ob1[t]] >= 0 if d0cm[t] == nextw[ob1[t]]
+lhw[snum[t], vlpz[d1t[t]]] <- fwid2[fdno2[t]]   for (t,zc) in ch if lhdt[t] if lfdb[fdno2[t]]
+      if tkind[d1t[t]] == 1 if vbnd[d1t[t]] >= 0 if d1cm[t] == nextw[d1t[t]]
+lhw[snum[t], vlpz[d2t[t]]] <- fwid3[fdno2[t]]   for (t,zc) in ch if lhdt[t] if lfdb[fdno2[t]]
+      if tkind[d2t[t]] == 1 if vbnd[d2t[t]] >= 0 if d2cm[t] == nextw[d2t[t]]
+field fdno2 : max bound 589824              # 書き先のトークンの場（0 起点）
+fdno2[t] <- ofl[oseq[t]] - 1       for (t,zc) in ch if lhdt[t]
+field lkdh : or bound 8192 8                # ループ L の上端は焼き手が読める形（数 / `f[数]`）
+lkdh[s, l] <- true                 for (s) in 0 .. nstz[0] for (l) in 0 .. 7 if lkd[s, l] >= 0 if lkd[s, l] <= 2
+lkk[snum[u], lz[u]] <- 2           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if irng[u]
+      if isnum[int1[u]] if not lkdh[snum[u], lz[u]] if lhw[snum[u], lz[u]] >= 1
+lkl[snum[u], lz[u]] <- llo2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if irng[u]
+      if isnum[int1[u]] if not lkdh[snum[u], lz[u]] if lhw[snum[u], lz[u]] >= 1
+lkh[snum[u], lz[u]] <- lhw[snum[u], lz[u]] - 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if irng[u]
+      if isnum[int1[u]] if not lkdh[snum[u], lz[u]] if lhw[snum[u], lz[u]] >= 1
+lkb[snum[u], lz[u]] <- lhw[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if irng[u]
+      if isnum[int1[u]] if not lkdh[snum[u], lz[u]] if lhw[snum[u], lz[u]] >= 1
 field lnk : max bound 8192                  # 文 s のループの数（一点も一つ）
 lnk[s] <- lnlp[s]                  for (s) in 0 .. nstz[0] if lnlp[s] >= 1
 lnk[s] <- 1                        for (s) in 0 .. nstz[0] if lsx[s]

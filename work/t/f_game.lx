@@ -1,0 +1,8 @@
+# 石取りゲームの勝ち負け（一度に 1 か 2 個取る。取れなくなった方の負け）
+field win : max bound 16
+win[0] <- 0
+win[n] <- 1   for (n) in 1 .. 15 if win[n - 1] == 0
+win[n] <- 1   for (n) in 2 .. 15 if win[n - 2] == 0
+win[n] <- 0   for (n) in 1 .. 15 if win[n - 1] == 1 if win[n - 2] == 1
+win[1] <- 1
+print win

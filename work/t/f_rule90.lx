@@ -1,0 +1,8 @@
+# 規則 90 のセル・オートマトン（時間の軸に沿って not を読む。二重のループ）
+field c : or bound 16 33
+c[0, 16] <- true
+c[t, i] <- true   for (t) in 1 .. 15 for (i) in 1 .. 31 if c[t - 1, i - 1] if not c[t - 1, i + 1]
+c[t, i] <- true   for (t) in 1 .. 15 for (i) in 1 .. 31 if not c[t - 1, i - 1] if c[t - 1, i + 1]
+field live : count bound 16
+live[t] <- i   for (t) in 0 .. 15 for (i) in 0 .. 32 if c[t, i]
+print live

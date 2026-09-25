@@ -1,0 +1,8 @@
+# 一重のループの単調な相互再帰（軸の形をしているが、軸の成層は要らない）
+field a : max bound 11
+field b : max bound 11
+a[0] <- 0
+a[n] <- b[n - 1] + 1   for (n) in 1 .. 10
+b[n] <- a[n] * 2   for (n) in 0 .. 10
+print a
+print b

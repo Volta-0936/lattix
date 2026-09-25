@@ -1,0 +1,8 @@
+# 硬貨の払い方の数（flat の場が同じ切り口の小さい升を読む）
+table coin = (0,1),(1,2),(2,5)
+field w : flat bound 4 13
+w[0, v] <- 0   for (v) in 1 .. 12
+w[k, 0] <- 1   for (k) in 0 .. 3
+w[k+1, v] <- w[k, v] + w[k+1, v - c]   for (k,c) in coin for (v) in 1 .. 12 if v >= c
+w[k+1, v] <- w[k, v]   for (k,c) in coin for (v) in 1 .. 12 if v < c
+print w
