@@ -1,0 +1,8 @@
+# ループ不変の持ち上げ —— 三重のループの文で、ガードの算術が使うループは一つか二つ
+table t = (1, 5), (2, 7), (3, 9)
+field x : or
+x[i, j] <- true          for (i, w) in t for (j) in 0 .. 3 for (k) in 0 .. 2 if w % 3 == k
+field y : max
+y[i, k] <- j             for (i, w) in t for (j) in 0 .. 3 for (k) in 0 .. 2 if i * j == k + 1
+print x
+print y

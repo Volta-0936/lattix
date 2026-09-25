@@ -6141,6 +6141,47 @@ lis[t] <- tstart[t] + 127           for (t,zc) in ch if tlen[t] >= 1
 field nnz : max bound 1                     # 最後の実例の番号
 nnz[z] <- i + 127                   for (i,c) in ch for (z) in 0 .. 0
 
+# ── 束縛を十まで ─────────────────────────────────────────────────────────
+# 33_self は文の束縛を六つまで引く（焼き手の文は表を一つしか回さないので足りる）。下ろす文は
+# 表の列を全部束縛したうえで別のループも回す（`for (pc,op,d,s1,s2,tg) in prog for (v) in vars`）。
+# 下ろしの前段にだけ足す（焼き手の前段は変えない —— 下ろした後の文に表の変数は残らない）
+field bp6 : max bound 8192
+bp6[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 6
+field ub6 : max bound 262144
+ub6[t] <- bp6[snum[t]] for (t,zc) in ch
+field vd6 : or bound 262144
+vd6[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub6[t],k]
+field vm6 : or bound 262144
+vm6[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub6[t] >= 0 if tlen[t] == tlen[ub6[t]] if not vd6[t]
+vbnd[t] <- ub6[t] for (t,zc) in ch if vm6[t]
+field bp7 : max bound 8192
+bp7[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 7
+field ub7 : max bound 262144
+ub7[t] <- bp7[snum[t]] for (t,zc) in ch
+field vd7 : or bound 262144
+vd7[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub7[t],k]
+field vm7 : or bound 262144
+vm7[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub7[t] >= 0 if tlen[t] == tlen[ub7[t]] if not vd7[t]
+vbnd[t] <- ub7[t] for (t,zc) in ch if vm7[t]
+field bp8 : max bound 8192
+bp8[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 8
+field ub8 : max bound 262144
+ub8[t] <- bp8[snum[t]] for (t,zc) in ch
+field vd8 : or bound 262144
+vd8[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub8[t],k]
+field vm8 : or bound 262144
+vm8[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub8[t] >= 0 if tlen[t] == tlen[ub8[t]] if not vd8[t]
+vbnd[t] <- ub8[t] for (t,zc) in ch if vm8[t]
+field bp9 : max bound 8192
+bp9[snum[t]] <- t for (t,zc) in ch if isbind[t] if bnum[t] == 9
+field ub9 : max bound 262144
+ub9[t] <- bp9[snum[t]] for (t,zc) in ch
+field vd9 : or bound 262144
+vd9[t] <- true for (t,zc) in ch for (k) in 0 .. 7 if tch[t,k] != tch[ub9[t],k]
+field vm9 : or bound 262144
+vm9[t] <- true for (t,zc) in ch if tkind[t] == 1 if ub9[t] >= 0 if tlen[t] == tlen[ub9[t]] if not vd9[t]
+vbnd[t] <- ub9[t] for (t,zc) in ch if vm9[t]
+
 # ── 表 ─────────────────────────────────────────────────────────────────
 field tbk : max bound 8192                  # 文 s の表の番号（0 起点）
 tbk[s] <- ctb[s] - 1                for (s) in 0 .. nstz[0] if istb[s]
@@ -6435,7 +6476,7 @@ lar[gcl[t]] <- true                for (t,zc) in ch if lsym[t] if tdep[t] == lgd
 field lnlp : max bound 8192                 # 文 s の for 節の数
 lnlp[snum[t]] <- lz[t] + 1         for (t,zc) in ch if kwfor[t] if lz[t] >= 0
 field lok : or bound 8192                   # 文 s は持ち上げてよい（ループが二つまで）
-lok[s] <- true                     for (s) in 0 .. nstz[0] if lnlp[s] <= 2
+lok[s] <- true                     for (s) in 0 .. nstz[0] if lnlp[s] >= 1
 lok[s] <- true                     for (s) in 0 .. nstz[0] if lsx[s]
 field lcd : max bound 262144                # 持ち上げる候補の区間: 最初のトークン → 最後のトークン
 lcd[nextw[lch[g]]] <- prevw[lcm[g]]   for (g) in 0 .. lgz[0] if lal[g] if lok[snum[lch[g]]]
@@ -6459,7 +6500,14 @@ lq2[u] <- true                     for (u,zc) in ch if lqx[u] >= 0 if iscom[d0cm
 field lqo : max bound 262144                # 次元 0 を持ち上げる出現
 lqo[u] <- lqx[u]                   for (u,zc) in ch if lqx[u] >= 0 if not lq2[u]
 field lqo1 : max bound 262144               # 次元 1 を持ち上げる出現
-lqo1[u] <- lqx[u]                  for (u,zc) in ch if lq2[u]
+# **三次元以上の出現の次元1 は持ち上げない。** 焼き手の前段は次元1 の後ろの語を座標と数えないので、
+# 持ち上げると `,` ごと塊に入り、焼き手は **下ろしが足した行**（利用者の知らない行番号）で断る。
+# 持ち上げなければ利用者の書いた行で断る（三次元は焼き手の資源 —— 次の口）
+field lbc : max bound 262144                # 添字の `,` → その `[` の出現
+lbc[c] <- lbo[ibr[c]]              for (c,zc) in ch if iscom[c] if tch[ibr[c], 0] == 91
+field l3o : or bound 262144                 # 三次元以上の出現（次元1 の後ろにもう一つ `,`）
+l3o[lbc[c]] <- true                for (c,zc) in ch if lbc[c] >= 0 if c > d0cm[lbc[c]]
+lqo1[u] <- lqx[u]                  for (u,zc) in ch if lq2[u] if not l3o[lqx[u]]
 lcd[ob1[lqo[u]]] <- prevw[d0cm[lqo[u]]]      for (u,zc) in ch if lqo[u] >= 0 if iscom[d0cm[lqo[u]]]
       if lok[snum[u]]
 lcd[ob1[lqo[u]]] <- prevw[tclos[obr[lqo[u]]]]   for (u,zc) in ch if lqo[u] >= 0 if not iscom[d0cm[lqo[u]]]
@@ -6483,8 +6531,31 @@ ldp[t] <- ldp[t-1] + 1             for (t,zc) in ch if t >= 1 if lcs0[t] if not 
 ldp[t] <- ldp[t-1]                 for (t,zc) in ch if t >= 1 if lcs0[t] if lce0[t-1]
 ldp[t] <- ldp[t-1] - 1             for (t,zc) in ch if t >= 1 if not lcs0[t] if lce0[t-1]
 ldp[t] <- ldp[t-1]                 for (t,zc) in ch if t >= 1 if not lcs0[t] if not lce0[t-1]
+# **塊の場の次元は、区間が使うループだけ**（ループ不変の持ち上げ）。区間の値が依らないループは
+# 塊の座標に要らない —— 四重のループの文でも、区間が二つのループの変数しか使わなければ二次元の場で
+# 済む（多面体の射影）。使うループが三つ以上の区間は持ち上げない（焼き手が理由 8 で言う）。
+# 使うループは区間の中身で決まり、区間は候補の深さの鎖で決まる —— 絞る前の区間（lse0）で数えて、
+# それから絞る（絞った結果で数えると、数えたものが自分の区間を決める輪になる）
+field lse0 : max bound 262144               # いちばん外の候補: 最初のトークン → 最後のトークン
+lse0[t] <- lcd[t]                  for (t,zc) in ch if lcd[t] >= 0 if ldp[t] == 1
+field lsa0 : or bound 262144
+lsa0[t] <- true                    for (t,zc) in ch if lse0[t] >= 0
+field lend0 : or bound 262144
+lend0[lse0[t]] <- true             for (t,zc) in ch if lsa0[t]
+field lcur0 : max bound 262144              # トークン t を含む外の候補の最初のトークン
+lcur0[t] <- t                      for (t,zc) in ch if lsa0[t]
+lcur0[t] <- lcur0[t-1]             for (t,zc) in ch if t >= 1 if not lsa0[t] if not lend0[t-1]
+field lru : or bound 262144 8               # 候補 ta はループ L の変数を使う
+lru[lcur0[u], vlpz[u]] <- true     for (u,zc) in ch if lcur0[u] >= 0 if tkind[u] == 1 if vbnd[u] >= 0
+      if not isbind[u] if not tcom[u] if not qi[u] if vlpz[u] <= 7
+field lrn0 : min bound 262144               # 使う最初のループ
+lrn0[t] <- l                       for (t,zc) in ch for (l) in 0 .. 7 if lru[t, l]
+field lrn1 : max bound 262144               # 使う最後のループ
+lrn1[t] <- l                       for (t,zc) in ch for (l) in 0 .. 7 if lru[t, l]
+field lr3 : or bound 262144                 # 三つ以上のループを使う
+lr3[t] <- true                     for (t,zc) in ch for (l) in 0 .. 7 if lru[t, l] if l > lrn0[t] if l < lrn1[t]
 field lse : max bound 262144                # 持ち上げる区間の最初のトークン → 最後のトークン
-lse[t] <- lcd[t]                   for (t,zc) in ch if lcd[t] >= 0 if ldp[t] == 1
+lse[t] <- lse0[t]                  for (t,zc) in ch if lsa0[t] if not lr3[t]
 field lsa : or bound 262144                 # 区間の最初のトークン
 lsa[t] <- true                     for (t,zc) in ch if lse[t] >= 0
 field lend : or bound 262144                # 区間の最後のトークン
@@ -6513,46 +6584,46 @@ field lrw : max bound 262144                # 字 i の行
 lrw[i] <- i                        for (i,c) in ch if not lin2[i]
 lrw[i] <- lhbk[lcur[tnum[i]]] + 2 + i - lcs[lcur[tnum[i]]]   for (i,c) in ch if lin2[i]
 # 文 s のループ L の書き方（1 表 / 2 区間の数 / 3 上端が場 / 4 一点）と穴
-field lkk : max bound 8192 2
-field lkv : max bound 8192 2                # 束縛のトークン（区間のループ）
-field lkl : max bound 8192 2                # 下端（区間）/ L（表）
-field lkh : max bound 8192 2                # 上端（数）/ 行数-1（表）/ 上端の場の添字
-field lkf : max bound 8192 2                # 上端の場（宣言の番号。1 起点）
-field lkb : max bound 8192 2                # 塊の場のその次元の広さ
-lkk[snum[u], lz[u]] <- 1           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+field lkk : max bound 8192 8
+field lkv : max bound 8192 8                # 束縛のトークン（区間のループ）
+field lkl : max bound 8192 8                # 下端（区間）/ L（表）
+field lkh : max bound 8192 8                # 上端（数）/ 行数-1（表）/ 上端の場の添字
+field lkf : max bound 8192 8                # 上端の場（宣言の番号。1 起点）
+field lkb : max bound 8192 8                # 塊の場のその次元の広さ
+lkk[snum[u], lz[u]] <- 1           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 0 if not ltr[tix[u]]
-lkl[snum[u], lz[u]] <- lz[u]       for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkl[snum[u], lz[u]] <- lz[u]       for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 0 if not ltr[tix[u]]
-lkh[snum[u], lz[u]] <- nrw[tix[u]] - 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkh[snum[u], lz[u]] <- nrw[tix[u]] - 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 0 if not ltr[tix[u]]
-lkb[snum[u], lz[u]] <- nrw[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkb[snum[u], lz[u]] <- nrw[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 0 if not ltr[tix[u]]
-lkk[snum[u], lz[u]] <- 2           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1 if ltr[tix[u]]
-lkl[snum[u], lz[u]] <- trl[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1 if ltr[tix[u]]
-lkh[snum[u], lz[u]] <- trh[tix[u]] - 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkk[snum[u], lz[u]] <- 2           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if ltr[tix[u]]
+lkl[snum[u], lz[u]] <- trl[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if ltr[tix[u]]
+lkh[snum[u], lz[u]] <- trh[tix[u]] - 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if ltr[tix[u]]
-lkb[snum[u], lz[u]] <- trh[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1 if ltr[tix[u]]
-lkk[snum[u], lz[u]] <- 2           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkb[snum[u], lz[u]] <- trh[tix[u]] for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7 if ltr[tix[u]]
+lkk[snum[u], lz[u]] <- 2           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 1
-lkl[snum[u], lz[u]] <- llo2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkl[snum[u], lz[u]] <- llo2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 1
-lkh[snum[u], lz[u]] <- lhi2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkh[snum[u], lz[u]] <- lhi2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 1
-lkb[snum[u], lz[u]] <- lhi2[snum[u], lz[u]] + 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkb[snum[u], lz[u]] <- lhi2[snum[u], lz[u]] + 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 1
-lkk[snum[u], lz[u]] <- 3           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkk[snum[u], lz[u]] <- 3           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2
-lkl[snum[u], lz[u]] <- llo2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkl[snum[u], lz[u]] <- llo2[snum[u], lz[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2
-lkh[snum[u], lz[u]] <- tval[int4b[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkh[snum[u], lz[u]] <- tval[int4b[u]]   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2 if isnum[int4b[u]]
-lkh[snum[u], lz[u]] <- 0           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkh[snum[u], lz[u]] <- 0           for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2 if not isnum[int4b[u]]
-lkf[snum[u], lz[u]] <- lbf2[snum[u], lz[u]] + 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkf[snum[u], lz[u]] <- lbf2[snum[u], lz[u]] + 1   for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2
-lkb[snum[u], lz[u]] <- 4096        for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 1
+lkb[snum[u], lz[u]] <- 4096        for (u,zc) in ch if kwin[u] if lz[u] >= 0 if lz[u] <= 7
       if lkd[snum[u], lz[u]] == 2
-lkv[snum[t], lz[t]] <- nextw[nextw[t]]   for (t,zc) in ch if kwfor[t] if lz[t] >= 0 if lz[t] <= 1
+lkv[snum[t], lz[t]] <- nextw[nextw[t]]   for (t,zc) in ch if kwfor[t] if lz[t] >= 0 if lz[t] <= 7
 lkk[s, 0] <- 4                     for (s) in 0 .. nstz[0] if lsx[s]
 lkb[s, 0] <- 1                     for (s) in 0 .. nstz[0] if lsx[s]
 field lnk : max bound 8192                  # 文 s のループの数（一点も一つ）
@@ -6764,30 +6835,41 @@ ih2[i + 127, 1] <- c               for (i,c) in ch if atci[i] >= 0 if atf[atci[i
 #   1 塊の頭 A / 2 塊の頭 B / 3・4 ループの節 / 5 宣言 / 6・7 本文の参照 A・B
 field las : max bound 262144                # 区間 ta の文
 las[t] <- snum[t]                  for (t,zc) in ch if lsa[t]
-field lak0 : max bound 262144               # 区間 ta の文のループ 0 の書き方
-lak0[t] <- lkk[las[t], 0]          for (t,zc) in ch if lsa[t]
-field lak1 : max bound 262144               # ループ 1 の書き方（無ければ ⊥）
-lak1[t] <- lkk[las[t], 1]          for (t,zc) in ch if lsa[t] if lnk[las[t]] == 2
+# 塊の場の次元 = 区間が使うループ（一つか二つ。一つも使わなければ文のループ 0 —— 一点の文なら `_z`）
+field lrany : or bound 262144               # 区間はどれかのループを使う
+lrany[t] <- true                   for (t,zc) in ch for (l) in 0 .. 7 if lru[t, l]
+field lky0 : max bound 262144               # 塊の次元0 のループ
+lky0[t] <- lrn0[t]                 for (t,zc) in ch if lsa[t] if lrany[t]
+lky0[t] <- 0                       for (t,zc) in ch if lsa[t] if not lrany[t]
+field lky1 : max bound 262144               # 塊の次元1 のループ（無ければ ⊥）
+lky1[t] <- lrn1[t]                 for (t,zc) in ch if lsa[t] if lrany[t] if lrn1[t] > lrn0[t]
+field lkyn : max bound 262144               # 塊の次元の数
+lkyn[t] <- 1                       for (t,zc) in ch if lsa[t]
+lkyn[t] <- 2                       for (t,zc) in ch if lsa[t] if lky1[t] >= 0
+field lak0 : max bound 262144               # 塊の次元0 のループの書き方
+lak0[t] <- lkk[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
+field lak1 : max bound 262144               # 次元1 のループの書き方（無ければ ⊥）
+lak1[t] <- lkk[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lav0 : max bound 262144
-lav0[t] <- lkv[las[t], 0]          for (t,zc) in ch if lsa[t]
+lav0[t] <- lkv[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field lav1 : max bound 262144
-lav1[t] <- lkv[las[t], 1]          for (t,zc) in ch if lsa[t]
+lav1[t] <- lkv[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lal0 : max bound 262144
-lal0[t] <- lkl[las[t], 0]          for (t,zc) in ch if lsa[t]
+lal0[t] <- lkl[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field lal1 : max bound 262144
-lal1[t] <- lkl[las[t], 1]          for (t,zc) in ch if lsa[t]
+lal1[t] <- lkl[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lah0 : max bound 262144
-lah0[t] <- lkh[las[t], 0]          for (t,zc) in ch if lsa[t]
+lah0[t] <- lkh[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field lah1 : max bound 262144
-lah1[t] <- lkh[las[t], 1]          for (t,zc) in ch if lsa[t]
+lah1[t] <- lkh[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field laf0 : max bound 262144
-laf0[t] <- lkf[las[t], 0]          for (t,zc) in ch if lsa[t]
+laf0[t] <- lkf[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field laf1 : max bound 262144
-laf1[t] <- lkf[las[t], 1]          for (t,zc) in ch if lsa[t]
+laf1[t] <- lkf[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lab0 : max bound 262144
-lab0[t] <- lkb[las[t], 0]          for (t,zc) in ch if lsa[t]
+lab0[t] <- lkb[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field lab1 : max bound 262144
-lab1[t] <- lkb[las[t], 1]          for (t,zc) in ch if lsa[t]
+lab1[t] <- lkb[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lae : max bound 262144                # 塊の字の後ろの行（ループの節の一行目）
 lae[t] <- lhbk[t] + lcl[t] + 2      for (t,zc) in ch if lsa[t]
 field lap : max bound 262144                # 本文の参照の行（区間の最初の字 —— 字は塊へ移った）
@@ -6802,7 +6884,7 @@ inm[lin[t], 1] <- lav0[t]          for (t,zc) in ch if lak0[t] >= 2 if lak0[t] <
 irw[lin[t], 1] <- lhbk[t]           for (t,zc) in ch if lsa[t]
 ibd[lin[t], 1] <- true             for (t,zc) in ch if lsa[t]
 # 2: 塊の頭 B
-iti[lin[t], 2] <- 33               for (t,zc) in ch if lsa[t] if lnk[las[t]] == 1
+iti[lin[t], 2] <- 33               for (t,zc) in ch if lsa[t] if lkyn[t] == 1
 iti[lin[t], 2] <- 34               for (t,zc) in ch if lak1[t] == 1
 iti[lin[t], 2] <- 35               for (t,zc) in ch if lak1[t] >= 2 if lak1[t] <= 3
 ih1[lin[t], 2] <- lal1[t]          for (t,zc) in ch if lak1[t] == 1
@@ -6830,11 +6912,11 @@ ind[lin[t], 4] <- laf1[t]          for (t,zc) in ch if lak1[t] == 3
 irw[lin[t], 4] <- lae[t] + 1       for (t,zc) in ch if lak1[t] >= 1
 ibd[lin[t], 4] <- true             for (t,zc) in ch if lak1[t] >= 1
 # 5: 宣言
-iti[lin[t], 5] <- 40               for (t,zc) in ch if lsa[t] if lnk[las[t]] == 1
-iti[lin[t], 5] <- 41               for (t,zc) in ch if lsa[t] if lnk[las[t]] == 2
+iti[lin[t], 5] <- 40               for (t,zc) in ch if lsa[t] if lkyn[t] == 1
+iti[lin[t], 5] <- 41               for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 ih0[lin[t], 5] <- t                for (t,zc) in ch if lsa[t]
 ih1[lin[t], 5] <- lab0[t]          for (t,zc) in ch if lsa[t]
-ih2[lin[t], 5] <- lab1[t]          for (t,zc) in ch if lsa[t] if lnk[las[t]] == 2
+ih2[lin[t], 5] <- lab1[t]          for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 irw[lin[t], 5] <- lae[t] + 2       for (t,zc) in ch if lsa[t]
 ibd[lin[t], 5] <- true             for (t,zc) in ch if lsa[t]
 # 6・7: 本文の参照（区間の最初の字の行と、その次の行 —— どちらも字が塊へ移って空いている）
@@ -6846,7 +6928,7 @@ ih1[lin[t], 6] <- lal0[t]          for (t,zc) in ch if lak0[t] == 1
 inm[lin[t], 6] <- lav0[t]          for (t,zc) in ch if lak0[t] >= 2 if lak0[t] <= 3
 irw[lin[t], 6] <- lap[t]           for (t,zc) in ch if lsa[t]
 ibd[lin[t], 6] <- true             for (t,zc) in ch if lsa[t]
-iti[lin[t], 7] <- 45               for (t,zc) in ch if lsa[t] if lnk[las[t]] == 1
+iti[lin[t], 7] <- 45               for (t,zc) in ch if lsa[t] if lkyn[t] == 1
 iti[lin[t], 7] <- 46               for (t,zc) in ch if lak1[t] == 1
 iti[lin[t], 7] <- 47               for (t,zc) in ch if lak1[t] >= 2 if lak1[t] <= 3
 ih1[lin[t], 7] <- lal1[t]          for (t,zc) in ch if lak1[t] == 1

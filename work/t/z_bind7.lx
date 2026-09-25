@@ -1,0 +1,6 @@
+# 束縛が七つ —— 六列の表を全部束縛して、もう一つの表を回す（29_dataflow の cvout の形）
+table prog = (0,1,2,3,4,5), (1,2,3,4,5,6), (2,3,4,5,6,7)
+table vars = (10), (20)
+field s : max
+s[a, v] <- a + b + c + d + e + f + v   for (a,b,c,d,e,f) in prog for (v) in vars
+print s
