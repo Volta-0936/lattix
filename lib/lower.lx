@@ -3583,6 +3583,11 @@ lcd[ob1[lqo[u]]] <- prevw[d0cm[lqo[u]]]      for (u,zc) in ch if lqo[u] >= 0 if 
 lcd[ob1[lqo[u]]] <- prevw[tclos[obr[lqo[u]]]]   for (u,zc) in ch if lqo[u] >= 0 if not iscom[d0cm[lqo[u]]]
       if lok[snum[u]]
 lcd[d1t[lqo1[u]]] <- prevw[tclos[obr[lqo1[u]]]] for (u,zc) in ch if lqo1[u] >= 0 if lok[snum[u]]
+# **値の丸括弧**（`(120 + c[0]) % 256`）: 焼ける値は群の和で、丸括弧を持たない。区間は括弧ごと取り、
+# 括弧の字は消す（中身だけが塊へ移る）
+field lpc : max bound 262144                # `(` → 対の `)`（tclos は `[` だけ）
+lpc[tmatch[t]] <- t                for (t,zc) in ch if tlen[t] == 1 if not tcom[t] if tch[t,0] == 41
+lcd[t] <- lpc[t]                   for (t,zc) in ch if isopn[t] if aftarw[t] if not tcom[t] if lok[snum[t]]
 # **いちばん外の候補だけ**を持ち上げる（入れ子はまだ無し: 一つの字は一つの区間まで）。
 # 候補の開きと閉じで深さの鎖を引き、深さ 1 で始まる候補が外側
 field lcs0 : or bound 262144                # 候補の最初のトークン
@@ -3689,6 +3694,10 @@ field ldl : or bound 262144                 # 消す字
 ldl[i] <- true      for (i,c) in ch if istb[snum[tnum[i]]] if c != 10
 ldl[i] <- true      for (i,c) in ch if lsp[snum[tnum[i]]] if c != 10
 ldl[i] <- true      for (i,c) in ch if ltd[tnum[i]]
+field lpp0 : or bound 262144                # 持ち上げる丸括弧の `(`
+lpp0[t] <- true     for (t,zc) in ch if lsa[t] if isopn[t]
+ldl[tstart[t]] <- true         for (t,zc) in ch if lpp0[t]
+ldl[tstart[lse[t]]] <- true    for (t,zc) in ch if lpp0[t]
 
 # ── 差すもの（実例）: 型紙・穴・名前。本文の実例は行（irw）も持つ ──────────────────
 field iti : max bound 262272 8              # 実例 [n, e] の型紙
