@@ -22,7 +22,7 @@ MISS = -2147483646            # 表の「無い値」
 class Tables:
     def __init__(self, blob):
         w = struct.unpack('<%dq' % (len(blob) // 8), blob[:len(blob) // 8 * 8])
-        if len(w) < 16 or w[0] != 20260923:
+        if len(w) < 16 or w[0] != 20260924:
             raise ValueError('not an attest-front table')
         self.hdr = w[:16]
         nfl, nsd, nrl, ngl, ngg, ngt, ngc = w[1:8]
@@ -34,7 +34,7 @@ class Tables:
             p += n * k
             return out
         self.F = rows(nfl, 5); self.S = rows(nsd, 3); self.R = rows(nrl, 6)
-        self.L = rows(ngl, 8); self.G = rows(ngg, 9); self.T = rows(ngt, 7); self.C = rows(ngc, 8)
+        self.L = rows(ngl, 11); self.G = rows(ngg, 9); self.T = rows(ngt, 7); self.C = rows(ngc, 8)
 
     # ── 場の置き場（値の面と階数の面）
     def layout(self):
@@ -165,7 +165,7 @@ class Checker:
         def rec(i, env):
             if i == len(loops):
                 yield env; return
-            _r, li, kind, lo, hi, ar, bf, bc = loops[i]
+            _r, li, kind, lo, hi, ar, bf, bc, lk2, lf, lc = loops[i]
             if kind == 0:
                 for row in self.rows:
                     yield from rec(i + 1, dict(env, row=row))
@@ -177,6 +177,14 @@ class Checker:
                     h = self.rd(bf, env['k'][bc])
                     if h is None: return
                 else: h = hi
+                if lk2 == 1:                         # 下端が `f[数]`（13i）
+                    lo = self.rd(lf, lc)
+                    if lo is None: return
+                elif lk2 == 2:                       # 下端が `f[外の変数]`
+                    lo = self.rd(lf, env['k'][lc])
+                    if lo is None: return
+                elif lk2 == 3:                       # 下端が裸の外の変数（`i ..`）
+                    lo = env['k'][lc]
                 for x in range(lo, h + 1):
                     k = list(env['k']); k[li] = x
                     yield from rec(i + 1, dict(env, k=tuple(k)))

@@ -277,6 +277,62 @@ n[1] <- 2
 field u : max bound 8 8
 u[i, j] <- j   for (i,c) in ch for (j) in 0 .. n[i]
 """, data=b"ab", exit=7, why=(5,8))
+# **下端が場の区間**（13i）: 解釈実行の文法では、`in` の次が名前で `..` が直に続かなければ表の名である。
+# だから読みの下端は丸括弧で包む（`(lo[i]) ..`）。名前は `..` が直に続くときだけ下端（`i ..` —— 三角）。
+# 評価は下端 → 上端 → 広さ: どちらかが ⊥ なら空、広さが上限を越えたら断る（終了コード 10）。
+case("下端が場（丸括弧の読み・裸の外の変数）", """table ch = (0,32)
+field lo : max bound 4
+field hi : max bound 4
+lo[0] <- 1
+lo[1] <- 3
+lo[2] <- 5
+hi[0] <- 2
+hi[1] <- 4
+hi[3] <- 3
+field a : max bound 8
+a[j] <- j * 10   for (j) in (lo[0]) .. 4
+field t : max bound 4 8
+t[i, j] <- i * 10 + j   for (i) in 0 .. 3 for (j) in (lo[i]) .. hi[i]
+field u : sum bound 4
+u[i] <- j   for (i) in 0 .. 3 for (j) in i .. 3
+field v : count bound 4
+v[i] <- k   for (i) in 0 .. 3 for (k) in (lo[i]) .. 6
+""")
+case("下端が場（升の計数器・min の ⊥・sum の 0・負の下端）", """table ch = (0,32)
+field m : min bound 8
+m[1] <- 2
+m[3] <- 0 - 1   for (z) in 0 .. 0
+m[4] <- 9
+field s : sum bound 8
+s[2] <- 3
+field r : sum bound 8
+r[d] <- j + a + b   for (a) in 0 .. 1 for (b) in 0 .. 1 for (c) in 0 .. 0 for (d) in 0 .. 4 for (j) in (m[d]) .. 2
+field q : max bound 8
+q[e] <- e + d   for (a) in 0 .. 0 for (b) in 0 .. 0 for (c) in 0 .. 0 for (d) in 0 .. 2 for (e) in d .. 4
+field w : max bound 8
+w[j] <- j   for (j) in (s[0]) .. 3
+w[j] <- j + 100   for (j) in (s[2]) .. 5
+""")
+case("下端が場で広さが上限を越える（止まって言う）", """table ch = (0,32)
+field lo : max bound 2
+lo[0] <- 0 - 5000000   for (z) in 0 .. 0
+field x : max bound 8
+x[j] <- 1   for (j) in (lo[0]) .. 3
+""", exit=10)
+case("下端が名前で `..` が続かない（定義は表の名と読む —— 言う）", """table ch = (0,32)
+field lo : max bound 2
+lo[0] <- 1
+field x : max bound 8
+x[j] <- j   for (j) in lo[0] .. 3
+""", exit=7, why=(5,8))
+case("丸括弧の下端が式（言う —— 下ろしが持ち上げる形）", """table ch = (0,32)
+field x : max bound 8
+x[j] <- j   for (i) in 0 .. 2 for (j) in (i + 1) .. 3
+""", exit=7, why=(3,8))
+case("裸の下端が表の変数（言う —— 下ろしが持ち上げる形）", """table ch = (0,32)
+field x : max bound 8
+x[j] <- j   for (i,c) in ch for (j) in i .. 3
+""", data=b"ab", exit=7, why=(3,8))
 case("束縛 十（表の六列 + 区間四つ）", """table t = (0,0,0,0,0,0)
 field a : max bound 8 4
 a[p, j] <- q + r + s + u + v + i + k + m   for (p,q,r,s,u,v) in t for (i) in 0 .. 1 for (j) in 0 .. 3 for (k) in 0 .. 1 for (m) in 0 .. 2

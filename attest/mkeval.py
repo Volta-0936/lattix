@@ -505,7 +505,7 @@ field vfst : min bound 1                        # 最初の破れの升
 vfst[0] <- c   for (c) in 0 .. nclz[0] if vst[c]
 vfst[0] <- c   for (c) in 0 .. nclz[0] if vgh[c]
 # 持たないもの（どれか一つでもあれば、検査したとは言わない）
-field un1 : or bound 8
+field un1 : or bound 9
 un1[0] <- true   for (n) in 0 .. ninz[0] if nuns[n]                 # 鎖が深い・⊤ を座標や比較に使う
 un1[0] <- true   for (g) in 0 .. nglz[0] if ltop[g]                 # 区間の上端が ⊤
 un1[1] <- true   for (c) in 0 .. nclz[0] if sunv[c]                 # 持てない値
@@ -520,7 +520,8 @@ ninx[z] <- nin2[z]   for (z) in 0 .. 0
 un1[3] <- true   for (z) in 0 .. 0 if ninx[z] > NIV                   # 実例が多すぎる
 un1[3] <- true   for (g) in 0 .. nglz[0] if lwid[g]                 # 区間が言語の上限より広い
 un1[3] <- true   for (g) in 0 .. nglz[0] if li[g] >= 3              # 四重以上のループ（枠は三つ）
-un1[3] <- true   for (g) in 0 .. nglz[0] if lk[g] == 3              # 上端が外の変数で引いた場の区間
+un1[3] <- true   for (g) in 0 .. nglz[0] if lkw[g] == 3             # 上端が外の変数で引いた場の区間
+un1[8] <- true   for (g) in 0 .. nglz[0] if llk[g] >= 1             # 下端が場の区間（13i）
 un1[4] <- true   for (c) in 0 .. nclz[0] if ctop[c]                 # 閉路でしか支えられない ⊤
 un1[5] <- true   for (c) in 0 .. nclz[0] if vgr[c] if cnt[c] if sk[c] >= 1   # ⊤ の前の値が要る
 un1[6] <- true   for (c) in 0 .. nclz[0] if agr[c] if sp[c]        # 階数の小さくない寄与の集約
@@ -532,11 +533,11 @@ tspw[g] <- true   for (g) in 0 .. ngtz[0] for (k) in 0 .. 62 if tk[g] >= 7 if tk
 un1[7] <- true   for (g) in 0 .. ngtz[0] if tk[g] >= 7 if tk[g] <= 8 if not tspw[g]
 un1[7] <- true   for (z) in 0 .. 0 if hd[14] >= 2
 field anyun : or bound 1
-anyun[0] <- true   for (k) in 0 .. 7 if un1[k]
+anyun[0] <- true   for (k) in 0 .. 8 if un1[k]
 field okhd : or bound 1                         # 表の印がある
-okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923
+okhd[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260924
 field okin : or bound 1                         # 入力は attest の入力（表の印があり、値と階数の面が欠けていない）
-okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260923 if nin[z] >= 0 if not wbd[0]
+okin[0] <- true   for (z) in 0 .. 0 if hd[0] == 20260924 if nin[z] >= 0 if not wbd[0]
 # 面が欠けていると、読めない位置の升は ⊥ の印と比べられずに「在る升」になり、階数も読めない —— 判定せずに
 # 入力でないと言う（前は「示せない（余計な値か、違う階数）」と偽の理由で REJECTED にしていた）。
 # 表の頭か表の中に持てない語（-2147483646 より下）があるときも、表を読み違えるので判定しない（wbd）
@@ -581,7 +582,7 @@ field pc : max bound 16 11                      # i 桁目の文字（上の桁�
 pc[k, i] <- pd[k, i] + 48   for (k) in 0 .. 15 for (i) in 0 .. 9 if pq[k, i] >= 1
 pc[k, i] <- 48   for (k) in 0 .. 15 for (i) in 0 .. 0 if pq[k, i] == 0
 pc[k, i] <- 32   for (k) in 0 .. 15 for (i) in 1 .. 9 if pq[k, i] == 0
-field out : max bound 1300
+field out : max bound 1400
 """)
 # 描く行の種類ごとに一つの印（dw）を立て、文字ごとの規則はその印だけを見る —— 文字ごとに条件を
 # 全部書くと、焼き手のガードの面（8,192 行）を越える（2026-09-19 に越えた）
@@ -674,6 +675,8 @@ text(11, 0, "  an aggregate supported by reads of its own stratum at an equal or
 nl(11, UNS + " if un1[6]")
 text(12, 0, "  a divisor that is not a power of two, or more than one render", UNS + " if un1[7]")
 nl(12, UNS + " if un1[7]")
+text(13, 0, "  a range whose lower bound is read from a field", UNS + " if un1[8]")
+nl(13, UNS + " if un1[8]")
 OBAD = OK2 + " if obad[0]"
 text(10, 0, "  the output differs from the answer in the witness at byte ", OBAD)
 num(10, 61, 11, OBAD)

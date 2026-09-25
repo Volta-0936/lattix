@@ -1,0 +1,50 @@
+# 下端が式や読みの区間（13i）。解釈実行の文法では、`in` の次が名前で `..` が直に続かなければ
+# 表の名なので、読みや式の下端は丸括弧で包む。名前だけの下端（三角のループ）は包まなくてよい。
+
+# 隣接の表を CSR に畳み、各頂点の辺を `(off[v]) .. off[v + 1] - 1` で歩く
+table edge = (0, 1, 4), (0, 2, 1), (1, 2, 2), (1, 3, 7), (2, 3, 3), (3, 4, 1)
+field deg : count bound 8
+deg[a] <- b   for (a, b, w) in edge
+field off : max bound 8
+off[0] <- 0
+off[v] <- off[v - 1] + deg[v - 1]   for (v) in 1 .. 5
+field cnt : count bound 8
+cnt[v] <- k   for (v) in 0 .. 4 for (k) in (off[v]) .. off[v + 1] - 1
+
+# 三角のループ: i < j の組の数と、その和
+field pairs : count bound 1
+pairs[0] <- j   for (i) in 0 .. 4 for (j) in (i + 1) .. 4
+field tri : sum bound 8
+tri[i] <- j   for (i) in 0 .. 4 for (j) in i .. 4
+
+# 下端が読み、上端が数: 区間の頭から
+field lo : max bound 4
+lo[0] <- 2
+lo[1] <- 6
+field span : max bound 16
+span[j] <- j * 3   for (j) in (lo[0]) .. 5
+span[j] <- j + 100   for (j) in (lo[1]) .. 4
+
+# 下端も上端も外の変数で引く（半空間で両側を切る）
+field s : max bound 4
+field e : max bound 4
+s[0] <- 1
+s[1] <- 3
+s[2] <- 0
+e[0] <- 2
+e[1] <- 5
+e[2] <- 0
+field own : max bound 8
+own[j] <- i   for (i) in 0 .. 2 for (j) in (s[i]) .. e[i]
+
+# 下端が数で始まる式（一点に持ち上げる）
+field back : max bound 8
+back[j] <- 1   for (j) in 0 + lo[0] - 1 .. lo[0] + 1
+
+print pairs
+print tri
+print span
+print own
+print back
+print off
+print cnt

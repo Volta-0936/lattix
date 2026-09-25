@@ -43,32 +43,32 @@ hd[j] <- h32[w8[j]] - 65536 * 65536   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] >= kw[0] if h32[w8[j] + 4] <= kw[2]
 wbd[0] <- true   for (j) in 0 .. 15 if h32[w8[j] + 4] == kw[3] if h32[w8[j]] < kw[1]
 field nfl : max bound 1
-nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260923
+nfl[z] <- hd[1]   for (z) in 0 .. 0 if hd[0] == 20260924
 field nsd : max bound 1
-nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260923
+nsd[z] <- hd[2]   for (z) in 0 .. 0 if hd[0] == 20260924
 field nrl : max bound 1
-nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260923
+nrl[z] <- hd[3]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ngl : max bound 1
-ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260923
+ngl[z] <- hd[4]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ngg : max bound 1
-ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260923
+ngg[z] <- hd[5]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ngt : max bound 1
-ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260923
+ngt[z] <- hd[6]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ngc : max bound 1
-ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260923
+ngc[z] <- hd[7]   for (z) in 0 .. 0 if hd[0] == 20260924
 field inpw : max bound 1
-inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260923
+inpw[z] <- hd[9]   for (z) in 0 .. 0 if hd[0] == 20260924
 field badk : max bound 1
-badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260923
+badk[z] <- hd[12]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ncol : max bound 1
-ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260923
+ncol[z] <- hd[13]   for (z) in 0 .. 0 if hd[0] == 20260924
 # 節の頭（語の番号）と、表の語の数
 field sb : max bound 8
 sb[0] <- 16
 sb[z] <- 16 + nfl[0] * 5   for (z) in 1 .. 1
 sb[z] <- sb[1] + nsd[0] * 3   for (z) in 2 .. 2
 sb[z] <- sb[2] + nrl[0] * 6   for (z) in 3 .. 3
-sb[z] <- sb[3] + ngl[0] * 8   for (z) in 4 .. 4
+sb[z] <- sb[3] + ngl[0] * 11   for (z) in 4 .. 4
 sb[z] <- sb[4] + ngg[0] * 9   for (z) in 5 .. 5
 sb[z] <- sb[5] + ngt[0] * 7   for (z) in 6 .. 6
 sb[z] <- sb[6] + ngc[0] * 8   for (z) in 7 .. 7
@@ -153,9 +153,9 @@ kB[z] <- vB[z] + vtot[z]   for (z) in 0 .. 0
 # 出した答え（stdout）: 場の面をそのまま出す本は値の面と同じ長さ、render の本は描く場の
 # ⊥ でない升の数（一升一バイト）。**出した答えも確かめる** —— 使う人が見るのは stdout である
 field ouw : max bound 1                    # 描く幅（8 は場の面をそのまま、1 は render）
-ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260923
+ouw[z] <- hd[11]   for (z) in 0 .. 0 if hd[0] == 20260924
 field ouf : max bound 1                    # 描く場（render のとき）
-ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260923 if hd[11] == 1
+ouf[z] <- hd[10]   for (z) in 0 .. 0 if hd[0] == 20260924 if hd[11] == 1
 field oB : max bound 1                     # 出した答えの始まり
 oB[z] <- kB[z] + ncl[z] * 4   for (z) in 0 .. 0
 field nrd : count bound 1                  # 描かれる升の数
@@ -276,15 +276,23 @@ nrw[z] <- r + 1   for (r) in 0 .. 131071 for (z) in 0 .. 0 if inpw[0] == 8 if rc
 nrw[0] <- 0
 
 # ══ 実例を数える —— 規則ごとの枠（ループ）の広さ、通し番号、番号から変数を起こす ══════
-# L（ループ）: 規則 / 番号 / 種（0 表 / 1 区間 / 2 上端が場）/ 下端 / 上端 / 組の長さ / 上端の場 / 座標
+# L（ループ）: 規則 / 番号 / 種（0 表 / 1 区間 / 2 上端が場 / 3 上端を外の変数で引く）/ 下端 / 上端 /
+#   組の長さ / 上端の場 / 座標 / 下端の種（0 数 / 1 `f[数]` / 2 `f[外の変数]`）/ 下端の場 / 座標
 field aL : max bound 4096
-aL[g] <- sb[z] + g * 8   for (z) in 3 .. 3 for (g) in 0 .. nglz[0]
+aL[g] <- sb[z] + g * 11   for (z) in 3 .. 3 for (g) in 0 .. nglz[0]
 field lr : max bound 4096
 lr[g] <- wd[aL[g]]   for (g) in 0 .. nglz[0]
 field li : max bound 4096
 li[g] <- wd[aL[g] + 1]   for (g) in 0 .. nglz[0]
+field lkw : max bound 4096                 # 表の語の種
+lkw[g] <- wd[aL[g] + 2]   for (g) in 0 .. nglz[0]
+field llk : max bound 4096                 # 下端の種（13i）
+llk[g] <- wd[aL[g] + 8]   for (g) in 0 .. nglz[0]
+# **下端が場の区間**（13i）は、種3 と同じく実例の枠の広さが値ごとに違う —— attest は持たない
+# （UNSUPPORTED。mkeval の un1[8]）。種3 として数え、枠を一つにして閉じる
 field lk : max bound 4096
-lk[g] <- wd[aL[g] + 2]   for (g) in 0 .. nglz[0]
+lk[g] <- lkw[g]   for (g) in 0 .. nglz[0] if llk[g] == 0
+lk[g] <- 3   for (g) in 0 .. nglz[0] if llk[g] >= 1
 field llo : max bound 4096
 llo[g] <- wd[aL[g] + 3]   for (g) in 0 .. nglz[0]
 field lhi : max bound 4096

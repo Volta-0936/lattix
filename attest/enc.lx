@@ -6,8 +6,9 @@
 #
 #   頭 16 語: 印 / 場 / 種 / 規則 / ループ / ガード / 項 / 座標 / 所有者 / 口 / 描く場 /
 #             描く幅 / 断り（行*16+理由、無ければ -1）/ 表の列の数 / 0 / 0
-#   続けて F(5) S(3) R(6) L(8) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
+#   続けて F(5) S(3) R(6) L(11) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
 #   （印 20260923: F に次元2 の広さを足した。前の印 20260919 の表は四語の F で、読み違えないよう印を替えた）
+#   （印 20260924: L に下端の種・場・座標の三語を足した（13i）。八語の L を読み違えないよう印を替えた）
 
 # ── 数。**無いは 0**（ガードの無い本では ngg が ⊥ で、頭の鎖が全部 ⊥ になり何も描かなかった）
 field kfl : max bound 1
@@ -55,7 +56,7 @@ ab[0] <- 16
 ab[z] <- 16 + kfl[0] * 5   for (z) in 1 .. 1
 ab[z] <- ab[1] + ksd[0] * 3   for (z) in 2 .. 2
 ab[z] <- ab[2] + krl[0] * 6   for (z) in 3 .. 3
-ab[z] <- ab[3] + kgl[0] * 8   for (z) in 4 .. 4
+ab[z] <- ab[3] + kgl[0] * 11   for (z) in 4 .. 4
 ab[z] <- ab[4] + kgg[0] * 9   for (z) in 5 .. 5
 ab[z] <- ab[5] + kgt[0] * 7   for (z) in 6 .. 6
 ab[z] <- ab[6] + kgc[0] * 8   for (z) in 7 .. 7
@@ -64,7 +65,7 @@ anw[z] <- ab[7] - 1   for (z) in 0 .. 0
 
 field wd : max bound 524288                   # 語の列
 wd[n] <- -2147483646   for (n) in 0 .. anw[0]
-wd[0] <- 20260923
+wd[0] <- 20260924
 wd[1] <- kfl[z]   for (z) in 0 .. 0
 wd[2] <- ksd[z]   for (z) in 0 .. 0
 wd[3] <- krl[z]   for (z) in 0 .. 0
@@ -107,9 +108,9 @@ wd[apR[r] + 2] <- rrar[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 3] <- rrwf[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 4] <- rroo[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 5] <- rlin[r]   for (r) in 0 .. anrlz[0]
-# ── L（8 語ずつ）
+# ── L（11 語ずつ）
 field apL : max bound 16384
-apL[g] <- ab[z] + g * 8   for (z) in 3 .. 3 for (g) in 0 .. anglz[0]
+apL[g] <- ab[z] + g * 11   for (z) in 3 .. 3 for (g) in 0 .. anglz[0]
 wd[apL[g]] <- lpr[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 1] <- lpi[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 2] <- lpk[g]   for (g) in 0 .. anglz[0]
@@ -118,6 +119,9 @@ wd[apL[g] + 4] <- lphi[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 5] <- lpar[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 6] <- lpbf[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 7] <- lpbc[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 8] <- lplk[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 9] <- lplf[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 10] <- lplc[g]   for (g) in 0 .. anglz[0]
 # ── G（9 語ずつ）
 field apG : max bound 16384
 apG[g] <- ab[z] + g * 9   for (z) in 4 .. 4 for (g) in 0 .. anggz[0]

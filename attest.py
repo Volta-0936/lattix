@@ -43,6 +43,14 @@ ACCUM = ('sum', 'count')          # 寄与元付き集約: 直接和で検査す
 IDEM = ('min', 'max', 'set', 'or', 'and', 'flat', 'fourv')
 
 
+class _ObsProg:
+    """区間の端も観測値の上で読む。`L.bindings` は端を `prog.fields`（本物の束）で観測するので、
+    観測値の店（sum / count は整数）を渡すと本物の observe が袋を待って落ちていた ——
+    `(s[2]) .. 5` の下端（13i の試験で出た。上端 `.. s[0]` でも同じ）。場の束だけを影に差し替える。"""
+    def __init__(self, prog, sh): self._p, self.fields = prog, sh
+    def __getattr__(self, k): return getattr(self._p, k)
+
+
 class Shim:
     """観測値の上で動く束。ev() に渡すためだけのもの。"""
     def __init__(self, lat):
@@ -157,7 +165,7 @@ def shadow(prog, sh, S, pre, prerank, R=None):
         for r in rules:
             reads = (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
                      + [x for k in r.keys for x in _frefs(k)])
-            for env in L.bindings(r, prog, None, St):
+            for env in L.bindings(r, _ObsProg(prog, sh), None, St):
                 try:
                     if not all(L._truthy(L.ev(g, env, St, sh)) for g in r.guards):
                         continue
@@ -218,7 +226,7 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
     if scope is not None:
         writable = set()
         for r in prog.rules:
-            for env in L.bindings(r, prog, None, S):
+            for env in L.bindings(r, _ObsProg(prog, sh), None, S):
                 try: writable.add((r.target, tuple(L.ev(x, env, S, sh) for x in r.keys)))
                 except Exception: pass
 
@@ -240,7 +248,7 @@ def attest(src, store, rank, verbose=False, scope=None, pre=None, prerank=None):
             lat = sh[r.target]
             reads_of = (_frefs(r.value) + [x for g in r.guards for x in _frefs(g)]
                         + [x for k in r.keys for x in _frefs(k)])
-            for env in L.bindings(r, prog, None, S):
+            for env in L.bindings(r, _ObsProg(prog, sh), None, S):
                 rep.instances += 1
                 # ── 祖先閉性はガードより先に見る ──────────────────────
                 # いま偽のガードは、祖先が育てば真になりうる。**まだ火を噴いて

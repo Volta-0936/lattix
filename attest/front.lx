@@ -319,7 +319,7 @@ tdep[t] <- pre[tstart[t]] for (t,zc) in ch if tlen[t] >= 1
 field tnonm : or bound 589824
 tnonm[t] <- true for (t,zc) in ch if isneg[t]
 tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]] if not rfl[t]
-tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1 if not rfl[t]
+tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1 if not rfl[t] if not isbnl[t]
 tnonm[t] <- true for (t,zc) in ch if tnm4[t]
 # **二重以上のループの集約は、読みで層を切る**（13f）。集約は「一度だけ数える」を日程で持つ
 # （31_gen の `amul`）—— 読む場が同じ層で動くと二周目で数え直すので、読む場を下の層に閉じる。
@@ -441,7 +441,11 @@ tnm4[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t] if not rfl[t]
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if not rfl[t]
       if not rup[t] if clif2[snum[t], cnum[t]]
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if not rfl[t]
-      if not rup[t] if isbnd[t]
+      if not rup[t] if isbnd[t] if not isbnl[t]
+# 区間の **下端** は下へ動くことを要る（解釈実行の classify(.., 'DOWN')。区間が縮んではならない）
+#   （下端の読みは丸括弧の中 —— 深さ 1 でも添字ではない）
+tnm4[t] <- true for (t,zc) in ch if isocc[t] if not rfl[t]
+      if not rdn[t] if isbnl[t]
 # for 節の、上端でない読みは向きを言えない（区間の下端は下へ動くことを要る）
 tnm4[t] <- true for (t,zc) in ch if isocc[t] if tdep[t] == 0 if cnum[t] >= 1
       if not isbnd[t] if not clif2[snum[t], cnum[t]]
@@ -823,49 +827,89 @@ field lz : max bound 589824             # for 節の番号（0 起点）
 lz[t] <- lseq[t] - 1 for (t,zc) in ch
 field int1 : max bound 589824           # `in` の次の語（下端 or 表の名）
 int1[t] <- nextw[t] for (t,zc) in ch if kwin[t]
+# **区間かどうかは `..` が言う**（13i）。前は「`in` の次が数なら区間」で、下端は数一つに限られ
+# ていた（`for (j) in i + 1 .. n` は表の名と読まれて断られた）。節の中の最初の `..` を探す。
+field cdot : min bound 589824           # 大域の節 c の最初の `..` の一つ目の `.`（深さ 0）
+cdot[gcl[u]] <- u for (u,zc) in ch if tlen[u] == 1 if tch[u,0] == 46 if tdep[u] == 0 if not tcom[u]
+      if tch[nextw[u],0] == 46
+field irng : or bound 589824            # `in` は区間を始める（その節に `..` がある）
+irng[t] <- true for (t,zc) in ch if kwin[t] if cdot[gcl[t]] > t
 field int2 : max bound 589824           # 一つ目の `.`
-int2[t] <- nextw[int1[t]] for (t,zc) in ch if kwin[t]
+int2[t] <- cdot[gcl[t]] for (t,zc) in ch if kwin[t] if irng[t]
 field int3 : max bound 589824           # 二つ目の `.`
 int3[t] <- nextw[int2[t]] for (t,zc) in ch if kwin[t]
 field int4 : max bound 589824           # 上端
 int4[t] <- nextw[int3[t]] for (t,zc) in ch if kwin[t]
 field lkd : max bound 16384 8            # 0 表 / 1 区間（上端が定数）/ 2 上端が場
-lkd[snum[t], lz[t]] <- 0 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if not isnum[int1[t]]
-lkd[snum[t], lz[t]] <- 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if isnum[int1[t]]
+# 表のループは `in` の次に語があるときだけ（行の終わりの `in` は ⊥ のまま —— 前段が断る。
+# `not irng` だけで 0 を置くと、名の無い `in` が表のループになって走り出した）
+lkd[snum[t], lz[t]] <- 0 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if not irng[t]
+      if tkind[int1[t]] >= 1
+lkd[snum[t], lz[t]] <- 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
       if isnum[int4[t]]
 # **区間の端は場でもよい**（`for (n) in 0 .. nins[0]`）—— 記述が空間を決める
-lkd[snum[t], lz[t]] <- 2 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if isnum[int1[t]]
+lkd[snum[t], lz[t]] <- 2 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
       if isocc[int4[t]]
-field llo2 : max bound 16384 8           # 区間の下端
+field llo2 : max bound 16384 8           # 区間の下端（数のとき）
 llo2[snum[t], lz[t]] <- tval[int1[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
-      if isnum[int1[t]]
+      if irng[t] if isnum[int1[t]]
+# **下端の種**（13i）: 0 数 / 1 `(f[数])` / 2 `(f[外の区間の変数])` / 3 裸の外の区間の変数（`i ..`）。
+# 解釈実行の文法では、`in` の次が **名前で `..` が続かない** なら表の名である（`in lo[0] .. 9` は断られる）。
+# だから場の読みの下端は **丸括弧で包む**（`in (lo[0]) .. 9`）。名前は `..` が直に続くときだけ下端になる。
+# 式の下端は下ろしが `_g` に持ち上げる（丸括弧の中身を持ち上げ、裸の式は丸括弧つきの参照にする）。
+# 形が崩れていれば fold.lx が断る（理由 8）。
+field ilo : max bound 589824             # 下端の読みの出現（`(f[x])` の f）
+# （丸括弧の次の語。出現かどうかは使う所で見る —— `isocc[nextw[int1[t]]]` は三段の読みになる）
+ilo[t] <- nextw[int1[t]] for (t,zc) in ch if kwin[t] if irng[t] if isopn[int1[t]]
+field ilb : max bound 589824             # 下端の出現の添字のトークン
+ilb[t] <- ob1[ilo[t]] for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0
+field llk2 : max bound 16384 8           # 下端の種
+llk2[snum[t], lz[t]] <- 0 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
+llk2[snum[t], lz[t]] <- 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
+      if ilo[t] >= 0 if isocc[ilo[t]] if isnum[ilb[t]]
+llk2[snum[t], lz[t]] <- 2 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
+      if ilo[t] >= 0 if isocc[ilo[t]] if not isnum[ilb[t]] if tkind[ilb[t]] == 1
+llk2[snum[t], lz[t]] <- 3 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
+      if tkind[int1[t]] == 1 if not isnum[int1[t]] if nextw[int1[t]] == int2[t]
+field llf2 : max bound 16384 8           # 下端の場（種1/2。出現の場 `ixcf` を引く —— 三段の読みを書かない）
+llf2[snum[t], lz[t]] <- ixcf[ilo[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
+      if irng[t] if ilo[t] >= 0
+field ivl2 : max bound 589824            # 下端の変数のループ番号（種2 は添字、種3 は下端そのもの）
+ivl2[t] <- vlpz[ilb[t]] for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0
+      if not isnum[ilb[t]] if tkind[ilb[t]] == 1
+ivl2[t] <- vlpz[int1[t]] for (t,zc) in ch if kwin[t] if irng[t]
+      if tkind[int1[t]] == 1 if not isnum[int1[t]] if nextw[int1[t]] == int2[t]
+field llc2 : max bound 16384 8           # 下端の座標（種1）/ 変数のループ番号（種2/3）
+llc2[snum[t], lz[t]] <- tval[ilb[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
+      if irng[t] if ilo[t] >= 0 if isnum[ilb[t]]
+llc2[snum[t], lz[t]] <- ivl2[t] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
+      if irng[t] if ivl2[t] >= 0
 field lhi2 : max bound 16384 8           # 区間の上端（定数のとき）
 lhi2[snum[t], lz[t]] <- tval[int4[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
-      if isnum[int1[t]] if isnum[int4[t]]
-field oint4 : max bound 589824           # 上端の出現（三段を割る）
-oint4[t] <- oseq[int4[t]] for (t,zc) in ch if kwin[t] if isnum[int1[t]]
-      if isocc[int4[t]]
+      if irng[t] if isnum[int4[t]]
 field lbf2 : max bound 16384 8           # 上端の場（種2）
-lbf2[snum[t], lz[t]] <- ofl[oint4[t]] - 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
-      if isnum[int1[t]] if isocc[int4[t]]
+# 上端の場は出現の場 `ixcf` を引く（前は `ofl[oseq[…]]` の三段を `oint4` で割っていた —— 升を一枚
+# 使っていた。下ろしの置き場が 2 GB の手前に来ているので、既にある名前を使う）
+lbf2[snum[t], lz[t]] <- ixcf[int4[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
+      if irng[t] if isocc[int4[t]]
 # **⊥ から座標を作らない**（気づき27 の座標側）—— 先に「あるとき」だけの
 # 場に置いてから引く。`int4[t] + 2` は int4 が ⊥ だと桁が溢れる。
 field int4b : max bound 589824           # 上端の場の添字のトークン（空白を跨ぐ）
 int4b[t] <- ob1[int4[t]] for (t,zc) in ch if kwin[t]
-      if isnum[int1[t]] if isocc[int4[t]]
+      if irng[t] if isocc[int4[t]]
 field lbc2 : max bound 16384 8           # 上端の座標（種2）/ 添字の変数のループ番号（種3）
 lbc2[snum[t], lz[t]] <- tval[int4b[t]] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
-      if isnum[int1[t]] if isocc[int4[t]]
+      if irng[t] if isocc[int4[t]]
 # **種3: 上端の添字が外の変数**（`for (j) in 0 .. len[i]`）。反復空間は箱ではなく半空間で
 # 切られる —— 焼く側は入るたびに上端を読み直す（31_gen の種3）。外の区間の変数かどうかは
 # fold.lx が見る（ここで lkd を読んで決めると、lkd が自分を比べる輪になる）。
 field ivl : max bound 589824             # 上端の添字の変数のループ番号
-ivl[t] <- vlpz[int4b[t]] for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+ivl[t] <- vlpz[int4b[t]] for (t,zc) in ch if kwin[t] if irng[t] if isocc[int4[t]]
       if not isnum[int4b[t]] if tkind[int4b[t]] == 1
-lkd[snum[t], lz[t]] <- 3 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if isnum[int1[t]]
+lkd[snum[t], lz[t]] <- 3 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t] if irng[t]
       if isocc[int4[t]] if not isnum[int4b[t]] if tkind[int4b[t]] == 1
 lbc2[snum[t], lz[t]] <- ivl[t] for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if kwin[t]
-      if isnum[int1[t]] if isocc[int4[t]] if not isnum[int4b[t]] if tkind[int4b[t]] == 1
+      if irng[t] if isocc[int4[t]] if not isnum[int4b[t]] if tkind[int4b[t]] == 1
 field lar2 : max bound 16384 8           # その節の組の長さ
 lar2[snum[t], lz[t]] <- colc[t] + 1 for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7 if isbind[t]
 
@@ -907,8 +951,11 @@ field pmod : or bound 589824            # 一つ前の語が `%`
 pmod[t] <- ismod[prevw[t]] for (t,zc) in ch
 # **区間の上端の読みは、項でもガードでもない**（供給の話であって値ではない）
 field isbnd : or bound 589824           # 区間の上端の場のトークン
-isbnd[int4[t]] <- true for (t,zc) in ch if kwin[t] if isnum[int1[t]]
+isbnd[int4[t]] <- true for (t,zc) in ch if kwin[t] if irng[t]
       if isocc[int4[t]]
+isbnd[ilo[t]] <- true for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0 if isocc[ilo[t]]
+field isbnl : or bound 589824           # そのうち区間の下端（13i。`(f[x])` の f）
+isbnl[ilo[t]] <- true for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0 if isocc[ilo[t]]
 field istrm : or bound 589824           # 場の読みの項（名前のトークン）
 istrm[t] <- true for (t,zc) in ch if isocc[t] if aftarw[t]
       if isrec[snum[t]] if not isbnd[t]
@@ -1432,6 +1479,16 @@ lpbf[glno[t]] <- lbf2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
 field lpbc : max bound 16384                       # その座標
 lpbc[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
 lpbc[glno[t]] <- lbc2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+# **下端**（13i）: 種（0 数 / 1 `f[数]` / 2 `f[外の区間の変数]`）・場・座標（種2 は変数のループ番号）
+field lplk : max bound 16384
+lplk[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lplk[glno[t]] <- llk2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lplf : max bound 16384
+lplf[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lplf[glno[t]] <- llf2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
+field lplc : max bound 16384
+lplc[glno[t]] <- 0                       for (t,zc) in ch if isgl[t]
+lplc[glno[t]] <- llc2[snum[t], lz[t]]    for (t,zc) in ch if isgl[t]
 
 # ── ガード。**通し番号は節に沿った鎖**（規則をまたいで一本）──────────
 # 一つの節が足すガードは 0 / 1 / 2（比較は左右で二本）。だから節ごとの
@@ -1830,23 +1887,28 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if greg[t] if i
 field clfor : or bound 16384 32           # 節 c は for 節
 clfor[snum[t], cnum[t]] <- true   for (t,zc) in ch if kwfor[t] if isrec[snum[t]]
 field clrng : or bound 16384 32           # 節 c は区間の for 節
-clrng[snum[t], cnum[t]] <- true   for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isrec[snum[t]]
+clrng[snum[t], cnum[t]] <- true   for (t,zc) in ch if kwin[t] if irng[t] if isrec[snum[t]]
 field freg : or bound 589824             # for 節の、意味を持つ語（深さ 0）
 freg[t] <- true   for (t,zc) in ch if cnum[t] >= 1 if tdep[t] == 0 if isrec[snum[t]]
       if clfor[snum[t], cnum[t]] if tkind[t] != 3 if not tcom[t]
 field int4k : max bound 589824           # 上端の読みの `[`
-int4k[t] <- obr[int4[t]]  for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+int4k[t] <- obr[int4[t]]  for (t,zc) in ch if kwin[t] if irng[t] if isocc[int4[t]]
 field fok : or bound 589824              # for 節の語として読めた
 fok[t] <- true          for (t,zc) in ch if freg[t] if kwfor[t]
 fok[nextw[t]] <- true   for (t,zc) in ch if freg[t] if kwfor[t] if tch[nextw[t], 0] == 40
 fok[t] <- true          for (t,zc) in ch if freg[t] if kwin[t]
-fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]]
-fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if tkind[int1[t]] == 1   # 表の名（`in (edges)` は式ではない）
-fok[int2[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]] if tch[int2[t], 0] == 46
-fok[int3[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]] if tch[int3[t], 0] == 46
-fok[int4[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]] if isnum[int4[t]]
-fok[int4[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
-fok[int4k[t]] <- true   for (t,zc) in ch if freg[t] if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isnum[int1[t]]
+# 下端の読みは丸括弧で包んだもの（13i。中身は下で数える）と、`..` が直に続く名前だけ ——
+# `in lo[0] .. 9` は解釈実行が表の名と読んで断る形なので、読めた語に入れない（理由 8）
+fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isopn[int1[t]]
+fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if tkind[int1[t]] == 1
+      if not isnum[int1[t]] if nextw[int1[t]] == int2[t]
+fok[int1[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if tkind[int1[t]] == 1 if not irng[t]   # 表の名（`in (edges)` は式ではない）
+fok[int2[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if tch[int2[t], 0] == 46
+fok[int3[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if tch[int3[t], 0] == 46
+fok[int4[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isnum[int4[t]]
+fok[int4[t]] <- true    for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isocc[int4[t]]
+fok[int4k[t]] <- true   for (t,zc) in ch if freg[t] if kwin[t] if irng[t] if isocc[int4[t]]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if freg[t] if not fok[t]
 # `in` は節に一つ。区間の for が束ねる変数は一つ
 field ninc : count bound 65536           # 大域の節の `in` の数
@@ -1857,7 +1919,7 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if freg[t] if k
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if freg[t] if kwin[t]
       if snum[int1[t]] != snum[t]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if freg[t] if kwin[t]
-      if isnum[int1[t]] if snum[int4[t]] != snum[t]
+      if irng[t] if snum[int4[t]] != snum[t]
 # **表の名は宣言した表の名**（理由 8）。`for (…) in xyz` を焼く側は名を見ずにただ一つの表を
 # 回していた（解釈実行は無い表と断る）。綴りは一文字ずつ、長さも比べる。
 field tbnt : max bound 1                 # 表の名のトークン
@@ -1866,7 +1928,7 @@ field tbnc : max bound 64                # 表の名の k 文字目
 tbnc[cpos[i]] <- c    for (i,c) in ch if tnum[i] == tbnt[0] if cpos[i] <= 63
 field tin1 : or bound 589824             # 表の for の `in` の次の語
 tin1[int1[t]] <- true   for (t,zc) in ch if freg[t] if kwin[t] if tkind[int1[t]] == 1
-      if not isnum[int1[t]]
+      if not irng[t]
 field tnbad : or bound 589824            # その語は表の名と綴りが違う
 tnbad[tnum[i]] <- true  for (i,c) in ch if tin1[tnum[i]] if cpos[i] <= 63 if c != tbnc[cpos[i]]
 field tbnl : max bound 1                 # 表の名の長さ（定数で引いた場は座標にならないので計数器で引く）
@@ -1895,7 +1957,7 @@ badk[z] <- tlin[u] * 16 + 8   for (u,zc) in ch for (z) in 0 .. 0 if fpin[u] if n
 field fbn : count bound 65536            # 大域の節の、for の括弧の中の名前の数
 fbn[gcl[u]] <- 1   for (u,zc) in ch if fpin[u] if tkind[u] == 1
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if freg[t] if kwin[t]
-      if tkind[int1[t]] == 1 if not isnum[int1[t]] if fbn[gcl[t]] != ncol[0]
+      if tkind[int1[t]] == 1 if not irng[t] if fbn[gcl[t]] != ncol[0]
 # **頭の語も数える**（理由 8）。矢印の手前は「書き先の出現とその `[`」だけ —— `b[i] not <- 0` の
 # `not` を黙って読み飛ばしていた（解釈実行は構文で断る）。種も規則も同じ。
 field arw3 : max bound 16384             # 文 s の矢印の `-`
@@ -1983,19 +2045,45 @@ badk[z] <- tlin[hotok[s]] * 16 + 9   for (s) in 0 .. nstz[0] for (z) in 0 .. 0 i
 # 上端の場の添字が数でないものを断る。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if isop[t] if tdep[t] == 0
       if cnum[t] >= 1 if not clif2[snum[t], cnum[t]]
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
       if isocc[int4[t]] if not isnum[int4b[t]] if not lbv[t]
 # **種3: 上端の添字が外の区間の変数**なら焼ける（13g。`for (j) in 0 .. len[i]`）。
 # 変数は同じ文の、**このループより外**の区間のループに束ねられていること（表の変数は列の値で
 # 計数器ではない —— 下ろしが `_t<k>c<j>[_r]` の読みにしたものは入れ子の読みなので持ち上げる）。
+# **下端は数か `(f[数])` か `(f[外の区間の変数])` か、裸の外の区間の変数**（13i。理由 8）。
+# 式の下端（`(i + 1) .. n`、`0 - 2 .. n`、表の変数 `a .. n`）は下ろしが `_g` に持ち上げる。
+# 焼く側に来たら断る —— 黙って 0 から回さないように。
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
+      if isnum[int1[t]] if nextw[int1[t]] != int2[t]
+field ilbc : max bound 589824            # 下端の読みの閉じ括弧 `]`
+ilbc[t] <- tclos[obr[ilo[t]]]   for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0
+field ilbp : max bound 589824            # その後ろの `)`
+ilbp[t] <- nextw[ilbc[t]]       for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0
+field lps : or bound 589824              # 丸括弧の下端は読み一つ（添字は語一つ、括弧は `..` の直前で閉じる）
+lps[t] <- true   for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0 if nextw[ilb[t]] == ilbc[t]
+      if tmatch[ilbp[t]] == int1[t] if nextw[ilbp[t]] == int2[t] if isnum[ilb[t]]
+lps[t] <- true   for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0 if nextw[ilb[t]] == ilbc[t]
+      if tmatch[ilbp[t]] == int1[t] if nextw[ilbp[t]] == int2[t] if lbv2[t]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
+      if isopn[int1[t]] if not lps[t]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
+      if ilo[t] >= 0 if iscom[d0cm[ilo[t]]]
+field lbv2 : or bound 589824             # 下端の添字は外の区間の変数（種2）
+lbv2[t] <- true  for (t,zc) in ch if kwin[t] if irng[t] if ilo[t] >= 0
+      if not isnum[ilb[t]] if vbnd[ilb[t]] >= 0 if ivl2[t] < lz[t] if lkd[snum[t], ivl2[t]] >= 1
+field lbv3 : or bound 589824             # 裸の下端は外の区間の変数（種3）
+lbv3[t] <- true  for (t,zc) in ch if kwin[t] if irng[t] if tkind[int1[t]] == 1 if not isnum[int1[t]]
+      if nextw[int1[t]] == int2[t] if vbnd[int1[t]] >= 0 if ivl2[t] < lz[t] if lkd[snum[t], ivl2[t]] >= 1
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
+      if tkind[int1[t]] == 1 if not isnum[int1[t]] if nextw[int1[t]] == int2[t] if not lbv3[t]
 field lbv : or bound 589824              # 上端の添字は外の区間の変数（種3）
-lbv[t] <- true   for (t,zc) in ch if kwin[t] if isnum[int1[t]] if isocc[int4[t]]
+lbv[t] <- true   for (t,zc) in ch if kwin[t] if irng[t] if isocc[int4[t]]
       if not isnum[int4b[t]] if vbnd[int4b[t]] >= 0 if ivl[t] < lz[t] if lkd[snum[t], ivl[t]] >= 1
 # 上端の読みの添字は **数一つ**（`n[0+2]` のずれも二次元も焼く側は持たない —— `n[0+2]` を n[0] と
 # 読み、⊥ のはずの区間を 3 .. 10 と回していた）
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
       if isocc[int4[t]] if ixhf[int4b[t]]
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if isnum[int1[t]]
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t]
       if isocc[int4[t]] if iscom[d0cm[int4[t]]]
 # **四次元の場は焼かない**（理由 8）。次元は三つまで数える（33_self の c0* / c1* / c2*）ので、
 # `w[i,j,k,l]` の l を黙って落とさないように、次元2 の添字の後ろに `,` があれば断る。
@@ -2076,8 +2164,9 @@ gtt[o] <- gtno[otok[o]]             for (o) in 0 .. nocz[0]
 #
 #   頭 16 語: 印 / 場 / 種 / 規則 / ループ / ガード / 項 / 座標 / 所有者 / 口 / 描く場 /
 #             描く幅 / 断り（行*16+理由、無ければ -1）/ 表の列の数 / 0 / 0
-#   続けて F(5) S(3) R(6) L(8) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
+#   続けて F(5) S(3) R(6) L(11) G(9) T(7) C(8) 語ずつの行。無い値は -2147483646。
 #   （印 20260923: F に次元2 の広さを足した。前の印 20260919 の表は四語の F で、読み違えないよう印を替えた）
+#   （印 20260924: L に下端の種・場・座標の三語を足した（13i）。八語の L を読み違えないよう印を替えた）
 
 # ── 数。**無いは 0**（ガードの無い本では ngg が ⊥ で、頭の鎖が全部 ⊥ になり何も描かなかった）
 field kfl : max bound 1
@@ -2125,7 +2214,7 @@ ab[0] <- 16
 ab[z] <- 16 + kfl[0] * 5   for (z) in 1 .. 1
 ab[z] <- ab[1] + ksd[0] * 3   for (z) in 2 .. 2
 ab[z] <- ab[2] + krl[0] * 6   for (z) in 3 .. 3
-ab[z] <- ab[3] + kgl[0] * 8   for (z) in 4 .. 4
+ab[z] <- ab[3] + kgl[0] * 11   for (z) in 4 .. 4
 ab[z] <- ab[4] + kgg[0] * 9   for (z) in 5 .. 5
 ab[z] <- ab[5] + kgt[0] * 7   for (z) in 6 .. 6
 ab[z] <- ab[6] + kgc[0] * 8   for (z) in 7 .. 7
@@ -2134,7 +2223,7 @@ anw[z] <- ab[7] - 1   for (z) in 0 .. 0
 
 field wd : max bound 524288                   # 語の列
 wd[n] <- -2147483646   for (n) in 0 .. anw[0]
-wd[0] <- 20260923
+wd[0] <- 20260924
 wd[1] <- kfl[z]   for (z) in 0 .. 0
 wd[2] <- ksd[z]   for (z) in 0 .. 0
 wd[3] <- krl[z]   for (z) in 0 .. 0
@@ -2177,9 +2266,9 @@ wd[apR[r] + 2] <- rrar[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 3] <- rrwf[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 4] <- rroo[r]   for (r) in 0 .. anrlz[0]
 wd[apR[r] + 5] <- rlin[r]   for (r) in 0 .. anrlz[0]
-# ── L（8 語ずつ）
+# ── L（11 語ずつ）
 field apL : max bound 16384
-apL[g] <- ab[z] + g * 8   for (z) in 3 .. 3 for (g) in 0 .. anglz[0]
+apL[g] <- ab[z] + g * 11   for (z) in 3 .. 3 for (g) in 0 .. anglz[0]
 wd[apL[g]] <- lpr[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 1] <- lpi[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 2] <- lpk[g]   for (g) in 0 .. anglz[0]
@@ -2188,6 +2277,9 @@ wd[apL[g] + 4] <- lphi[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 5] <- lpar[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 6] <- lpbf[g]   for (g) in 0 .. anglz[0]
 wd[apL[g] + 7] <- lpbc[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 8] <- lplk[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 9] <- lplf[g]   for (g) in 0 .. anglz[0]
+wd[apL[g] + 10] <- lplc[g]   for (g) in 0 .. anglz[0]
 # ── G（9 語ずつ）
 field apG : max bound 16384
 apG[g] <- ab[z] + g * 9   for (z) in 4 .. 4 for (g) in 0 .. anggz[0]
