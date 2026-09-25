@@ -1,0 +1,18 @@
+# 原子の値と文字列 —— 種の座標・値の min・比較・二次元の鍵
+table edge = ("a", "b", 3), ("b", "c", 4), ("a", "c", 9), ("c", "dd", 1)
+field dist : min
+dist["a"] <- 0
+dist[y] <- dist[x] + w   for (x,y,w) in edge
+field via : flat
+via[y] <- x              for (x,y,w) in edge if dist[y] == dist[x] + w
+field hit : or
+hit[x, y] <- true        for (x,y,w) in edge if x != "b"
+field last : flat
+last[] <- y             for (x,y,w) in edge if w == 1
+field tag : flat
+tag["dd"] <- "last"
+print dist
+print via
+print hit
+print last
+print tag

@@ -1,0 +1,15 @@
+# 原子の綴りの順 —— 接頭辞・下線・八バイトを越える綴り・UTF-8・裸と文字列の混在
+table t = (battery_charged, 3), (battery, 5), (bat, 1), ("東京", 2), (b_long_name_over_sixteen, 4),
+          ("bat", 7)
+field w : max
+w[x] <- v              for (x,v) in t
+field sel : or
+sel[x] <- true         for (x,v) in t if x == "battery"
+field cnt : max
+cnt[] <- v             for (x,v) in t if x == "東京"
+field back : flat
+back[v] <- x           for (x,v) in t if v >= 3
+print w
+print sel
+print cnt
+print back

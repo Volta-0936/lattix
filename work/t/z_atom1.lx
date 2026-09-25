@@ -1,0 +1,18 @@
+# 原子の鍵 —— 表の裸の名前が場の座標に立ち、print は綴りの順に並べる
+table sales = (tokyo, q1, 120), (osaka, q1, 90), (tokyo, q2, 45),
+              (nagoya, q1, 70), (osaka, q2, 30), (tokyo, q3, 15)
+field revenue : sum
+revenue[c] <- v          for (c,q,v) in sales
+field orders : count
+orders[c] <- v           for (c,q,v) in sales
+field best : max
+best[c] <- v             for (c,q,v) in sales
+field quarter : flat
+quarter[c] <- q          for (c,q,v) in sales if v > 100
+field big : or
+big[c] <- true           for (c,q,v) in sales if revenue[c] > 100
+print revenue
+print orders
+print best
+print quarter
+print big
