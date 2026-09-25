@@ -18,7 +18,7 @@ REJECTED で .lx が UNSUPPORTED（.lx の限界 —— 鎖の深さ・値の幅
 
     使い方:  python3 test/attest_lx.py [壊す回数（一件あたり、既定 2）] [撒く本の数（既定 60）] [種]
 """
-import os, sys, struct, subprocess, tempfile, random, collections, shutil, atexit
+import io, os, sys, struct, subprocess, tempfile, random, collections, shutil, atexit
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, 'attest')); sys.path.insert(0, ROOT); sys.path.insert(0, os.path.join(ROOT, 'test'))
 import ir as A
@@ -105,6 +105,7 @@ def corrupt(tab, vals0, ranks0):
         rk = struct.unpack_from('<i', ranks, Lf['ko'] + 4 * c)[0]
         if kind == 'bump' and cur != bot:
             nv = (1 - cur) if Lf['wb'] == 1 else cur + rnd.choice([1, -1, 7])
+            if not -2**63 <= nv < 2**63: nv = cur - 1      # 数の場の ⊤ の印（機械の整数の端。14v）から外へは出ない
         elif kind == 'drop' and cur != bot:
             nv = bot
         elif kind == 'add' and cur == bot:
@@ -126,6 +127,21 @@ def corrupt(tab, vals0, ranks0):
         else: struct.pack_into('<q', vals, off, nv)
         return kind, bytes(vals), bytes(ranks)
     return None
+
+
+_NUMTOP = {}
+def numtop(src2):
+    """定義の答えが min / max / sum の場に ⊤ を持つか（源ごとに一度だけ解く）"""
+    if src2 not in _NUMTOP:
+        try:
+            p = LX.parse(src2); LX.check(p); LX.stratify(p); LX.io_rounds(p); LX.certify(p)
+            st, _, _ = LX.run(p, out=io.StringIO())
+            _NUMTOP[src2] = any(p.fields[f].name in ('min', 'max', 'sum')
+                                and isinstance(p.fields[f].observe(v), LX._Top)
+                                for f, d in st.items() for v in d.values())
+        except Exception:
+            _NUMTOP[src2] = False
+    return _NUMTOP[src2]
 
 
 def src_verdict(src, tab, vals, ranks, data):
@@ -150,6 +166,11 @@ def src_verdict(src, tab, vals, ranks, data):
         rows = A.rows_of(T, data)
         lit = ", ".join("(" + ",".join(str(x) for x in r) + ")" for r in rows) if rows else "(0,32)"
         src2 = re.sub(r'(?m)^table (\w+) = .*$', lambda m: 'table %s = %s' % (m.group(1), lit), src, count=1)
+        # **数の場の ⊤ は、まだ源の上で示せない**（14v）。焼いた本は ⊤ を min / max / sum へも運び、升には
+        # 束の順の端（0x7fff…ffff / 0x8000…0000）を置く —— 面の上では正しい 0x7fff…ffff と見分けが付かない。
+        # 表の上の二つ（ir と attest.lx）は「±2^60 を越える値」として UNSUPPORTED と言う。源で読み直す側も
+        # 同じ所で言う: 定義の答えが数の場に ⊤ を持つ本は判定しない（持たない本の端の値は、ただの数）
+        if numtop(src2): return 'unsupported'
         return 'attested' if ATT.attest(src2, store, rank).ok else 'rejected'
     except Exception as e:
         return 'py-error'

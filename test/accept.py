@@ -1208,13 +1208,89 @@ h[i] <- b[i] - f[i] * f[i]   for (i) in 0 .. 3
 field w : flat bound 4
 w[i] <- g[i] / 2 + 1   for (i) in 0 .. 3
 """)
-case("⊤ を数の場へ読む（言う）", """table ch = (0,32)
+# （14v）数の場も ⊤ を持つ: max の ⊤ は数の上の端（0x7fff…ffff）。前は読む前に止まって言っていた
+case("⊤ を数の場へ読む（通る）", """table ch = (0,32)
 field f : flat bound 4
 f[0] <- 1
 f[0] <- 2
 field m : max bound 4
 m[i] <- f[i] + 1   for (i) in 0 .. 3
+""")
+# **⊤ を min / max の場へ運ぶ**（14v）。算術は ⊤ 厳密（⊤ - ⊤ も ⊤）、比較は ⊤ で立つ、join は ⊤ を吸収する
+# （max の 2 も min の 9 も ⊤ に負ける）。⊥ の升（f[0]・f[3]）は運ばない
+case("⊤ を min / max の場へ運ぶ（通る）", """table ch = (0,32)
+field f : flat bound 4
+f[1] <- 3
+f[1] <- 4
+f[2] <- 5
+field m : max bound 4
+m[i] <- f[i] + 1   for (i) in 0 .. 3
+m[i] <- 2          for (i) in 0 .. 3
+field n : min bound 4
+n[i] <- 0 - f[i]   for (i) in 0 .. 3
+n[i] <- 9          for (i) in 0 .. 3
+field c : or bound 4
+c[i] <- true   for (i) in 0 .. 3 if m[i] > 100
+field d : or bound 4
+d[i] <- true   for (i) in 0 .. 3 if 100 < n[i]
+field k : max bound 4
+k[i] <- m[i] - n[i]   for (i) in 0 .. 3
+field q : count bound 1
+q[0] <- n[i] * 3   for (i) in 0 .. 3
+""")
+# **sum の ⊤**（14v）: 寄与の一つが ⊤ なら和は ⊤。join が升の ⊤ を見て足さない（足す順に依らない ——
+# ⊤ の寄与が先でも後でも ⊤）。⊤ を読まない寄与だけの升（s[0]・s[2]・s[3]）は和のまま
+case("⊤ を sum の場へ運ぶ（通る）", """table ch = (0,32)
+field f : flat bound 4
+f[1] <- 3
+f[1] <- 4
+f[2] <- 5
+field s : sum bound 4
+s[i] <- 10         for (i) in 0 .. 3
+s[i] <- f[i] + 1   for (i) in 0 .. 3
+s[i] <- i          for (i) in 0 .. 3
+field t : sum bound 1
+t[0] <- f[i]       for (i) in 0 .. 3
+field c : or bound 4
+c[i] <- true   for (i) in 0 .. 3 if s[i] > 100
+field u : max bound 4
+u[i] <- s[i] * 2   for (i) in 0 .. 3
+""")
+# ⊤ を運ぶ数の場を座標に読む本は、運ばずに読む前に止まって言う（定義も ⊤ を座標にしない）
+case("⊤ を運ぶ max の場を座標に読む（言う）", """table ch = (0,32)
+field f : flat bound 4
+f[1] <- 3
+f[1] <- 4
+field m : max bound 4
+m[i] <- f[i] + 1   for (i) in 0 .. 3
+field g : max bound 8
+g[m[i]] <- 1   for (i) in 0 .. 3
 """, exit=5)
+# ⊤ を運ぶ max の場は、正しい値が ⊤ の印（0x7fff…ffff）とぶつかれば言う。⊤ を運ばない場は持てる
+case("⊤ を運ぶ max の場に 0x7fff…ffff を書く（言う）", """table ch = (0,32)
+field f : flat bound 4
+f[1] <- 3
+f[1] <- 4
+field h : max bound 4
+h[i] <- 2147483647 * 2147483647   for (i) in 3 .. 3
+field g : max bound 4
+g[i] <- h[i] + h[i]   for (i) in 3 .. 3
+field k : max bound 4
+k[i] <- i * 2147483647 + 2147483647 + 1   for (i) in 3 .. 3
+field m : max bound 4
+m[i] <- f[i] + 1   for (i) in 0 .. 3
+m[i] <- g[i] + k[i]   for (i) in 3 .. 3
+""", exit=4)
+case("⊤ を運ばない max の場は 0x7fff…ffff を持てる", """table ch = (0,32)
+field h : max bound 4
+h[i] <- 2147483647 * 2147483647   for (i) in 3 .. 3
+field g : max bound 4
+g[i] <- h[i] + h[i]   for (i) in 3 .. 3
+field k : max bound 4
+k[i] <- i * 2147483647 + 2147483647 + 1   for (i) in 3 .. 3
+field m : max bound 4
+m[i] <- g[i] + k[i]   for (i) in 3 .. 3
+""")
 case("同じ値なら ⊤ にならない", """table ch = (0,32)
 field g : flat bound 4
 g[0] <- 1   for (i,c) in ch if c == 97
@@ -1600,13 +1676,13 @@ c[1] <- 1
 c[1] <- 1
 c[2] <- 1
 """)
-case("同じ升の種が ⊤ を作り、数として読まれる（言う）", """table ch = (0,32)
+case("同じ升の種が ⊤ を作り、数として読まれる（通る）", """table ch = (0,32)
 field g : flat bound 4
 field y : max bound 4
 g[2] <- 1
 g[2] <- 2
 y[i] <- g[i] + 1   for (i) in 0 .. 3
-""", exit=5)
+""")
 
 # ══ 区間の上端（上端が ⊥ なら回らない・広さは言語の上限まで）══════════════
 # 上端が min / flat の ⊥（2147483647）を数として読んで二十億回まわり segfault した。
@@ -2132,10 +2208,14 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
             if v is True: v=1
             if v is False: continue
             if isinstance(v, dict):        # sum / count は寄与の袋で持っている
+                # sum の寄与の一つが ⊤ なら和は ⊤（14v: 焼いた升は 0x8000…0000）
+                if latf == 'sum' and any(not isinstance(x, int) for x in v.values()):
+                    ref[(f,)+tuple(kk)] = -9223372036854775808; continue
                 v = sum(v.values()) if latf=='sum' else len(v)
                 if latf == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
-            if not isinstance(v, int): v = 2147483646     # flat の ⊤
+            # ⊤ の印（14v）: flat は 2147483646、数の場は束の順の端 —— max は 0x7fff…ffff、min は 0x8000…0000
+            if not isinstance(v, int): v = {'max': 9223372036854775807, 'min': -9223372036854775808}.get(latf, 2147483646)
             ref[(f,)+tuple(kk)]=v
     same = got==ref
     if not same and known:

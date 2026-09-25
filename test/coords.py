@@ -20,6 +20,9 @@ import os, re, struct, subprocess, sys, io, random, tempfile, collections, signa
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import lattix as L
+# ⊤ の印（14v）: flat は 2147483646、数の場は束の順の端 —— max は 0x7fff…ffff、min と sum は 0x8000…0000。
+# count は値を見ない束なので ⊤ の寄与も一つと数える（⊤ にならない）
+TOPM = {'max': 9223372036854775807, 'min': -9223372036854775808, 'sum': -9223372036854775808}
 LATTIX = os.environ.get('LATTIX_EXE', os.path.join(ROOT, 'lattix'))
 W = 78
 
@@ -85,10 +88,12 @@ def answer(s):
         for kk, v in d.items():
             if v is True: v = 1
             if v is False: continue
-            if isinstance(v, dict): v = sum(v.values()) if lat == 'sum' else len(v)
+            if isinstance(v, dict):
+                if lat == 'sum' and any(isinstance(x, L._Top) for x in v.values()): v = TOPM['sum']
+                else: v = sum(v.values()) if lat == 'sum' else len(v)
             if lat == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
-            if not isinstance(v, int): v = 2147483646
+            if not isinstance(v, int): v = TOPM.get(lat, 2147483646)
             ref[(f,) + tuple(kk)] = v
     return ref
 
@@ -135,7 +140,8 @@ if __name__ == '__main__':
             hit = [1 for k, v in ref.items() if not -2**63 <= v < 2**63
                    or (_lat.get(k[0]) == 'min' and v >= 2147483647)
                    or (_lat.get(k[0]) == 'max' and v <= -2147483647)
-                   or (_lat.get(k[0]) == 'flat' and v in (2147483646, 2147483647))]
+                   or (_lat.get(k[0]) == 'flat' and v in (2147483646, 2147483647))
+                   or (_lat.get(k[0]) in TOPM and v == TOPM[_lat.get(k[0])])]
             if hit: kinds['焼く側が断る（%d 値）' % rc] += 1
             else: bad.append((place, s, '答えに無い理由で終了コード %d' % rc))
             continue

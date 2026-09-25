@@ -24,6 +24,9 @@ import os, re, struct, subprocess, sys, io, collections, tempfile, random
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import lattix as L
+# ⊤ の印（14v）: flat は 2147483646、数の場は束の順の端 —— max は 0x7fff…ffff、min と sum は 0x8000…0000。
+# count は値を見ない束なので ⊤ の寄与も一つと数える（⊤ にならない）
+TOPM = {'max': 9223372036854775807, 'min': -9223372036854775808, 'sum': -9223372036854775808}
 LATTIX = os.path.join(ROOT, "lattix")
 
 def widths(src):
@@ -140,7 +143,8 @@ for k,c in enumerate(combos):
              if isinstance(v,int) and not isinstance(v,bool) and (
                 (latn[f]=='min' and v>=2147483647) or
                 (latn[f]=='max' and v<=-2147483647) or
-                (latn[f]=='flat' and v in (2147483646, 2147483647)))]
+                (latn[f]=='flat' and v in (2147483646, 2147483647)) or
+                (latn[f] in TOPM and v == TOPM[latn[f]]))]
         if hit: refused+=1; continue
         bad.append((src,'印の無い答えで終了コード 4')); continue
     # **終了コード 3 は「値が 64 ビットに収まらない」**（解釈実行は多倍長で持つ）。
@@ -173,10 +177,12 @@ for k,c in enumerate(combos):
         for kk,v in d.items():
             if v is True: v=1
             if v is False: continue
-            if isinstance(v, dict): v = sum(v.values()) if latf=='sum' else len(v)
+            if isinstance(v, dict):
+                if latf == 'sum' and any(isinstance(x, L._Top) for x in v.values()): v = TOPM['sum']
+                else: v = sum(v.values()) if latf=='sum' else len(v)
             if latf == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
-            if not isinstance(v, int): v = 2147483646
+            if not isinstance(v, int): v = TOPM.get(latf, 2147483646)
             ref[(f,)+tuple(kk)]=v
     if got!=ref:
         og=sorted(set(got)-set(ref))[:2]; orr=sorted(set(ref)-set(got))[:2]

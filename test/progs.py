@@ -16,6 +16,9 @@ import os, re, struct, subprocess, sys, io, random, tempfile, collections, signa
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import lattix as L
+# ⊤ の印（14v）: flat は 2147483646、数の場は束の順の端 —— max は 0x7fff…ffff、min と sum は 0x8000…0000。
+# count は値を見ない束なので ⊤ の寄与も一つと数える（⊤ にならない）
+TOPM = {'max': 9223372036854775807, 'min': -9223372036854775808, 'sum': -9223372036854775808}
 LATTIX = os.environ.get('LATTIX_EXE', os.path.join(ROOT, 'lattix'))
 W = 78
 
@@ -153,18 +156,20 @@ def answer(s, data):
             if v is True: v = 1
             if v is False: continue
             if isinstance(v, dict):
-                if any(isinstance(x, L._Top) for x in v.values()): top = True; v = 2147483646
+                if lat == 'count': v = len(v)      # count は ⊤ の寄与も一つと数える
+                elif any(isinstance(x, L._Top) for x in v.values()): top = True; v = TOPM.get(lat, 2147483646)
                 else: v = sum(v.values()) if lat == 'sum' else len(v)
             if lat == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
-            if not isinstance(v, int): v = 2147483646; top = True
+            if not isinstance(v, int): v = TOPM.get(lat, 2147483646); top = True
             ref[(f,) + tuple(kk)] = v
     return ref, top
 
 
 def reaches(lat, v):
     return ((lat == 'min' and v >= 2147483647) or (lat == 'max' and v <= -2147483647) or
-            (lat == 'flat' and v in (2147483646, 2147483647)))
+            (lat == 'flat' and v in (2147483646, 2147483647)) or
+            (lat in TOPM and v == TOPM[lat]))       # ⊤ を運ぶ数の場の端の印（14v）
 
 
 def respace(s, rnd):

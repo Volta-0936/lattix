@@ -3699,6 +3699,10 @@ encb[214,0] <- 72                    # 48 3B 83 d32  cmp rax, [rbx+d32]    （�
 encb[214,1] <- 59
 encb[214,2] <- 131
 shp[214] <- 28868
+encb[245,0] <- 72                    # 48 3B B3 d32  cmp rsi, [rbx+d32]    （数の場の ⊤ の印と比べる。14v）
+encb[245,1] <- 59
+encb[245,2] <- 179
+shp[245] <- 28868
 encb[215,0] <- 72                    # 48 FF 83 d32  inc qword [rbx+d32]   （升の計数器を進める）
 encb[215,1] <- 255
 encb[215,2] <- 131
@@ -4157,6 +4161,35 @@ fbot[f] <- bias[0]                  for (f) in 0 .. nflz[0] if fdlat[f] == 9   #
 # flat の ⊤。⊥ の一つ下の番地に住まわせる（値の帯とぶつからない約束は試験が守る）
 field ftop : max bound 1
 ftop[z] <- 2147483646 + bias[0]   for (z) in 0 .. 0
+# **数の場の ⊤ は、束の順の端に置く**（14v）。min / max の束の順は数の順そのものなので、⊤（どの値より上）
+# は max では数の上の端、min では下の端である —— 端に置けば join（大きい方 / 小さい方を取る）が **そのまま
+# ⊤ を吸収する**（join の命令は一つも変わらない）。端は機械の整数の端（0x7fff…ffff と 0x8000…0000）に取る:
+# 32 ビットの即値に置ける所（flat の印の 2147483646）に置くと、印より向こうの値を全部失う（焼き手自身が
+# 2^32 を越える値を max の場に持つ）。64 ビットの印は即値に入らないので、場の下の二升に置いて升と比べる
+# （[rbx-200] に max の ⊤、[rbx-208] に min の ⊤。起動のとき五命令で置く —— ⊤ を運ぶ数の場がある本だけ）。
+# count は ⊤ を持たない（定義は ⊤ の寄与も一つと数える —— 値を見ない束）。
+field ftpf : max bound 2048                  # 場 f の ⊤ の印（flat は即値、min / max は升の変位）
+ftpf[f] <- 2147483646 + bias[0]     for (f) in 0 .. nflz[0] if fdlat[f] == 6
+ftpf[f] <- bias[0] - 200            for (f) in 0 .. nflz[0] if fdlat[f] == 2
+ftpf[f] <- bias[0] - 208            for (f) in 0 .. nflz[0] if fdlat[f] == 1
+ftpf[f] <- 1 + bias[0]              for (f) in 0 .. nflz[0] if fdlat[f] == 9
+ftpf[f] <- bias[0] - 208            for (f) in 0 .. nflz[0] if fdlat[f] == 8   # sum の ⊤ も 0x8000…0000（join が吸収を見る）
+field ftcs : max bound 2048                  # rsi を場 f の ⊤ の印と比べる形
+ftcs[f] <- 66                       for (f) in 0 .. nflz[0] if fdlat[f] == 6   # cmp rsi, imm32
+ftcs[f] <- 245                      for (f) in 0 .. nflz[0] if fdlat[f] == 1   # cmp rsi, [rbx+d32]
+ftcs[f] <- 245                      for (f) in 0 .. nflz[0] if fdlat[f] == 2
+ftcs[f] <- 245                      for (f) in 0 .. nflz[0] if fdlat[f] == 8
+field ftca : max bound 2048                  # rax を場 f の ⊤ の印と比べる形
+ftca[f] <- 12                       for (f) in 0 .. nflz[0] if fdlat[f] == 6   # cmp rax, imm32
+ftca[f] <- 214                      for (f) in 0 .. nflz[0] if fdlat[f] == 1   # cmp rax, [rbx+d32]
+ftca[f] <- 214                      for (f) in 0 .. nflz[0] if fdlat[f] == 2
+ftca[f] <- 214                      for (f) in 0 .. nflz[0] if fdlat[f] == 8
+field ftlm : max bound 2048                  # rax に場 f の ⊤ の印を置く形
+ftlm[f] <- 2                        for (f) in 0 .. nflz[0] if fdlat[f] == 6   # mov rax, imm32
+ftlm[f] <- 159                      for (f) in 0 .. nflz[0] if fdlat[f] == 1   # mov rax, [rbx+d32]
+ftlm[f] <- 159                      for (f) in 0 .. nflz[0] if fdlat[f] == 2
+ftlm[f] <- 2                        for (f) in 0 .. nflz[0] if fdlat[f] == 9
+ftlm[f] <- 159                      for (f) in 0 .. nflz[0] if fdlat[f] == 8
 
 # 規則が読む場の ⊥（読み場と書き場は同じ束の族とする）
       for (r) in 0 .. nrlz[0]
@@ -4252,13 +4285,14 @@ glen[gg] <- ctot[gdoo[gg]] + 5 + gxl[gg]   for (gg) in 0 .. nggz[0] if gdk[gg] =
 glen[gg] <- ctot[gdoo[gg]] + 7 + gxr[gg] + gxp[gg]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 glen[gg] <- 1                    for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] >= 1
 glen[gg] <- 3 + gxp[gg]          for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
-# **比較は ⊤ で立つ**（13e）。左辺が flat の場の読みなら、⊥ の検査のあとで「⊤ か」を旗に
-# 置く（sete —— 立てるのも下ろすのも一命令）。右辺が flat の場の読みなら ⊤ で立つ方へ飛ぶ。
+# **比較は ⊤ で立つ**（13e）。左辺が ⊤ になりうる場の読みなら、⊥ の検査のあとで「⊤ か」を旗に
+# 置く（sete —— 立てるのも下ろすのも一命令）。右辺がそうなら ⊤ で立つ方へ飛ぶ。印は読む場の印
+# （flat は即値、数の場は升の端の印 —— 14v）。
 # 右辺は左辺の旗も見る（左辺が ⊤ でも右辺の ⊥ は見てから —— ⊥ は比べられない）。
 # 比較の二行は隣り合う（左辺が gg - 1、右辺が gg。fold.lx の `gbt[t]` と `gbt[t] + 1`）。
-field gtl : or bound 16384                      # 比較の左辺は flat の場の読み
+field gtl : or bound 16384                      # 比較の左辺は ⊤ になりうる場の読み
 gtl[gg] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0 if ftc[gdf[gg]]
-field gtr : or bound 16384                      # 比較の右辺は flat の場の読み
+field gtr : or bound 16384                      # 比較の右辺は ⊤ になりうる場の読み
 gtr[gg] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0 if ftc[gdf[gg]]
 field gtp : or bound 16384                      # 比較の右辺で、左辺が flat の場の読み
 gtp[gg] <- true   for (gg) in 1 .. nggz[0] if gdk[gg] == 4 if gtl[gg-1]
@@ -4619,6 +4653,9 @@ field vchk : max bound 16384                 # 規則 r の値の見張りの命
 vchk[r] <- 0           for (r) in 0 .. nrlz[0]
 vchk[r] <- 2           for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not vsafe[r]
 vchk[r] <- 4           for (r) in 0 .. nrlz[0] if rrlt[r] == 6 if not vsafe[r]
+# ⊤ を持つ min / max の場は ⊤ の印（機械の整数の端）とも比べる —— 定数でも写しでも見張る（二命令）
+vchk[r] <- 4           for (r) in 0 .. nrlz[0] if rrlt[r] == 1 if ftc[rrwf[r]]
+vchk[r] <- 4           for (r) in 0 .. nrlz[0] if rrlt[r] == 2 if ftc[rrwf[r]]
 field rxw : or bound 16384                   # 規則 r の書き先は ⊥ を 0 に置く場
 rxw[r] <- true    for (r) in 0 .. nrlz[0] if fxr[rrwf[r]]
 jlen[r] <- 5 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
@@ -4626,7 +4663,7 @@ jlen[r] <- 5 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if not rxw[r]
 jlen[r] <- 6 + vchk[r] for (r) in 0 .. nrlz[0] if rrlt[r] < 3 if rxw[r]
 jlen[r] <- 5    for (r) in 0 .. nrlz[0] if rrlt[r] == 3
 jlen[r] <- 11 + vchk[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
-jlen[r] <- 6 + amx[r]    for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # 足す + jo（溢れ）
+jlen[r] <- 6 + amx[r] + sxp[r] + sxq[r]   for (r) in 0 .. nrlz[0] if rrlt[r] == 8   # 足す + jo（溢れ）+ ⊤（14v）
 jlen[r] <- 6 + amx[r]    for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 field jb : max bound 16384                      # join の位置
 jb[r] <- wpos[r] + 1 + wof[r] + tvx[r] + vchk[r]   for (r) in 0 .. nrlz[0]
@@ -4852,9 +4889,28 @@ form[pb[z] + 2] <- 2    for (z) in 0 .. 0 if nxr[z] == 4    # mov rax, -21474836
 imm[pb[z] + 2]  <- 0 - 2147483647 + bias[0]   for (z) in 0 .. 0 if nxr[z] == 4
 form[pb[z] + 3] <- 51   for (z) in 0 .. 0 if nxr[z] == 4    # mov [rbx-56], rax
 imm[pb[z] + 3]  <- 0 - 56 + bias[0]       for (z) in 0 .. 0 if nxr[z] == 4
-fzp[f] <- pb[0] + nxr[0] + f6[f]     for (f) in 0 .. nflz[0]
-nfld6[z] <- nxr[0]                   for (z) in 0 .. 0
-nfld6[z] <- f6[f] + 6 + nxr[0]       for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if not nofill[f]
+# 数の場の ⊤ の印を二升に置く五命令（14v。⊤ を運ぶ min / max の場があるときだけ）:
+#   mov rax, -1 / shr rax, 1（0x7fff…ffff）/ mov [rbx-200], rax / add rax, 1（0x8000…0000）/ mov [rbx-208], rax
+field ntx : max bound 1                     # ⊤ の印の命令数
+ntx[0] <- 0
+ntx[z] <- 5                          for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if ftc[f] if fdlat[f] == 1
+ntx[z] <- 5                          for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if ftc[f] if fdlat[f] == 2
+ntx[z] <- 5                          for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if ftc[f] if fdlat[f] == 8
+field txp : max bound 1                     # その頭
+txp[z] <- pb[0] + nxr[0]             for (z) in 0 .. 0
+form[txp[z]]     <- 2    for (z) in 0 .. 0 if ntx[z] == 5    # mov rax, -1
+imm[txp[z]]      <- bias[0] - 1           for (z) in 0 .. 0 if ntx[z] == 5
+form[txp[z] + 1] <- 198  for (z) in 0 .. 0 if ntx[z] == 5    # shr rax, 1
+imm[txp[z] + 1]  <- 1 + bias[0]           for (z) in 0 .. 0 if ntx[z] == 5
+form[txp[z] + 2] <- 51   for (z) in 0 .. 0 if ntx[z] == 5    # mov [rbx-200], rax（max の ⊤）
+imm[txp[z] + 2]  <- bias[0] - 200         for (z) in 0 .. 0 if ntx[z] == 5
+form[txp[z] + 3] <- 84   for (z) in 0 .. 0 if ntx[z] == 5    # add rax, 1
+imm[txp[z] + 3]  <- 1 + bias[0]           for (z) in 0 .. 0 if ntx[z] == 5
+form[txp[z] + 4] <- 51   for (z) in 0 .. 0 if ntx[z] == 5    # mov [rbx-208], rax（min の ⊤）
+imm[txp[z] + 4]  <- bias[0] - 208         for (z) in 0 .. 0 if ntx[z] == 5
+fzp[f] <- pb[0] + nxr[0] + ntx[0] + f6[f]     for (f) in 0 .. nflz[0]
+nfld6[z] <- nxr[0] + ntx[0]          for (z) in 0 .. 0
+nfld6[z] <- f6[f] + 6 + nxr[0] + ntx[0]       for (f) in 0 .. nflz[0] for (z) in 0 .. 0 if not nofill[f]
 form[fzp[f]] <- 2                  for (f) in 0 .. nflz[0] if not nofill[f]   # mov rax, ⊥(束)
 imm[fzp[f]]  <- fbot[f]            for (f) in 0 .. nflz[0] if not nofill[f]
 form[fzp[f] + 1] <- 3                  for (f) in 0 .. nflz[0] if not nofill[f]   # mov rcx, 0
@@ -5342,11 +5398,11 @@ imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 4
 field gcm : max bound 16384                     # `cmp rax,rsi` の居る命令
 gcm[gg] <- gc[gg] + 5 + gxr[gg] + gxp[gg]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 gcm[gg] <- gc[gg] + 1 + gxp[gg]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
-form[gc[gg] + 5] <- 66   for (gg) in 0 .. nggz[0] if gtl[gg]           # cmp rsi, ⊤ の印
-imm[gc[gg] + 5]  <- ftop[0]   for (gg) in 0 .. nggz[0] if gtl[gg]
+form[gc[gg] + 5] <- ftcs[gdf[gg]]   for (gg) in 0 .. nggz[0] if gtl[gg]   # cmp rsi, ⊤ の印（場ごと）
+imm[gc[gg] + 5]  <- ftpf[gdf[gg]]   for (gg) in 0 .. nggz[0] if gtl[gg]
 form[gc[gg] + 6] <- 216  for (gg) in 0 .. nggz[0] if gtl[gg]           # sete byte [旗]
-form[gc[gg] + 5] <- 12   for (gg) in 0 .. nggz[0] if gtr[gg]           # cmp rax, ⊤ の印
-imm[gc[gg] + 5]  <- ftop[0]   for (gg) in 0 .. nggz[0] if gtr[gg]
+form[gc[gg] + 5] <- ftca[gdf[gg]]   for (gg) in 0 .. nggz[0] if gtr[gg]   # cmp rax, ⊤ の印（場ごと）
+imm[gc[gg] + 5]  <- ftpf[gdf[gg]]   for (gg) in 0 .. nggz[0] if gtr[gg]
 form[gc[gg] + 6] <- 13   for (gg) in 0 .. nggz[0] if gtr[gg]           # je → 立つ
 jt[gc[gg] + 6]   <- gcm[gg] + 2   for (gg) in 0 .. nggz[0] if gtr[gg]
 form[gcm[gg] - 2] <- 217 for (gg) in 0 .. nggz[0] if gtp[gg]           # cmp byte [旗], 0
@@ -5741,8 +5797,9 @@ scb[trk[gt] + 1]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 #   書き先が flat → 旗を立て、rsi を 0 にして続ける（溢れも割り算も起こさない）。
 #     全部の読みが済んだら（⊥ ならその前に抜けている）、旗が立っていれば値を ⊤ にして join へ。
 #     旗は実例ごとに項の前で下ろす —— 抜けた実例の旗が次の実例に残らない。
-#   書き先が flat でない → **読む前に止まって言う**（前は join で止まっていた。読む時に
-#     止めれば、`if not` で ⊤ の升を避けた読みは止まらない —— print がそれを使う）。
+#   書き先が min / max / sum / count（14v）→ flat と同じく旗で運ぶ。値は書き先の ⊤ の印（下の tcar）。
+#   書き先が ⊤ を運べない（座標などで誤読される数の場・or）→ **読む前に止まって言う**（前は join で
+#     止まっていた。読む時に止めれば、`if not` で ⊤ の升を避けた読みは止まらない —— print がそれを使う）。
 # **⊤ になりうる場だけを見張る。** flat の場でも、規則が書かず種が衝突しない場（下ろした表の列
 # `_t<k>c<j>` がそれ —— 升ごとに種が一つ）は ⊤ にならない。見張れば四命令ずつ膨らむだけである。
 field fwr : or bound 2048                       # 場 f は規則が書く
@@ -5752,6 +5809,11 @@ fsjt[sdf[s]] <- true   for (s) in 0 .. nsdz[0] if sjfl[s]
 field ftc : or bound 2048                       # 場 f は ⊤ になりうる
 ftc[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 6 if fwr[f]
 ftc[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 6 if fsjt[f]
+# **数の場も ⊤ になる**（14v）: ⊤ を読んだ値を運ぶ規則が書く min / max の場（答えの定義は ⊤ をどの束へも
+# 運ぶ —— ⊤ は「どの束でもいちばん上」なので吸収する）。読む場が ⊤ になりうるかが、書く場へ移る（輪で閉じる）
+ftc[rrwf[r]] <- true   for (r) in 0 .. nrlz[0] if rtv[r] if rrlt[r] == 1
+ftc[rrwf[r]] <- true   for (r) in 0 .. nrlz[0] if rtv[r] if rrlt[r] == 2
+ftc[rrwf[r]] <- true   for (r) in 0 .. nrlz[0] if rtv[r] if rrlt[r] == 8
 field ttop : or bound 16384                     # 項 gt は ⊤ になりうる場を数として読む
 ttop[gt] <- true   for (gt) in 0 .. ngtz[0] if isrd[gt] if ftc[tmf[gt]] if not tcopy[gt]
 field tvk : max bound 16384                     # その見張りの命令数
@@ -5759,32 +5821,42 @@ tvk[gt] <- 0       for (gt) in 0 .. ngtz[0] if not ttop[gt]
 tvk[gt] <- 4       for (gt) in 0 .. ngtz[0] if ttop[gt]
 field tcv : max bound 16384                     # 見張りのあとの位置（前の `tc + 3` の手前）
 tcv[gt] <- tc[gt] + tvk[gt]   for (gt) in 0 .. ngtz[0] if isrd[gt]
-field rtv : or bound 16384                      # 規則 r は ⊤ を値として運ぶ（書き先が flat）
-rtv[tmr[gt]] <- true   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6
+# **⊤ を運べる書き先**（14v）: flat と、min / max（印は束の順の端）と、count（値を見ない —— ⊤ も一つと数える）。
+# 書き先の ⊤ が座標・区間の上端・描画で誤読される場（tdang）なら、数の場は運ばずに読む前に止まって言う
+# （flat は join で ⊤ を作ったときに止まる —— frdr）。sum は足すので端では吸収しない —— join が升の ⊤ を見て
+# 足さずに抜け、⊤ の寄与（旗が立っている）は ⊤ の印を置く（下の「sum の ⊤」）
+field tcar : or bound 16384                     # 規則 r は ⊤ を値として書き先へ運べる
+tcar[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 6
+tcar[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 1 if not tdang[rrwf[r]]
+tcar[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 2 if not tdang[rrwf[r]]
+tcar[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
+tcar[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 8 if not tdang[rrwf[r]]
+field rtv : or bound 16384                      # 規則 r は ⊤ を値として運ぶ
+rtv[tmr[gt]] <- true   for (gt) in 0 .. ngtz[0] if ttop[gt] if tcar[tmr[gt]]
 field trs : max bound 16384                     # 項の前で旗を下ろす一命令
 trs[r] <- 0        for (r) in 0 .. nrlz[0] if not rtv[r]
 trs[r] <- 1        for (r) in 0 .. nrlz[0] if rtv[r]
 field tvx : max bound 16384                     # join の前で旗を見る四命令
 tvx[r] <- 0        for (r) in 0 .. nrlz[0] if not rtv[r]
 tvx[r] <- 4        for (r) in 0 .. nrlz[0] if rtv[r]
-form[tc[gt] + 3] <- 66   for (gt) in 0 .. ngtz[0] if ttop[gt]          # cmp rsi, ⊤ の印
-imm[tc[gt] + 3]  <- ftop[0]   for (gt) in 0 .. ngtz[0] if ttop[gt]
+form[tc[gt] + 3] <- ftcs[tmf[gt]]   for (gt) in 0 .. ngtz[0] if ttop[gt]   # cmp rsi, ⊤ の印（読む場の印）
+imm[tc[gt] + 3]  <- ftpf[tmf[gt]]   for (gt) in 0 .. ngtz[0] if ttop[gt]
 form[tc[gt] + 4] <- 22   for (gt) in 0 .. ngtz[0] if ttop[gt]          # jne → 見張りの後ろ
 jt[tc[gt] + 4]   <- tcv[gt] + 3   for (gt) in 0 .. ngtz[0] if ttop[gt]
-form[tc[gt] + 5] <- 218  for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6   # 旗を立てる
-form[tc[gt] + 6] <- 57   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6   # xor esi, esi
-form[tc[gt] + 5] <- 162  for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6   # mov r15d, 場番号
-imm[tc[gt] + 5]  <- tmf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6
-form[tc[gt] + 6] <- 78   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6   # jmp → ⊤ の出口
-jt[tc[gt] + 6]   <- tpx[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6
+form[tc[gt] + 5] <- 218  for (gt) in 0 .. ngtz[0] if ttop[gt] if tcar[tmr[gt]]       # 旗を立てる
+form[tc[gt] + 6] <- 57   for (gt) in 0 .. ngtz[0] if ttop[gt] if tcar[tmr[gt]]       # xor esi, esi
+form[tc[gt] + 5] <- 162  for (gt) in 0 .. ngtz[0] if ttop[gt] if not tcar[tmr[gt]]   # mov r15d, 場番号
+imm[tc[gt] + 5]  <- tmf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if not tcar[tmr[gt]]
+form[tc[gt] + 6] <- 78   for (gt) in 0 .. ngtz[0] if ttop[gt] if not tcar[tmr[gt]]   # jmp → ⊤ の出口
+jt[tc[gt] + 6]   <- tpx[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if not tcar[tmr[gt]]
 form[tb[r] - 1] <- 219   for (r) in 0 .. nrlz[0] if rtv[r]              # 旗を下ろす
 field tvp : max bound 16384                     # join の前の四命令の位置（書き座標のあと）
 tvp[r] <- wpos[r] + 1 + wof[r]   for (r) in 0 .. nrlz[0] if rtv[r]
 form[tvp[r]]     <- 220  for (r) in 0 .. nrlz[0] if rtv[r]              # cmp byte [旗], 0
 form[tvp[r] + 1] <- 13   for (r) in 0 .. nrlz[0] if rtv[r]              # je → 値の見張り
 jt[tvp[r] + 1]   <- tvp[r] + 4   for (r) in 0 .. nrlz[0] if rtv[r]
-form[tvp[r] + 2] <- 2    for (r) in 0 .. nrlz[0] if rtv[r]              # mov rax, ⊤ の印
-imm[tvp[r] + 2]  <- ftop[0]   for (r) in 0 .. nrlz[0] if rtv[r]
+form[tvp[r] + 2] <- ftlm[rrwf[r]]   for (r) in 0 .. nrlz[0] if rtv[r]   # mov rax, ⊤ の印（書き先の印）
+imm[tvp[r] + 2]  <- ftpf[rrwf[r]]   for (r) in 0 .. nrlz[0] if rtv[r]
 form[tvp[r] + 3] <- 78   for (r) in 0 .. nrlz[0] if rtv[r]              # jmp → join（見張りを飛ばす）
 jt[tvp[r] + 3]   <- jb[r]   for (r) in 0 .. nrlz[0] if rtv[r]
 
@@ -5825,8 +5897,8 @@ form[jb[r] - 1] <- 13  for (r) in 0 .. nrlz[0] if vchk[r] >= 2 if rrlt[r] == 6  
 form[jb[r] - 1] <- 17  for (r) in 0 .. nrlz[0] if vchk[r] >= 2 if rrlt[r] == 1   # jge → 踏み台
 form[jb[r] - 1] <- 48  for (r) in 0 .. nrlz[0] if vchk[r] >= 2 if rrlt[r] == 2   # jle → 踏み台
 jt[jb[r] - 1]   <- vsf[rrwf[r]]  for (r) in 0 .. nrlz[0] if vchk[r] >= 2
-form[jb[r] - 4] <- 12  for (r) in 0 .. nrlz[0] if vchk[r] == 4     # cmp rax, ⊤ の印
-imm[jb[r] - 4]  <- ftop[0]  for (r) in 0 .. nrlz[0] if vchk[r] == 4
+form[jb[r] - 4] <- ftca[rrwf[r]]  for (r) in 0 .. nrlz[0] if vchk[r] == 4   # cmp rax, ⊤ の印（場ごと）
+imm[jb[r] - 4]  <- ftpf[rrwf[r]]  for (r) in 0 .. nrlz[0] if vchk[r] == 4
 form[jb[r] - 3] <- 13  for (r) in 0 .. nrlz[0] if vchk[r] == 4
 jt[jb[r] - 3]   <- vsf[rrwf[r]]  for (r) in 0 .. nrlz[0] if vchk[r] == 4
 
@@ -6004,12 +6076,52 @@ imm[ajc[r]]  <- 1 + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 
 # 集約の束ごとの位置
 field jlp : max bound 16384
-jlp[r] <- jb[r] + rrlt[r] - 5 + amx[r]   for (r) in 0 .. nrlz[0]
+jlp[r] <- jb[r] + rrlt[r] - 5 + amx[r] + sxp[r]   for (r) in 0 .. nrlz[0]
 form[jlp[r]] <- 70  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 imm[jlp[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 scb[jlp[r]]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
 form[jlp[r] + 1] <- 191  for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # jo → 溢れの踏み台
 jt[jlp[r] + 1]   <- osf[rrwf[r]]   for (r) in 0 .. nrlz[0] if rrlt[r] == 8
+
+# ── **sum の ⊤**（14v）。定義の sum は寄与の袋で、寄与の一つが ⊤ なら和は ⊤（⊤ は吸収する）。足す束は
+# 数の順の端で吸収しない（端に足せば端から動く）ので、join が升を見る:
+#   印の後ろ: mov rsi,[升] / cmp rsi,⊤ / je → 次の行（升が ⊤ なら足さない）
+#             （⊤ の寄与を運ぶ規則だけ）cmp byte [旗],0 / je → 足す / mov [升],rax（rax は ⊤ の印）/ jmp → 階数
+#   足したあと: mov rsi,[升] / cmp rsi,⊤ / je → 値の踏み台（正しい和が ⊤ の印に届いた —— 言う）
+# ⊤ の寄与か正しい値かは旗で分ける（rax は正しい値でも 0x8000…0000 になりうる。旗は実例ごとに下ろしてある）
+field stc : or bound 16384                     # 規則 r は ⊤ を持つ sum の場へ書く
+stc[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] == 8 if ftc[rrwf[r]]
+field sxp : max bound 16384                    # 足す前の命令数
+sxp[r] <- 0      for (r) in 0 .. nrlz[0]
+sxp[r] <- 3      for (r) in 0 .. nrlz[0] if stc[r]
+sxp[r] <- 7      for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]
+field sxq : max bound 16384                    # 足したあとの命令数
+sxq[r] <- 0      for (r) in 0 .. nrlz[0]
+sxq[r] <- 3      for (r) in 0 .. nrlz[0] if stc[r]
+field sxb : max bound 16384                    # 足す前の頭（印の後ろ）
+sxb[r] <- jb[r] + 3 + amx[r]   for (r) in 0 .. nrlz[0] if stc[r]
+form[sxb[r]] <- fjr[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r]                # mov rsi, [升]
+imm[sxb[r]]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if stc[r]
+scb[sxb[r]]  <- fscb[rrwf[r]]  for (r) in 0 .. nrlz[0] if stc[r]
+form[sxb[r] + 1] <- ftcs[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r]           # cmp rsi, ⊤ の印
+imm[sxb[r] + 1]  <- ftpf[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r]
+form[sxb[r] + 2] <- 13         for (r) in 0 .. nrlz[0] if stc[r]                # je → 次の行
+jt[sxb[r] + 2]   <- av[r]      for (r) in 0 .. nrlz[0] if stc[r]
+form[sxb[r] + 3] <- 220        for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]      # cmp byte [旗], 0
+form[sxb[r] + 4] <- 13         for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]      # je → 足す
+jt[sxb[r] + 4]   <- jlp[r]     for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]
+form[sxb[r] + 5] <- fjw[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]  # mov [升], rax（⊤ を置く）
+imm[sxb[r] + 5]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]
+scb[sxb[r] + 5]  <- fscb[rrwf[r]]  for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]
+form[sxb[r] + 6] <- 78         for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]      # jmp → 階数
+jt[sxb[r] + 6]   <- jpos[r] - 1   for (r) in 0 .. nrlz[0] if stc[r] if rtv[r]
+form[jlp[r] + 2] <- fjr[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r]            # mov rsi, [升]
+imm[jlp[r] + 2]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if stc[r]
+scb[jlp[r] + 2]  <- fscb[rrwf[r]]  for (r) in 0 .. nrlz[0] if stc[r]
+form[jlp[r] + 3] <- ftcs[rrwf[r]]  for (r) in 0 .. nrlz[0] if stc[r]            # cmp rsi, ⊤ の印
+imm[jlp[r] + 3]  <- ftpf[rrwf[r]]  for (r) in 0 .. nrlz[0] if stc[r]
+form[jlp[r] + 4] <- 13         for (r) in 0 .. nrlz[0] if stc[r]                # je → 値の踏み台
+jt[jlp[r] + 4]   <- vsf[rrwf[r]]   for (r) in 0 .. nrlz[0] if stc[r]
 
 # ── 階数。読みの階数の最大 + 1（集約は 1。印が数えるので深さを持たない）───
 # 階数は **符号なしの 32 ビット**。最大は符号なしで取り（cmovb）、+1 は 32 ビットで足す。

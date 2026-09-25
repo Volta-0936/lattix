@@ -310,7 +310,7 @@ field nbig : or bound {N1}
 nbig[n] <- true   for (n) in 0 .. ninz[0] if fire[n] if nlt[n] == 1 if cval[n] >= k31[3]
 nbig[n] <- true   for (n) in 0 .. ninz[0] if fire[n] if nlt[n] == 2 if cval[n] <= k4n[0]
 # 同じ層の読みの階数の最大（書き先の升そのものは読みではない）
-field wst : or bound 256 128                    # 場 f は層 s で書かれる
+field wst : or bound 2048 128                    # 場 f は層 s で書かれる
 wst[rwf[r], rst[r]] <- true   for (r) in 0 .. nrlz[0]
 field nmr : max bound {N1}
 nmr[n] <- 0   for (n) in 0 .. ninz[0]

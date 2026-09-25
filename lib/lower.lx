@@ -6248,6 +6248,15 @@ lp2[t] <- true                      for (t,zc) in ch if lpo[t] if farr[lpf[t]] =
 field lpor : or bound 262144                 # or の場の print（`true` と書く）
 field lpfl : or bound 262144                 # flat の場の print（⊤ の行を `⊤ CONFLICT` と書く）
 lpfl[t] <- true                      for (t,zc) in ch if lpo[t] if flatt[lpf[t]] == 6
+# **数の場も ⊤ を持つ**（14v）: 定義は flat の ⊤ を読んだ値を min / max / sum の場へも ⊤ として運び、
+# `⊤ CONFLICT` と書く。⊤ の源は利用者の flat の場だけなので（count は ⊤ を一つと数え、or は `true` しか
+# 書かない）、flat の場のある本の数の場の print に同じ ⊤ の行を足す —— 比較は ⊤ で立つので `< 0` と
+# `>= 0` が両方立つのは ⊤ の升だけ（sum の 0 は ⊥ で立たない）。⊤ にならない場では行が一つも立たない
+field lhflt : or bound 1                    # 本に利用者の flat の場がある
+lhflt[z] <- true   for (t,zc) in ch for (z) in 0 .. 0 if lbflt[t]
+lpfl[t] <- true                      for (t,zc) in ch if lpo[t] if flatt[lpf[t]] == 1 if lhflt[0]
+lpfl[t] <- true                      for (t,zc) in ch if lpo[t] if flatt[lpf[t]] == 2 if lhflt[0]
+lpfl[t] <- true                      for (t,zc) in ch if lpo[t] if flatt[lpf[t]] == 8 if lhflt[0]
 lpor[t] <- true                      for (t,zc) in ch if lpo[t] if flatt[lpf[t]] == 3
 field lf0 : or bound 1024                   # 場 f は `[]` で使われる（print は座標を書かない: `n[] = v`）
 lf0[lof[prevw[t]]] <- true   for (t,zc) in ch if lemp[t] if isocc[prevw[t]]
@@ -6830,8 +6839,14 @@ field lbsrc : or bound 1                    # 本に source の宣言がある
 lbsrc[z] <- true   for (t,zc) in ch for (z) in 0 .. 0 if kwsrc[t] if sbrk[t]
 field lbflt : or bound 262144               # 宣言 t は利用者の flat の場（source を除く）
 lbflt[t] <- true   for (t,zc) in ch if isdcl[t] if kwflt[latt[t]] if kwfld[prevw[t]]
-field lb3f : or bound 1                     # 三次元の flat の場がある
-lb3f[z] <- true    for (t,zc) in ch for (z) in 0 .. 0 if lbflt[t] if farr[fdno[t]] >= 3
+# ⊤ を数える場は flat と、flat の場のある本の min / max / sum の場（14v —— 定義は fourv のほかは束を問わず数える）
+field lbtpf : or bound 262144               # 宣言 t は ⊤ の升を数える利用者の場
+lbtpf[t] <- true   for (t,zc) in ch if lbflt[t]
+lbtpf[t] <- true   for (t,zc) in ch if isdcl[t] if kwmin[latt[t]] if kwfld[prevw[t]] if lhflt[0]
+lbtpf[t] <- true   for (t,zc) in ch if isdcl[t] if kwmax[latt[t]] if kwfld[prevw[t]] if lhflt[0]
+lbtpf[t] <- true   for (t,zc) in ch if isdcl[t] if kwsum[latt[t]] if kwfld[prevw[t]] if lhflt[0]
+field lb3f : or bound 1                     # 三次元の ⊤ を数える場がある
+lb3f[z] <- true    for (t,zc) in ch for (z) in 0 .. 0 if lbtpf[t] if farr[fdno[t]] >= 3
 field lbiow : or bound 8192                 # 文 s は消してよい `budget io <= N`
 lbiow[snum[t]] <- true for (t,zc) in ch if sbrk[t] if lbgt[t] if tlen[nextw[t]] == 2
       if tch[nextw[t], 0] == 105 if tch[nextw[t], 1] == 111 if not lbsrc[0]
@@ -6846,21 +6861,21 @@ ldl[i] <- true      for (i,c) in ch if lbtop[snum[tnum[i]]] if c != 10
 iti[lin[t], 0] <- 194    for (t,zc) in ch if sbrk[t] if lbgt[t] if lbtop[snum[t]]
 iti[lin[t], 1] <- 195    for (t,zc) in ch if sbrk[t] if lbgt[t] if lbtop[snum[t]]
 ih0[lin[t], 1] <- lbN[snum[t]]   for (t,zc) in ch if sbrk[t] if lbgt[t] if lbtop[snum[t]]
-#   型紙 192 / 193 / 196〜198: flat の場ごとに ⊤ の升を数える（`field` の語の実例 —— 末尾へ）。場は下ろした広さで回す
+#   型紙 192 / 193 / 196〜198: ⊤ を数える場ごとに ⊤ の升を数える（`field` の語の実例 —— 末尾へ）。場は下ろした広さで回す
 field lbq : or bound 1                      # 本に下ろす `budget top` がある
 lbq[z] <- true     for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if lbgt[t] if lbtop[snum[t]]
-iti[lin[prevw[t]], 0] <- 192   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] <= 1
-ih1[lin[prevw[t]], 0] <- lpb1[fdno[t]] - 1   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] <= 1
-ind[lin[prevw[t]], 0] <- fdno[t] + 1          for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] <= 1
-iti[lin[prevw[t]], 1] <- 193   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] <= 1
-ind[lin[prevw[t]], 1] <- fdno[t] + 1          for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] <= 1
-iti[lin[prevw[t]], 0] <- 196   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-ih1[lin[prevw[t]], 0] <- lpb1[fdno[t]] - 1   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-ih2[lin[prevw[t]], 0] <- lpb2[fdno[t]] - 1   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-iti[lin[prevw[t]], 1] <- 197   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-ind[lin[prevw[t]], 1] <- fdno[t] + 1          for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-iti[lin[prevw[t]], 2] <- 198   for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
-ind[lin[prevw[t]], 2] <- fdno[t] + 1          for (t,zc) in ch if lbflt[t] if lbq[0] if farr[fdno[t]] == 2
+iti[lin[prevw[t]], 0] <- 192   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] <= 1
+ih1[lin[prevw[t]], 0] <- lpb1[fdno[t]] - 1   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] <= 1
+ind[lin[prevw[t]], 0] <- fdno[t] + 1          for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] <= 1
+iti[lin[prevw[t]], 1] <- 193   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] <= 1
+ind[lin[prevw[t]], 1] <- fdno[t] + 1          for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] <= 1
+iti[lin[prevw[t]], 0] <- 196   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+ih1[lin[prevw[t]], 0] <- lpb1[fdno[t]] - 1   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+ih2[lin[prevw[t]], 0] <- lpb2[fdno[t]] - 1   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+iti[lin[prevw[t]], 1] <- 197   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+ind[lin[prevw[t]], 1] <- fdno[t] + 1          for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+iti[lin[prevw[t]], 2] <- 198   for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
+ind[lin[prevw[t]], 2] <- fdno[t] + 1          for (t,zc) in ch if lbtpf[t] if lbq[0] if farr[fdno[t]] == 2
 # 型紙 4: `n[]` → `n[0]`
 field lob : or bound 262144                 # `[`
 lob[t] <- true                     for (t,zc) in ch if tlen[t] == 1 if not tcom[t] if tch[t,0] == 91

@@ -96,45 +96,47 @@ ngtz[z] <- ngt[z] - 1   for (z) in 0 .. 0
 field ngcz : max bound 1
 ngcz[z] <- ngc[z] - 1   for (z) in 0 .. 0
 # F（場）: 束 / 次数 / 広さ0 / 広さ1 / 広さ2
-field aF : max bound 256
+# 場は 2,047 本まで（焼き手の場の箱と同じ広さ。前は 256 —— 14u で accept に場 2,047 本の本を足した日、
+# 表の上の参照（ir）は ATTESTED と言い、attest.lx は場の表からはみ出して終了コード 6 で止まった）
+field aF : max bound 2048
 aF[f] <- sb[z] + f * 5   for (z) in 0 .. 0 for (f) in 0 .. nflz[0]
-field flt : max bound 256
+field flt : max bound 2048
 flt[f] <- wd[aF[f]]   for (f) in 0 .. nflz[0]
-field far : max bound 256
+field far : max bound 2048
 far[f] <- wd[aF[f] + 1]   for (f) in 0 .. nflz[0]
-field fw0 : max bound 256
+field fw0 : max bound 2048
 fw0[f] <- wd[aF[f] + 2]   for (f) in 0 .. nflz[0]
-field fw1 : max bound 256                  # 次元1 の広さ（一次元なら 1）
+field fw1 : max bound 2048                  # 次元1 の広さ（一次元なら 1）
 fw1[f] <- 1   for (f) in 0 .. nflz[0] if far[f] == 1
 fw1[f] <- wd[aF[f] + 3]   for (f) in 0 .. nflz[0] if far[f] >= 2
-field fw2 : max bound 256                  # 次元2 の広さ（三次元でなければ 1）
+field fw2 : max bound 2048                  # 次元2 の広さ（三次元でなければ 1）
 fw2[f] <- 1   for (f) in 0 .. nflz[0] if far[f] <= 2
 fw2[f] <- wd[aF[f] + 4]   for (f) in 0 .. nflz[0] if far[f] == 3
-field fce : max bound 256                  # 升の数
+field fce : max bound 2048                  # 升の数
 fce[f] <- fw0[f] * fw1[f] * fw2[f]   for (f) in 0 .. nflz[0]
-field fwb : max bound 256                  # 升の幅（or は 1 バイト）
+field fwb : max bound 2048                  # 升の幅（or は 1 バイト）
 fwb[f] <- 8   for (f) in 0 .. nflz[0] if flt[f] != 3
 fwb[f] <- 1   for (f) in 0 .. nflz[0] if flt[f] == 3
-field fvb : max bound 256                  # 値の面の大きさ（バイト）
+field fvb : max bound 2048                  # 値の面の大きさ（バイト）
 fvb[f] <- fce[f] * fwb[f]   for (f) in 0 .. nflz[0]
-field fbl : max bound 256                  # ⊥ の下の 32 ビット（符号なし）
+field fbl : max bound 2048                  # ⊥ の下の 32 ビット（符号なし）
 fbl[f] <- 2147483647   for (f) in 0 .. nflz[0] if flt[f] == 1
 fbl[f] <- 2147483647 + 2   for (f) in 0 .. nflz[0] if flt[f] == 2
 fbl[f] <- 0   for (f) in 0 .. nflz[0] if flt[f] == 3
 fbl[f] <- 2147483647   for (f) in 0 .. nflz[0] if flt[f] == 6
 fbl[f] <- 0   for (f) in 0 .. nflz[0] if flt[f] == 8
 fbl[f] <- 0   for (f) in 0 .. nflz[0] if flt[f] == 9
-field fbh : max bound 256                  # ⊥ の上の 32 ビット（符号なし）
+field fbh : max bound 2048                  # ⊥ の上の 32 ビット（符号なし）
 fbh[f] <- 0   for (f) in 0 .. nflz[0]
 fbh[f] <- 65535 * 65536 + 65535   for (f) in 0 .. nflz[0] if flt[f] == 2
 # 前置きの鎖: 値の面のずれ・階数の面のずれ・升の通し番号の頭
-field fvo : max bound 256
+field fvo : max bound 2048
 fvo[0] <- 0
 fvo[f] <- fvo[f-1] + fvb[f-1]   for (f) in 1 .. nflz[0]
-field fko : max bound 256
+field fko : max bound 2048
 fko[0] <- 0
 fko[f] <- fko[f-1] + fce[f-1] * 4   for (f) in 1 .. nflz[0]
-field fcb : max bound 256
+field fcb : max bound 2048
 fcb[0] <- 0
 fcb[f] <- fcb[f-1] + fce[f-1]   for (f) in 1 .. nflz[0]
 field ncl : max bound 1                    # 升の総数
@@ -1549,7 +1551,7 @@ field nbig : or bound 131072
 nbig[n] <- true   for (n) in 0 .. ninz[0] if fire[n] if nlt[n] == 1 if cval[n] >= k31[3]
 nbig[n] <- true   for (n) in 0 .. ninz[0] if fire[n] if nlt[n] == 2 if cval[n] <= k4n[0]
 # 同じ層の読みの階数の最大（書き先の升そのものは読みではない）
-field wst : or bound 256 128                    # 場 f は層 s で書かれる
+field wst : or bound 2048 128                    # 場 f は層 s で書かれる
 wst[rwf[r], rst[r]] <- true   for (r) in 0 .. nrlz[0]
 field nmr : max bound 131072
 nmr[n] <- 0   for (n) in 0 .. ninz[0]
