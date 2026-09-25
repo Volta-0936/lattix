@@ -601,6 +601,7 @@ field bcy : or bound 2048                # 群の切り口の中に輪がある
 bcy[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
 field bnm0 : or bound 2048               # 群の中に、同じ切り口の非単調な読みがある
 bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if onm[o]
+# （同じ切り口の読みも、同じ文が同じ場を非単調に読めば非単調と数える —— lib/fold.lx の `ospn`。14r）
 field bxor : or bound 2048               # 切り口の中に、非単調な読みを含む輪がある
 bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7] if bnm0[sbid[s]]
 field bxfs : min bound 2048              # 群 b の最初の文
@@ -1290,7 +1291,7 @@ tcnt[t] <- tcnt[t-1]     for (t,zc) in ch if t >= 1 if not istm[t-1] if not sbrk
 # 席の外へ書いていた —— 書き座標のはみ出しが黙って隣を踏む穴に、
 # **焼き手自身が寄りかかっていた**（座標に濾しを入れたら自分が止まった）。
 # 数は別に数えているので、席に書かなくても「項が九つ」は言える。
-field trkd : max bound 16384 8           # 1 定数 / 2 列 / 3 場 / 4 計数器
+field trkd : max bound 16384 16          # 1 定数 / 2 列 / 3 場 / 4 計数器
                                        # 5 引く / 6 掛ける / 7 割る / 8 余り（定数で）
                                        # 9 場を引く / 10 場を掛ける / 15 場で割る / 16 場で余り
                                        # 17 列で割る / 18 列で余り / 19 計数器で割る / 20 計数器で余り
@@ -1299,61 +1300,61 @@ field trkd : max bound 16384 8           # 1 定数 / 2 列 / 3 場 / 4 計数�
 # いた（97/98 が 195 になる）。列の側は最初から除いてあった（種2/4）——
 # 同じ穴が場の側に空いたままだった（四度目）。除けば種が付かず、
 # `okt` が立たないので **理由 8 で断る**。
-trkd[snum[t], tcnt[t]] <- 3 for (t,zc) in ch if istrm[t] if not pminus[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 3 for (t,zc) in ch if istrm[t] if not pminus[t] if tcnt[t] <= 15
       if not pstar[t] if not pdiv[t] if not pmod[t]
 # 種9: 場の読みを **引く**（足せて引けないのは分類の穴だった）
-trkd[snum[t], tcnt[t]] <- 9 for (t,zc) in ch if istrm[t] if pminus[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 9 for (t,zc) in ch if istrm[t] if pminus[t] if tcnt[t] <= 15
 # 種10: 場の読みを **掛ける**。`8 * f[x]` は左からの畳み込みでは書けないが、
 # `f[x] * 8` は書ける —— では `f[x] * g[y]` は？ 同じ穴がもう一つあった。
-trkd[snum[t], tcnt[t]] <- 10 for (t,zc) in ch if istrm[t] if pstar[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 10 for (t,zc) in ch if istrm[t] if pstar[t] if tcnt[t] <= 15
 # 種15 / 16: 場の読みで **割る / 余りを取る**（14f。床。割る数が 0 なら ⊥ —— 撃たない）。
 # 長いあいだ「場で割る」は理由 8 だった（種が付かないまま足し算に落ちていた穴を、断ることで塞いでいた）。
 # 自由に書いた本（平均 `tot[0] / cnt[0]`、桁 `x / pw[k] % 2`）が二本ここで止まった
-trkd[snum[t], tcnt[t]] <- 15 for (t,zc) in ch if istrm[t] if pdiv[t] if tcnt[t] <= 7
-trkd[snum[t], tcnt[t]] <- 16 for (t,zc) in ch if istrm[t] if pmod[t] if tcnt[t] <= 7
-trkd[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if not pminus[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 15 for (t,zc) in ch if istrm[t] if pdiv[t] if tcnt[t] <= 15
+trkd[snum[t], tcnt[t]] <- 16 for (t,zc) in ch if istrm[t] if pmod[t] if tcnt[t] <= 15
+trkd[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if not pminus[t] if tcnt[t] <= 15
       if not pstar[t] if not pdiv[t] if not pmod[t]
-trkd[snum[t], tcnt[t]] <- 5 for (t,zc) in ch if istrmn[t] if pminus[t] if tcnt[t] <= 7
-trkd[snum[t], tcnt[t]] <- 6 for (t,zc) in ch if istrmn[t] if pstar[t] if tcnt[t] <= 7
-trkd[snum[t], tcnt[t]] <- 7 for (t,zc) in ch if istrmn[t] if pdiv[t] if tcnt[t] <= 7
-trkd[snum[t], tcnt[t]] <- 8 for (t,zc) in ch if istrmn[t] if pmod[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 5 for (t,zc) in ch if istrmn[t] if pminus[t] if tcnt[t] <= 15
+trkd[snum[t], tcnt[t]] <- 6 for (t,zc) in ch if istrmn[t] if pstar[t] if tcnt[t] <= 15
+trkd[snum[t], tcnt[t]] <- 7 for (t,zc) in ch if istrmn[t] if pdiv[t] if tcnt[t] <= 15
+trkd[snum[t], tcnt[t]] <- 8 for (t,zc) in ch if istrmn[t] if pmod[t] if tcnt[t] <= 15
 # **変数も足すだけではない。** 列も計数器も引けるし掛けられる（種11〜14）——
 # 場（種9/10）を直したときに、同じ穴が変数の側に空いたままだった（三度目）。
-trkd[snum[t], tcnt[t]] <- 2 for (t,zc) in ch if istrmv[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 2 for (t,zc) in ch if istrmv[t] if tcnt[t] <= 15
       if not pminus[t] if not pstar[t] if not pdiv[t] if not pmod[t]
       if lkd[snum[t], vlpz[t]] == 0
-trkd[snum[t], tcnt[t]] <- 4 for (t,zc) in ch if istrmv[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 4 for (t,zc) in ch if istrmv[t] if tcnt[t] <= 15
       if not pminus[t] if not pstar[t] if not pdiv[t] if not pmod[t]
       if lkd[snum[t], vlpz[t]] >= 1
-trkd[snum[t], tcnt[t]] <- 11 for (t,zc) in ch if istrmv[t] if pminus[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 11 for (t,zc) in ch if istrmv[t] if pminus[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] == 0
-trkd[snum[t], tcnt[t]] <- 12 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 12 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] == 0
-trkd[snum[t], tcnt[t]] <- 13 for (t,zc) in ch if istrmv[t] if pminus[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 13 for (t,zc) in ch if istrmv[t] if pminus[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] >= 1
-trkd[snum[t], tcnt[t]] <- 14 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 14 for (t,zc) in ch if istrmv[t] if pstar[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] >= 1
 # 種17〜20: 変数で **割る / 余りを取る**（14j。列 17 / 18、計数器 19 / 20）。種15 / 16 と同じく床で、
 # 割る数が 0 なら ⊥（撃たない）。前は理由 8 —— 下ろしは表の列を場の読みにするので種15 で通ったが、
 # 計数器は変数のまま残り、`100 / d` や、ガードを持ち上げた `_g[n, d] <- n % d`（約数を数える本）が止まった。
-trkd[snum[t], tcnt[t]] <- 17 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 17 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] == 0
-trkd[snum[t], tcnt[t]] <- 18 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 18 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] == 0
-trkd[snum[t], tcnt[t]] <- 19 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 19 for (t,zc) in ch if istrmv[t] if pdiv[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] >= 1
-trkd[snum[t], tcnt[t]] <- 20 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 7
+trkd[snum[t], tcnt[t]] <- 20 for (t,zc) in ch if istrmv[t] if pmod[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] >= 1
-field trfl : max bound 16384 8           # 場（種3）
-trfl[snum[t], tcnt[t]] <- ofl[oseq[t]] - 1 for (t,zc) in ch if istrm[t] if tcnt[t] <= 7
-field trcl : max bound 16384 8           # 列 / ループ番号
-trcl[snum[t], tcnt[t]] <- vcolz[t] for (t,zc) in ch if istrmv[t] if tcnt[t] <= 7
+field trfl : max bound 16384 16          # 場（種3）
+trfl[snum[t], tcnt[t]] <- ofl[oseq[t]] - 1 for (t,zc) in ch if istrm[t] if tcnt[t] <= 15
+field trcl : max bound 16384 16          # 列 / ループ番号
+trcl[snum[t], tcnt[t]] <- vcolz[t] for (t,zc) in ch if istrmv[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] == 0
-trcl[snum[t], tcnt[t]] <- vlpz[t] for (t,zc) in ch if istrmv[t] if tcnt[t] <= 7
+trcl[snum[t], tcnt[t]] <- vlpz[t] for (t,zc) in ch if istrmv[t] if tcnt[t] <= 15
       if lkd[snum[t], vlpz[t]] >= 1
-field trvl : max bound 16384 8           # 定数
-trvl[snum[t], tcnt[t]] <- tval[t] for (t,zc) in ch if istrmn[t] if tcnt[t] <= 7
-trvl[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if kwtru[t] if tcnt[t] <= 7
+field trvl : max bound 16384 16          # 定数
+trvl[snum[t], tcnt[t]] <- tval[t] for (t,zc) in ch if istrmn[t] if tcnt[t] <= 15
+trvl[snum[t], tcnt[t]] <- 1 for (t,zc) in ch if istrmn[t] if kwtru[t] if tcnt[t] <= 15
 
 
 # ══ ガードの行 ═════════════════════════════════════════════════════
@@ -1738,6 +1739,25 @@ field sdv : max bound 16384
 sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s] if not svok[s]   # 値の無い種だけ（負の種が 0 に負ける）
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 
+# **定義は読みの向きを (規則, 場) で持つ**（lattix.py の nonmono_reads は場の集合で、展開した後も同じ場の読みは
+# 一つの向きになる）。同じ文が同じ場を小さい切り口で非単調に読んでいれば、同じ切り口の単調な読みも定義の上では
+# 非単調で、切り口の中の輪は定義が断る。出現ごとの向き（焼き手）の方が細かいが、定義が断る本に焼き手が答えれば
+# 黙って違う（撒いた 540 本の ax3_096: `a[n, j] <- b[n, j] + 1 … if b[n - 2, 0] >= 3` と `b[n, j] <- a[n, j - 1] + 2`）。
+# 控えめな側にだけ倒す —— 同じ切り口の読みの文が、同じ場をどこかで非単調に読むなら、その読みも非単調と数える。
+# ここ（fold）に置くのは、依存する区間（`for (p) in (oofo[o]) .. oola[o]`）を 33_self の自己検査の古い道が焼けないから
+# （selfbyte が「書き先の座標が導けない」と言った）。書くのは 33_self の `bnm0` —— 焼き手の中では一つの不動点である
+field osfo : min bound 16384             # 文 s の最初の出現
+osfo[osn[o]] <- o for (o) in 0 .. nocz[0]
+field osla : max bound 16384             # 文 s の最後の出現
+osla[osn[o]] <- o for (o) in 0 .. nocz[0]
+field oofo : max bound 32768             # 出現 o の文の最初の出現（読みを一段に保つ写し）
+oofo[o] <- osfo[osn[o]] for (o) in 0 .. nocz[0] if oxc0[o]
+field oola : max bound 32768             # 出現 o の文の最後の出現
+oola[o] <- osla[osn[o]] for (o) in 0 .. nocz[0] if oxc0[o]
+field ospn : or bound 32768              # 出現 o の文は、o の場をどこかで非単調に読む
+ospn[o] <- true for (o) in 0 .. nocz[0] for (p) in (oofo[o]) .. oola[o] if oxc0[o] if onm[p] if ofzx[p] == ofzx[o]
+bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if ospn[o]
+
 # ── 規則の番号。**層の昇順**（層ごとに数えて、層の頭を足す）────────────
 field rcnt : max bound 16384 128          # 文 s までに層 k で数えた規則（s を含む）
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127
@@ -2080,9 +2100,9 @@ inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isdcl
 # （31_gen の `lce`）—— 上限を決めているのは register の数ではなく、前段が for 節を
 # 八つまで持つこと（`lkd[文, 0..7]`）である。九つ目は言う。
 inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 8
-# **項は八つまで。** 九つ目は `trkd[文, 番号]` が隣の文の枠を踏み、
-# 答えが黙って変わっていた（`1+1+…+1` 九個が 9 でなく 13 になった）。
-inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
+# **項は十六まで**（14r。前は八つ）。上限を越えた項は `trkd[文, 番号]` が隣の文の枠を踏み、
+# 答えが黙って変わっていた（`1+1+…+1` 九個が 9 でなく 13 になった）—— だから越えたら言う。
+inpw[z] <- 0                         for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 16
 
 # ── **どこが悪いかを言う。** 行番号と理由を生成器へ渡す ──────────────
 #   1 名前が 17 文字以上 / 2 入れ子が九重以上 / 3 項が九つ以上
@@ -2124,7 +2144,7 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if s
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
 badk[z] <- tlin[t] * 16 + 2   for (t,zc) in ch for (z) in 0 .. 0 if isgl[t] if lz[t] >= 8
-badk[z] <- tlin[t] * 16 + 3   for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 8
+badk[z] <- tlin[t] * 16 + 3   for (t,zc) in ch for (z) in 0 .. 0 if isgt[t] if tcnt[t] >= 16
 badk[z] <- tlin[otok[o]] * 16 + 4   for (o) in 0 .. nocz[0] for (z) in 0 .. 0 if oin[o] if not ohas[o]
 badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if ntb[0] >= 2
 badk[z] <- 6        for (z) in 0 .. 0 for (z) in 0 .. 0 if not hastb[0]

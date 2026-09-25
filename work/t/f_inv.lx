@@ -1,0 +1,5 @@
+# 転倒数（i < j で a[i] > a[j] の組の数）
+table a = (0,5),(1,2),(2,8),(3,1),(4,9),(5,3)
+field inv : count bound 1
+inv[0] <- i * 8 + j   for (i,x) in a for (j,y) in a if i < j if x > y
+print inv

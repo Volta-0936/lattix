@@ -1,0 +1,10 @@
+# 切り口の中の輪で、同じ場を小さい切り口で非単調にも読む —— 定義は (規則, 場) で向きを持つので断る（両方が断る）
+field a : min bound 12 5
+field b : min bound 12 5
+a[0, j] <- 2   for (j) in 0 .. 3
+a[1, j] <- 2   for (j) in 0 .. 3
+b[0, j] <- 2   for (j) in 0 .. 3
+b[1, j] <- 2   for (j) in 0 .. 3
+b[n, j] <- a[n, j - 1] + 2   for (n) in 2 .. 11 for (j) in 1 .. 3
+a[n, j] <- b[n, j] + 1   for (n) in 2 .. 11 for (j) in 1 .. 3 if b[n - 2, 0] >= 3
+print a

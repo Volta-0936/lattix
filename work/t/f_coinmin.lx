@@ -1,0 +1,6 @@
+# 最小の硬貨の枚数（min の動的計画法）
+table coin = (0,1),(1,3),(2,4)
+field m : min bound 13
+m[0] <- 0
+m[v] <- m[v - c] + 1   for (k,c) in coin for (v) in 1 .. 12 if v >= c
+print m

@@ -1,0 +1,9 @@
+# 定数の丸括弧が、ループ 0 を使わない親の塊の中にある（親は [j]）
+field a : max bound 9
+a[i] <- i * 3 + 3   for (i) in 0 .. 8
+field b : min bound 9 4
+b[i, j] <- (2) / 6 % 1   for (i) in 0 .. 8 for (j) in 0 .. 3 if (2) + (j / 4) < i
+print b
+field c : flat bound 9 4
+c[i, j] <- (j)   for (i) in 0 .. 8 for (j) in 0 .. 3 if 1 >= 9 - j % 1 if (i + 9) / 2 % (i + a[i]) >= (j)
+print c

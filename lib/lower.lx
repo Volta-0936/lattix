@@ -6105,12 +6105,34 @@ field l2i : or bound 262144                 # 内側の二次元の出現で、�
 l2i[t] <- true                     for (t,zc) in ch if obk[t] if tdep[t] >= 1 if tch[ibr[t], 0] == 91
       if iscom[d0cm[t]] if isocc[d1t[t]]
 lcd[t] <- tclos[obr[t]]            for (t,zc) in ch if l2i[t] if lok[snum[t]]
-# **値の丸括弧**（`(120 + c[0]) % 256`）: 焼ける値は群の和で、丸括弧を持たない。区間は括弧ごと取り、
-# 括弧の字は消す（中身だけが塊へ移る）
+# **値の丸括弧**（`(120 + c[0]) % 256`）: 焼ける値は群の和で、丸括弧を持たない。**中身**を持ち上げ、
+# 中身が持ち上がったときだけ括弧の字を消す（`lpq`）
 field lpc : max bound 262144                # `(` → 対の `)`（tclos は `[` だけ）
 lpc[tmatch[t]] <- t                for (t,zc) in ch if tlen[t] == 1 if not tcom[t] if tch[t,0] == 41
-lcd[t] <- lpc[t]                   for (t,zc) in ch if isopn[t] if aftarw[t] if not tcom[t] if lok[snum[t]]
-      if not kpf[t]
+# **入れ子の値の丸括弧**（14r。`(a[i] + 13 * (b[i] + 1) / 5) % 7` の内側）と **ガードの辺の丸括弧**
+# （`if (a[i] % 2) == 0`・`if (x % 3) + 1 == 2`）: 前は値の節の深さ 0 の丸括弧だけが候補で、内側の丸括弧は
+# 塊に残り、ガードの辺の丸括弧は辺ごと残って、焼き手が理由 8 で断っていた。
+# 候補は **括弧の中身**（最初の語 `nextw[(]` から）で取る。括弧ごと取ると、辺の算術の候補（辺の最初の語から）と
+# **始まりの語がぶつかる**（`lcd` は始まりの語ごとに一つ）—— `(x % 3) + 1` の辺と `(x % 3)` の括弧が同じ `(` で
+# 始まり、max が辺を選んで括弧は残った。そのうえ字を消す規則は「区間が `(` で始まる」で括弧の塊と見ていたので、
+# 辺の塊の `(` と **最後の語 `1` の字** を消していた（`_g[i] <- a[i] % 3) +`。焼き手がたまたま断っていた）。
+# 「括弧の塊か」を最初の字で測り直さず、**括弧の対そのもの**（`lpc`）で言う（判断を二箇所に置かない）
+field lvp : or bound 262144                 # `(` は値の丸括弧（外側まで丸括弧だけ）
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if aftarw[t] if not tcom[t] if not kpf[t]
+#   ガードの辺の丸括弧（節の深さで、最初の比較より前か、最後の比較より後ろ）
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if lgi[gcl[t]] if tdep[t] == lgd[gcl[t]]
+      if not tcom[t] if not kpf[t] if t > lch[gcl[t]] if t < lcm[gcl[t]]
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if lgi[gcl[t]] if tdep[t] == lgd[gcl[t]]
+      if not tcom[t] if not kpf[t] if t > lcx[gcl[t]]
+#   値の丸括弧のすぐ内の丸括弧、構成子の引数の丸括弧（`cons((i + 1) % 3, 0)`）
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if tdep[t] >= 1 if not tcom[t]
+      if not kpf[t] if lvp[ibr[t]]
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if tdep[t] >= 1 if not tcom[t]
+      if not kpf[t] if kpf[ibr[t]]
+#   添字のすぐ内の丸括弧（`a[(i + 1) % 5]`。添字の算術は次元ごと塊になるので、その中の丸括弧も値の丸括弧）
+lvp[t] <- true                     for (t,zc) in ch if isopn[t] if tdep[t] >= 1 if not tcom[t]
+      if not kpf[t] if tch[ibr[t], 0] == 91
+lcd[nextw[t]] <- prevw[lpc[t]]     for (t,zc) in ch if lvp[t] if lok[snum[t]] if nextw[t] < lpc[t]
 # **構成子の引数**（`c(e1, e2)` の e1・e2 —— 出現の鍵で場所の記録に持ち上げる）
 lcd[kas[x]] <- prevw[kny[x]]       for (x,zc) in ch if kas[x] >= 0 if lok[snum[x]]
 # **区間の上端の式**（13g）。焼き手は上端に数・`f[数]`・`f[外の区間の変数]` を焼く（種1/2/3）。
@@ -6412,10 +6434,10 @@ ldl[i] <- true      for (i,c) in ch if kwsrc[tnum[i]] if sbrk[tnum[i]]
 iti[lis[t], 0] <- 158              for (t,zc) in ch if kwsrc[t] if sbrk[t]    # `field`
 ibd[lis[t], 0] <- true             for (t,zc) in ch if kwsrc[t] if sbrk[t]
 irw[lis[t], 0] <- lrw[tstart[t]]   for (t,zc) in ch if kwsrc[t] if sbrk[t]
-field lpp0 : or bound 262144                # 持ち上げる丸括弧の `(`
-lpp0[t] <- true     for (t,zc) in ch if lsa[t] if isopn[t]
-ldl[tstart[t]] <- true         for (t,zc) in ch if lpp0[t]
-ldl[tstart[lse[t]]] <- true    for (t,zc) in ch if lpp0[t]
+field lpq : or bound 262144                 # 字を消す丸括弧の `(`: 値の丸括弧で、中身がちょうど一つの塊として持ち上がった
+lpq[t] <- true      for (t,zc) in ch if lvp[t] if lse[nextw[t]] == prevw[lpc[t]]
+ldl[tstart[t]] <- true         for (t,zc) in ch if lpq[t]
+ldl[tstart[lpc[t]]] <- true    for (t,zc) in ch if lpq[t]
 
 # ── 差すもの（実例）: 型紙・穴・名前。本文の実例は行（irw）も持つ ──────────────────
 field iti : max bound 262272 8              # 実例 [n, e] の型紙
@@ -7541,8 +7563,14 @@ lky1[t] <- ku1[kra[t]]             for (t,zc) in ch if lsa[t] if krf[t] if ku1[k
 # **ループに依らない上端**（`0 .. nfile[] - 1`）は一点の塊にする（`_g[_z] <- … for (_z) in 0 .. 0`、
 # 本文は `_g[0]` —— 種2 の形）。文のループ 0 を鍵にすると、上端がそのループ自身なら
 # `for (i) in 0 .. _g[i]` の輪になる（13g で持ち上げを足した日に 30_build で出た）
-field lrb0 : or bound 262144                # 区間の上端で、どのループも使わない
+# 14r: **親の塊の中の、どのループも使わない塊**も一点にする（`(2) + (j / 4)` の `(2)`・`(4 % 7)`）。
+# 文のループ 0 を鍵にしていたので、親の塊がループ 0 を使わないと（親は `[j]`）親の中の参照 `_g[i]` の i が
+# 束縛されず、焼き手が理由 8 で断っていた。親の塊の中の参照はいつも値の位置なので `_g[0]` が書ける。
+# 本文の中の塊は一点にしない —— 参照が書き先の座標に来ることがあり（`quotes[_g[_z]]`）、焼き手は
+# 書き先の座標に `f[数]` を焼かない（14r の最初の試しで一点を全部に広げたら、掃きの六本がそこで断った）
+field lrb0 : or bound 262144                # 区間はどのループも使わない一点の塊
 lrb0[t] <- true                    for (t,zc) in ch if lsa[t] if lrbc[t] if not lrany[t]
+lrb0[t] <- true                    for (t,zc) in ch if lsa[t] if not lrany[t] if not krf[t] if ldp[t] >= 2
 field lkyn : max bound 262144               # 塊の次元の数
 lkyn[t] <- 1                       for (t,zc) in ch if lsa[t]
 lkyn[t] <- 2                       for (t,zc) in ch if lsa[t] if lky1[t] >= 0
@@ -7556,11 +7584,17 @@ lav0[t] <- lkv[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field lav1 : max bound 262144
 lav1[t] <- lkv[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lal0 : max bound 262144
-lal0[t] <- lkl[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
+# 塊の次元0 が **揃えた軸の段0** なら、塊の区間も群の区間に揃える（14r。塊は純粋なので広げてよい）。
+# 揃えないと、下ろした本の軸の群に端の違う塊の規則が混ざり、焼き手が群を作れずに断っていた（ラングトンの蟻）
+field lqn0 : or bound 262144                # 区間 ta の塊の次元0 は、揃えた軸の段0
+lqn0[t] <- true                    for (t,zc) in ch if lsa[t] if lky0[t] == 0 if slq[las[t]] >= 0 if lak0[t] == 2
+lal0[t] <- lkl[las[t], lky0[t]]    for (t,zc) in ch if lsa[t] if not lqn0[t]
+lal0[t] <- lqlo[slq[las[t]]]       for (t,zc) in ch if lqn0[t]
 field lal1 : max bound 262144
 lal1[t] <- lkl[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lah0 : max bound 262144
-lah0[t] <- lkh[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
+lah0[t] <- lkh[las[t], lky0[t]]    for (t,zc) in ch if lsa[t] if not lqn0[t]
+lah0[t] <- lqhi[slq[las[t]]]       for (t,zc) in ch if lqn0[t]
 field lah1 : max bound 262144
 lah1[t] <- lkh[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field laf0 : max bound 262144
@@ -7568,7 +7602,8 @@ laf0[t] <- lkf[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
 field laf1 : max bound 262144
 laf1[t] <- lkf[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lab0 : max bound 262144
-lab0[t] <- lkb[las[t], lky0[t]]    for (t,zc) in ch if lsa[t]
+lab0[t] <- lkb[las[t], lky0[t]]    for (t,zc) in ch if lsa[t] if not lqn0[t]
+lab0[t] <- lqhi[slq[las[t]]] + 1   for (t,zc) in ch if lqn0[t]
 field lab1 : max bound 262144
 lab1[t] <- lkb[las[t], lky1[t]]    for (t,zc) in ch if lsa[t] if lkyn[t] == 2
 field lae : max bound 262144                # 塊の字の後ろの行（ループの節の一行目）

@@ -1,0 +1,15 @@
+# 入れ子の値の丸括弧（三段・割る・余り・二次元・min にガード）
+field a : max bound 16
+a[i] <- i * 3 + 1   for (i) in 0 .. 9
+field b : max bound 16
+b[i] <- (a[i] + 2 * (i + (a[i] % 4) * 3)) % 11   for (i) in 0 .. 9
+field c : max bound 16
+c[i] <- ((i + 1) * (i + 2)) / 2 - (a[i] - (b[i] + 1))   for (i) in 0 .. 9
+field d : min bound 16
+d[i] <- (b[i] + (c[i] % (3 + 1))) * 2   for (i) in 0 .. 9 if (a[i] % 2) == 0
+field e : max bound 16 16
+e[i, j] <- (i * (j + 1) + (b[i] - (j % 3))) % 7   for (i) in 0 .. 9 for (j) in 0 .. 5
+print b
+print c
+print d
+print e

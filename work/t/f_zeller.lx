@@ -1,0 +1,11 @@
+# 曜日（ツェラーの公式）: 0 が土曜
+table d = (0,2026,9,25),(1,2000,1,1),(2,1999,12,31),(3,2024,2,29)
+field y2 : flat bound 4
+field m2 : flat bound 4
+y2[k] <- y - 1   for (k,y,m,q) in d if m <= 2
+y2[k] <- y   for (k,y,m,q) in d if m >= 3
+m2[k] <- m + 12   for (k,y,m,q) in d if m <= 2
+m2[k] <- m   for (k,y,m,q) in d if m >= 3
+field h : flat bound 4
+h[k] <- (q + 13 * (m2[k] + 1) / 5 + y2[k] % 100 + y2[k] % 100 / 4 + y2[k] / 100 / 4 + 5 * (y2[k] / 100)) % 7   for (k,y,m,q) in d
+print h

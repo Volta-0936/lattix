@@ -1,0 +1,16 @@
+# 同じ文字の連なりの長さ（入力のバイト列を読む。連なりの始まりで長さを数える）
+table ch = (0,97),(1,97),(2,98),(3,99),(4,99),(5,99),(6,97)
+field c : flat bound 16
+c[i] <- x   for (i,x) in ch
+field brk : or bound 16
+brk[0] <- true
+brk[i] <- true   for (i,x) in ch if i >= 1 if c[i - 1] != x
+field run : max bound 16
+run[i] <- 1   for (i,x) in ch if brk[i]
+run[i] <- run[i - 1] + 1   for (i,x) in ch if i >= 1 if not brk[i]
+field last : or bound 16
+last[i] <- true   for (i,x) in ch if brk[i + 1]
+last[6] <- true
+field out : max bound 16
+out[i] <- run[i]   for (i,x) in ch if last[i]
+print out

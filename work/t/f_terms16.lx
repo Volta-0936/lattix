@@ -1,0 +1,15 @@
+# 項は十六まで（掛ける数も一つの項）
+field b : max bound 16
+b[i] <- i + 1   for (i) in 0 .. 9
+field a : max bound 16
+a[i] <- b[i] + 1 + 2 + b[i] + 4 + 5 + b[i] + 7 + 8 + b[i] + 10 + 11 + b[i] + 13 + 14 + b[i]   for (i) in 0 .. 9
+field c : max bound 16
+c[i] <- a[i] + 1 + 2 + a[i] + 4 + 5 + a[i] + 7 + 8 + a[i] + 10 + 11 + a[i] + 13 + 14 - 1   for (i) in 0 .. 9 if a[i] >= 1
+field d : max bound 16
+d[i] <- c[i] + 1 + 2 + c[i] + 4 + 5 + c[i] + 7 + 8 + c[i] + 10 + 11 + c[i] + 13 + 14 + c[i]   for (i) in 0 .. 9
+field e : max bound 16
+e[i] <- d[i] * 2 + a[i] - c[i] + 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11 + 12   for (i) in 0 .. 9
+print a
+print c
+print d
+print e

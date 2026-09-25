@@ -1,0 +1,13 @@
+# 二つの語の共通の前置きの長さ
+table w1 = (0,112),(1,114),(2,101),(3,102),(4,105),(5,120)
+table w2 = (0,112),(1,114),(2,101),(3,115),(4,115)
+field a : flat bound 8
+field b : flat bound 8
+a[i] <- c   for (i,c) in w1
+b[i] <- c   for (i,c) in w2
+field same : or bound 8
+same[0] <- true   for (z) in 0 .. 0 if a[0] == b[0]
+same[i] <- true   for (i) in 1 .. 7 if same[i - 1] if a[i] == b[i]
+field lcp : count bound 1
+lcp[0] <- i   for (i) in 0 .. 7 if same[i]
+print lcp

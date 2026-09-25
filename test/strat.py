@@ -67,8 +67,11 @@ def statements(raw):
     return heads
 
 
-def baked_refuses(raw):
-    """焼いて走らせ、断ったなら理由を返す（答えを出したなら None）。"""
+def baked_refuses(raw, _tbl=False):
+    """焼いて走らせ、断ったなら理由を返す（答えを出したなら None）。
+    表の無い源（下ろす道の本）は「表が一つ要る」（行 0 理由 6）でしか断らないので、表を一枚足して焼き直す ——
+    本当の断りの理由を見る（14r。足した一行のぶん行を戻す）"""
+    if _tbl: raw = b"table ch = (0,32)\n" + raw
     r = subprocess.run([LATTIX], input=raw, capture_output=True)
     if r.returncode or r.stdout[:4] != b'\x7fELF': return None
     exe = os.path.join(tmp, 'x.out')
@@ -76,7 +79,9 @@ def baked_refuses(raw):
     q = subprocess.run([exe], input=b'', capture_output=True)
     if q.returncode == 7:
         m = re.search(rb'line (\d{6}) reason ([0-9A-F])', q.stderr)
-        return f"行 {int(m.group(1))} 理由 {m.group(2).decode()}" if m else "理由なし"
+        if m and not _tbl and int(m.group(1)) == 0 and m.group(2) == b'6':
+            return baked_refuses(raw, True)
+        return f"行 {int(m.group(1)) - (1 if _tbl else 0)} 理由 {m.group(2).decode()}" if m else "理由なし"
     if q.returncode == 6: return "広さを超えた"
     return None
 
@@ -111,8 +116,11 @@ def check(path):
     try:
         L.stratify(p)
     except Exception as ex:
-        # 答えの定義が「成層できない」と言うなら、焼く側も断っていなければならない
-        if deep and refuse: return None, f"両者が断る（成層できない。焼く側は {refuse}）"
+        # 答えの定義が「成層できない」と言うなら、焼く側も断っていなければならない。
+        # 断る所は前段の層（127）とは限らない —— 軸の群を作らない判断は焼き手の後ろの段にもある
+        # （lib/fold.lx の `ospn`、生成器の理由 7）。層が振れていても、焼いて走らせて確かめる（14r）
+        if not deep: refuse = baked_refuses(raw)
+        if refuse: return None, f"両者が断る（成層できない。焼く側は {refuse}）"
         return (0, [(0, '—', '—', 0, 0, '成層できないのに焼く側が答えを出した')], 0), None
     if deep:
         if refuse: return None, f"焼く側が断る（{refuse}）"

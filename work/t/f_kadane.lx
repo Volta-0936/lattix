@@ -1,0 +1,11 @@
+# 最大部分和（カダネ）
+table a = (0,-2),(1,1),(2,-3),(3,4),(4,-1),(5,2),(6,1),(7,-5),(8,4)
+field v : flat bound 9
+v[i] <- x   for (i,x) in a
+field cur : max bound 9
+cur[0] <- v[0]
+cur[i] <- cur[i - 1] + v[i]   for (i) in 1 .. 8
+cur[i] <- v[i]   for (i) in 1 .. 8
+field best : max bound 1
+best[0] <- cur[i]   for (i) in 0 .. 8
+print best

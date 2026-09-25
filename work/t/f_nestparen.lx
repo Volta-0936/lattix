@@ -1,0 +1,7 @@
+field a : flat bound 4
+field b : flat bound 4
+a[i] <- i + 1   for (i) in 0 .. 3
+b[i] <- i * 2   for (i) in 0 .. 3
+field x : flat bound 4
+x[i] <- (a[i] + 13 * (b[i] + 1) / 5) % 7   for (i) in 0 .. 3
+print x

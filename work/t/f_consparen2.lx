@@ -1,0 +1,10 @@
+# 構成子の引数の丸括弧と定数
+constructor cons(hd, tl)
+field a : max bound 8
+a[i] <- i * 2   for (i) in 0 .. 5
+field w : flat bound 8
+w[i] <- cons((2) + (4 % 3), cons(a[i] * ((1)), 0))   for (i) in 0 .. 5
+field v : flat bound 8 4
+v[i, j] <- cons((j * (3 % 2)) + (7), 0)   for (i) in 0 .. 3 for (j) in 0 .. 2 if (j) <= (1 + 1)
+print w
+print v

@@ -1,0 +1,11 @@
+# 添字の中の丸括弧（書き先・読み・ガードの辺）と、一点の定数の塊
+field a : max bound 16
+a[(i + 1) % 5] <- i   for (i) in 0 .. 9
+field b : max bound 16 4
+b[i, (j * 2) % 3] <- (i + j) * (2)   for (i) in 0 .. 5 for (j) in 0 .. 3 if (a[i % 5] - 1) >= (1)
+field c : max bound 16
+c[(2) + 3] <- 7
+c[i] <- a[(i + 2) % 5] + (b[i, (i) % 3])   for (i) in 0 .. 5
+print a
+print b
+print c

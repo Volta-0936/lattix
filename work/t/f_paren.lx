@@ -1,0 +1,12 @@
+# 括弧の対応（深さの前置きの和。深さが負になったら壊れている）
+table ch = (0,40),(1,40),(2,41),(3,40),(4,41),(5,41),(6,41),(7,40)
+field d : flat bound 9
+d[0] <- 0
+d[i + 1] <- d[i] + 1   for (i,c) in ch if c == 40
+d[i + 1] <- d[i] - 1   for (i,c) in ch if c == 41
+field bad : or bound 1
+bad[0] <- true   for (i) in 0 .. 8 if d[i] < 0
+field fin : flat bound 1
+fin[0] <- d[8]
+print bad
+print fin

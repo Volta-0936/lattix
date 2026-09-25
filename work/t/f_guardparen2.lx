@@ -1,0 +1,6 @@
+# ガードの辺が丸括弧で始まり、外にまだ算術がある（辺の塊と括弧の塊の始まりがぶつかっていた）
+field a : max bound 16
+a[i] <- i * 3 + 1   for (i) in 0 .. 9
+field d : max bound 16
+d[i] <- i   for (i) in 0 .. 9 if (a[i] % 3) + 1 == 2
+print d

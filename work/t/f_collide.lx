@@ -1,0 +1,17 @@
+# 二つの粒が一次元で動き、ぶつかったら向きを変える（時間の軸・二つの場が同じ切り口を読む）
+field p : flat bound 20
+field q : flat bound 20
+field vp : flat bound 20
+field vq : flat bound 20
+p[0] <- 0
+q[0] <- 9
+vp[0] <- 1
+vq[0] <- 0 - 1
+p[t] <- p[t - 1] + vp[t - 1]   for (t) in 1 .. 19
+q[t] <- q[t - 1] + vq[t - 1]   for (t) in 1 .. 19
+vp[t] <- 0 - vp[t - 1]   for (t) in 1 .. 19 if q[t] - p[t] <= 1
+vp[t] <- vp[t - 1]   for (t) in 1 .. 19 if q[t] - p[t] > 1
+vq[t] <- 0 - vq[t - 1]   for (t) in 1 .. 19 if q[t] - p[t] <= 1
+vq[t] <- vq[t - 1]   for (t) in 1 .. 19 if q[t] - p[t] > 1
+print p
+print q
