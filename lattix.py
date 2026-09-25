@@ -1143,6 +1143,9 @@ def _target_req(prog, f):
     return {'DOWN': 'DOWN'}.get(prog.sense.get(f), 'UP')
 
 
+_NM_NODES = None     # 非単調と言った読みの節（軸の成層が読みごとに辺を引くとき、_nm_nodes が立てる）
+
+
 def classify(e, req, strict, sense, out, detail=None):
     """Mark every field read that sits in a NON-monotone position.
 
@@ -1188,6 +1191,7 @@ def classify(e, req, strict, sense, out, detail=None):
         elif s != req:       bad = f"needs to move {req} here, but a `{s}`-sensed field moves {s}"
         if bad:
             out.add(e[1])
+            if _NM_NODES is not None: _NM_NODES.append(e)
             if detail is not None: detail.append((e[1], bad))
         return
     if k == 'geq':
@@ -1335,6 +1339,19 @@ def _vars_of(e, out):
     _walk(e, lambda n: out.add(n[1]) if n[0] == 'var' else None)
 
 
+def _fref_arities(e, out):
+    """式の中の場の読みを (名, 座標の数) で集める。"""
+    if not isinstance(e, tuple): return
+    if e[0] == 'fref':
+        out.append((e[1], len(e[2])))
+        for x in e[2]: _fref_arities(x, out)
+        return
+    for x in e[1:]:
+        if isinstance(x, tuple): _fref_arities(x, out)
+        elif isinstance(x, list):
+            for y in x: _fref_arities(y, out)
+
+
 def check(prog, conservative=False, optimistic=False):
     for r in prog.rules:
         r.keys = [_annotate(x, prog) for x in r.keys]
@@ -1342,6 +1359,23 @@ def check(prog, conservative=False, optimistic=False):
         r.guards = [_annotate(g, prog) for g in r.guards]
     prog.sense = field_senses(prog)
     prog.conservative = conservative
+    prog.optimistic = optimistic
+    # **場の次数は一つ**（14s）。`f[]` と `f[0]` は別の升として数えていたが、下ろす側は `f[]` を `f[0]` に
+    # 寄せる（焼き手は次数 0 の升を持たない）—— 同じ源が二つの答えを持ちうる。両方で使う本は定義の側で断る
+    seen = {}
+    for r in prog.rules:
+        occ = [(r.target, len(r.keys))]
+        for e in r.keys + [r.value] + r.guards: _fref_arities(e, occ)
+        for vs, src in r.sources:
+            if isinstance(src, tuple) and src[0] == '..':
+                _fref_arities(src[1], occ); _fref_arities(src[2], occ)
+        for f, a in occ:
+            if f in seen and seen[f][0] != a:
+                raise LattixError(
+                    f"line {r.lineno}: field {f!r} is used with {a} coordinate(s) here and "
+                    f"{seen[f][0]} on line {seen[f][1]} — a field has one arity "
+                    f"(`{f}[]` is not `{f}[0]`)")
+            seen.setdefault(f, (a, r.lineno))
     for r in prog.rules:
         if r.target not in prog.fields:
             raise LattixError(f"line {r.lineno}: undeclared field {r.target!r}")
@@ -1600,6 +1634,48 @@ def _fref_axis_coords(e, f, d, out):
         for x in e[1]: _fref_axis_coords(x, f, d, out)
 
 
+def _nm_nodes(prog, r):
+    """規則 r の中で **非単調な位置にある読みの節** を返す（check と同じ判断をもう一度走らせる）。
+    保守的な型（conservative）では読みごとの向きを持たないので None（場の粒度に戻る）。"""
+    global SIGNS, _NM_NODES
+    if getattr(prog, 'optimistic', False): return []
+    if getattr(prog, 'conservative', False): return None
+    got = []
+    save_s, save_h = SIGNS, _NM_NODES
+    try:
+        SIGNS = _Signs(prog, r); _NM_NODES = got
+        nm = set()
+        tgt_req = _target_req(prog, r.target)
+        for e in r.keys: classify(e, 'COORD', True, prog.sense, nm)
+        classify(r.value, tgt_req, True, prog.sense, nm)
+        for g in r.guards: classify(g, 'UP', True, prog.sense, nm)
+        for vs, src in r.sources:
+            if isinstance(src, tuple) and src[0] == '..':
+                classify(src[1], 'DOWN', True, prog.sense, nm)
+                classify(src[2], 'UP', True, prog.sense, nm)
+    finally:
+        SIGNS, _NM_NODES = save_s, save_h
+    return got
+
+
+def _fref_nodes(e, f, out):
+    """式の中の場 f の読みの節を集める（_fref_axis_coords と同じ歩き方）。"""
+    k = e[0]
+    if k == 'fref':
+        if e[1] == f: out.append(e)
+        for x in e[2]: _fref_nodes(x, f, out)
+    elif k == 'ctor':
+        for x in e[2]: _fref_nodes(x, f, out)
+    elif k in ('bin', 'cmp', 'fn'):
+        _fref_nodes(e[2], f, out); _fref_nodes(e[3], f, out)
+    elif k == 'geq':
+        _fref_nodes(e[1], f, out); _fref_nodes(e[2], f, out)
+    elif k in ('not', 'bnot'):
+        _fref_nodes(e[1], f, out)
+    elif k == 'set':
+        for x in e[1]: _fref_nodes(x, f, out)
+
+
 def _stratify_core(prog):
     n = len(prog.rules)
     writers = defaultdict(list)
@@ -1640,6 +1716,25 @@ def _stratify_core(prog):
         _rc[key] = out or {None}
         return _rc[key]
 
+    _nmc = {}
+
+    def split(r, f):
+        """軸の場 f の読みを、非単調な読みの軸座標と単調な読みの軸座標に分ける。
+        軸の場でなければ、また読みごとの向きが分からなければ None（場の粒度の辺）。"""
+        d = axis.get(f)
+        if d is None: return None
+        if r.id not in _nmc: _nmc[r.id] = _nm_nodes(prog, r)
+        nmn = _nmc[r.id]
+        if nmn is None: return None
+        nodes = []
+        for e in r.keys + [r.value] + r.guards: _fref_nodes(e, f, nodes)
+        for vs, src in r.sources:
+            if isinstance(src, tuple) and src[0] == '..':
+                _fref_nodes(src[1], f, nodes); _fref_nodes(src[2], f, nodes)
+        nmid = {id(x) for x in nmn}
+        co = lambda x: _const_int(x[2][d]) if d < len(x[2]) else None
+        return ({co(x) for x in nodes if id(x) in nmid}, {co(x) for x in nodes if id(x) not in nmid})
+
     def joined(w, r, f):
         if f not in axis: return True
         rs = rcoords(r, f)
@@ -1653,10 +1748,23 @@ def _stratify_core(prog):
                 if w != r.id and joined(w, r, f):
                     edges.append((w, r.id, 0)); succ[w].append(r.id)
         for f in r.nonmono_reads:
+            sp = split(r, f)
             for w in writers.get(f, ()):
                 # a weight-1 self-loop IS the ill-posed case; keep it
-                if joined(w, r, f):
+                if sp is None:
+                    if joined(w, r, f):
+                        edges.append((w, r.id, 1)); succ[w].append(r.id)
+                    continue
+                # **軸の場は読みごとに向きを持つ**（14s）。同じ規則が同じ場を、同じ切り口では単調に、
+                # 小さい切り口では非単調に読むなら、辺も読みごとに引く —— 接地したグラフの層そのもの
+                # （SPEC「書き先の軸座標 c と読みの軸座標 c' が定数で c ≠ c' ならその辺は無い」は読みの辺）。
+                # 前は場の粒度の向き（nonmono_reads）を全部の読みに掛けていたので、同じ切り口の単調な読みまで
+                # 非単調と数え、切り口の中の単調な輪を断っていた
+                nmc, mc = sp
+                if None in nmc or wc[w] is None or wc[w] in nmc:
                     edges.append((w, r.id, 1)); succ[w].append(r.id)
+                elif w != r.id and (None in mc or wc[w] in mc):
+                    edges.append((w, r.id, 0)); succ[w].append(r.id)
         # 外界との往復: そのチャネルへ emit する規則より真に後でなければ、
         # 応答を読むことはできない。これが逐次性の *本当の* 出どころである。
         for f in r.reads:

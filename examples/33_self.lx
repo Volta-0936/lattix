@@ -603,8 +603,12 @@ ssl[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if bsl[s, k]
 field bcy : or bound 2048                # 群の切り口の中に輪がある
 bcy[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
 field bnm0 : or bound 2048               # 群の中に、同じ切り口の非単調な読みがある
-bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if onm[o]
-# （同じ切り口の読みも、同じ文が同じ場を非単調に読めば非単調と数える —— lib/fold.lx の `ospn`。14r）
+# 数えるのは **輪の中か後ろ（段が飽和した書き手）の場** の読みだけ（14s）。輪に入らない場（段の低い書き手）は、
+# 回し直す一周目でもう書き終わっている —— 読み手は段の順で後ろに回るので、途中の値を読まない。前は群の中の
+# 同じ切り口の非単調な読みを一つでも見たら群にしなかった（撒いた ay6_071 —— 定義は受け取る）
+bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if onm[o] if wsl[ofzx[o], 7]
+# 同じ切り口の読みの向きは **読みごと**（出現ごと）に見る。定義（lattix.py）も 14s から読みごとに辺を引く ——
+# 14r では定義が (規則, 場) で向きを持っていたので、焼き手も合わせて控えめに断っていた（fold の `ospn`。14s で外した）
 field bxor : or bound 2048               # 切り口の中に、非単調な読みを含む輪がある
 bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7] if bnm0[sbid[s]]
 field bxfs : min bound 2048              # 群 b の最初の文

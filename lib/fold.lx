@@ -45,25 +45,6 @@ field sdv : max bound 16384
 sdv[sdno[s]] <- 0                   for (s) in 0 .. nstz[0] if isseed[s] if not svok[s]   # 値の無い種だけ（負の種が 0 に負ける）
 sdv[sdno[s]] <- sedv[s]             for (s) in 0 .. nstz[0] if isseed[s]
 
-# **定義は読みの向きを (規則, 場) で持つ**（lattix.py の nonmono_reads は場の集合で、展開した後も同じ場の読みは
-# 一つの向きになる）。同じ文が同じ場を小さい切り口で非単調に読んでいれば、同じ切り口の単調な読みも定義の上では
-# 非単調で、切り口の中の輪は定義が断る。出現ごとの向き（焼き手）の方が細かいが、定義が断る本に焼き手が答えれば
-# 黙って違う（撒いた 540 本の ax3_096: `a[n, j] <- b[n, j] + 1 … if b[n - 2, 0] >= 3` と `b[n, j] <- a[n, j - 1] + 2`）。
-# 控えめな側にだけ倒す —— 同じ切り口の読みの文が、同じ場をどこかで非単調に読むなら、その読みも非単調と数える。
-# ここ（fold）に置くのは、依存する区間（`for (p) in (oofo[o]) .. oola[o]`）を 33_self の自己検査の古い道が焼けないから
-# （selfbyte が「書き先の座標が導けない」と言った）。書くのは 33_self の `bnm0` —— 焼き手の中では一つの不動点である
-field osfo : min bound 16384             # 文 s の最初の出現
-osfo[osn[o]] <- o for (o) in 0 .. nocz[0]
-field osla : max bound 16384             # 文 s の最後の出現
-osla[osn[o]] <- o for (o) in 0 .. nocz[0]
-field oofo : max bound 32768             # 出現 o の文の最初の出現（読みを一段に保つ写し）
-oofo[o] <- osfo[osn[o]] for (o) in 0 .. nocz[0] if oxc0[o]
-field oola : max bound 32768             # 出現 o の文の最後の出現
-oola[o] <- osla[osn[o]] for (o) in 0 .. nocz[0] if oxc0[o]
-field ospn : or bound 32768              # 出現 o の文は、o の場をどこかで非単調に読む
-ospn[o] <- true for (o) in 0 .. nocz[0] for (p) in (oofo[o]) .. oola[o] if oxc0[o] if onm[p] if ofzx[p] == ofzx[o]
-bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if ospn[o]
-
 # ── 規則の番号。**層の昇順**（層ごとに数えて、層の頭を足す）────────────
 field rcnt : max bound 16384 128          # 文 s までに層 k で数えた規則（s を含む）
 rcnt[s,k] <- 0                      for (s) in 0 .. nstz[0] for (k) in 0 .. 127

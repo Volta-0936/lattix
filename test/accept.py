@@ -932,10 +932,10 @@ reach[t, v] <- true   for (t) in 1 .. 5 for (v) in 0 .. 4 if start[t, v]
 reach[t, v + 1] <- true   for (t) in 1 .. 5 for (v) in 0 .. 3 if reach[t, v]
 start[t, v] <- true   for (t) in 1 .. 5 for (v) in 0 .. 4 if not reach[t - 1, v] if v >= t
 """, data=b"a")
-# **定義は読みの向きを (規則, 場) で持つ**: a の規則は b を同じ切り口で単調に、二つ前の切り口で非単調に読む。
-# 解釈実行は b の読みを一つの向き（非単調）に数え、切り口の中の輪を断る。出現ごとに見る焼き手は輪を回して
-# 答えていた（14r で撒いた 540 本の ax3_096 —— 黙って違う）。焼き手も (規則, 場) の向きで数える（33_self の ospn）
-case("切り口の中の輪で同じ場を非単調にも読む（言う）", """table ch = (0,32)
+# **向きは読みごと**: a の規則は b を同じ切り口で単調に、二つ前の切り口で非単調に読む。14r までの定義は b の読みを
+# 一つの向き（非単調）に数えて切り口の中の輪を断り、焼き手も合わせて断っていた（撒いた 540 本の ax3_096）。
+# 14s で定義が読みごとに辺を引くようになり、接地したグラフで層が立つ —— 両方が同じ答えを出す
+case("切り口の中の輪で同じ場を非単調にも読む（通る）", """table ch = (0,32)
 field a : min bound 12 5
 field b : min bound 12 5
 a[0, j] <- 2   for (j) in 0 .. 3
@@ -944,7 +944,7 @@ b[0, j] <- 2   for (j) in 0 .. 3
 b[1, j] <- 2   for (j) in 0 .. 3
 b[n, j] <- a[n, j - 1] + 2   for (n) in 2 .. 11 for (j) in 1 .. 3
 a[n, j] <- b[n, j] + 1   for (n) in 2 .. 11 for (j) in 1 .. 3 if b[n - 2, 0] >= 3
-""", data=b"a", exit=7, why=(8,7))
+""", data=b"a")
 case("土台が同じ層で育つ場を読む（通る）", """table ch = (0,32)
 field x : max bound 16
 x[n] <- n   for (n) in 0 .. 15

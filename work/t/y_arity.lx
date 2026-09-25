@@ -1,0 +1,8 @@
+# 場の次数は一つ: n[] と n[0] を混ぜた本は、定義も焼く側も断る（14s）
+field n : max bound 4
+n[] <- 5
+field x : max bound 4
+x[i] <- n[0] + i   for (i) in 0 .. 2
+n[0] <- 3
+print n
+print x
