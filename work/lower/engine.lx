@@ -1,0 +1,75 @@
+# ── print を _o に下ろす機械（下ろした本の末尾に一度だけ置く）──
+field _o : max bound 65536 80
+field _pv : max bound 65536
+field _pk1 : max bound 65536
+field _pk2 : max bound 65536
+field _pp : max bound 65536
+field _pab : max bound 65536
+field _pq : max bound 65536
+field _pbs : max bound 64
+field _pen : max bound 64
+field _pd2 : or bound 64
+field _pd0 : or bound 64
+field _por : or bound 64
+field _pn : or bound 64
+field _pnm : max bound 64 16
+field _prr : max bound 64 65536
+field _Rz : max bound 1
+field _Pz : max bound 1
+field _bt : max bound 64
+_pp[r] <- p   for (r) in 0 .. _Rz[0] for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _pv[r] == _pv[r]
+_pn[_pp[r]] <- true   for (r) in 0 .. _Rz[0]
+_pk1[r] <- r - _pbs[_pp[r]] - 1   for (r) in 0 .. _Rz[0] if not _pd2[_pp[r]] if not _pd0[_pp[r]]
+_o[r, j] <- _pnm[_pp[r], j]   for (r) in 0 .. _Rz[0] for (j) in 0 .. 15
+_o[r, 16] <- 91   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[r, 26] <- 48 + _pk1[r] % 10   for (r) in 0 .. _Rz[0]
+_o[r, 25] <- 48 + _pk1[r] / 10 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 10
+_o[r, 24] <- 48 + _pk1[r] / 100 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 100
+_o[r, 23] <- 48 + _pk1[r] / 1000 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 1000
+_o[r, 22] <- 48 + _pk1[r] / 10000 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 10000
+_o[r, 21] <- 48 + _pk1[r] / 100000 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 100000
+_o[r, 20] <- 48 + _pk1[r] / 1000000 % 10   for (r) in 0 .. _Rz[0] if _pk1[r] >= 1000000
+_o[r, 27] <- 44   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
+_o[r, 28] <- 32   for (r) in 0 .. _Rz[0] if _pd2[_pp[r]]
+_o[r, 38] <- 48 + _pk2[r] % 10   for (r) in 0 .. _Rz[0]
+_o[r, 37] <- 48 + _pk2[r] / 10 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 10
+_o[r, 36] <- 48 + _pk2[r] / 100 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 100
+_o[r, 35] <- 48 + _pk2[r] / 1000 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 1000
+_o[r, 34] <- 48 + _pk2[r] / 10000 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 10000
+_o[r, 33] <- 48 + _pk2[r] / 100000 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 100000
+_o[r, 32] <- 48 + _pk2[r] / 1000000 % 10   for (r) in 0 .. _Rz[0] if _pk2[r] >= 1000000
+_o[r, 39] <- 93   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[r, 40] <- 32   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[r, 41] <- 61   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[r, 42] <- 32   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[r, 43] <- 116   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
+_o[r, 44] <- 114   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
+_o[r, 45] <- 117   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
+_o[r, 46] <- 101   for (r) in 0 .. _Rz[0] if _por[_pp[r]]
+_o[r, 43] <- 45   for (r) in 0 .. _Rz[0] if _pv[r] < 0 if not _por[_pp[r]]
+_pab[r] <- _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] >= 0 if not _por[_pp[r]]
+_pab[r] <- 0 - _pv[r]   for (r) in 0 .. _Rz[0] if _pv[r] < 0 if not _por[_pp[r]]
+_pq[r] <- _pab[r] / 1000000000   for (r) in 0 .. _Rz[0]
+_o[r, 62] <- 48 + _pab[r] % 10   for (r) in 0 .. _Rz[0]
+_o[r, 61] <- 48 + _pab[r] / 10 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 10
+_o[r, 60] <- 48 + _pab[r] / 100 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 100
+_o[r, 59] <- 48 + _pab[r] / 1000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 1000
+_o[r, 58] <- 48 + _pab[r] / 10000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 10000
+_o[r, 57] <- 48 + _pab[r] / 100000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 100000
+_o[r, 56] <- 48 + _pab[r] / 1000000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 1000000
+_o[r, 55] <- 48 + _pab[r] / 10000000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 10000000
+_o[r, 54] <- 48 + _pab[r] / 100000000 % 10   for (r) in 0 .. _Rz[0] if _pab[r] >= 100000000
+_o[r, 53] <- 48 + _pq[r] % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 1
+_o[r, 52] <- 48 + _pq[r] / 10 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 10
+_o[r, 51] <- 48 + _pq[r] / 100 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 100
+_o[r, 50] <- 48 + _pq[r] / 1000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 1000
+_o[r, 49] <- 48 + _pq[r] / 10000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 10000
+_o[r, 48] <- 48 + _pq[r] / 100000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 100000
+_o[r, 47] <- 48 + _pq[r] / 1000000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 1000000
+_o[r, 46] <- 48 + _pq[r] / 10000000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 10000000
+_o[r, 45] <- 48 + _pq[r] / 100000000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 100000000
+_o[r, 44] <- 48 + _pq[r] / 1000000000 % 10   for (r) in 0 .. _Rz[0] if _pq[r] >= 1000000000
+_o[r, 63] <- 10   for (r) in 0 .. _Rz[0] if _pp[r] >= 0
+_o[_pbs[p], j] <- _pnm[p, j]   for (p) in 0 .. _Pz[0] for (j) in 0 .. 15 if not _pn[p]
+_o[_pbs[p], j + 16] <- _bt[j]   for (p) in 0 .. _Pz[0] for (j) in 0 .. 60 if not _pn[p]
+render _o
