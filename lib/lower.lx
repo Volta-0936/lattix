@@ -82,7 +82,7 @@ tpc[1, 9] <- 114
 tph[1, 10] <- 3
 tpd[1, 10] <- 0
 tpc[1, 11] <- 93
-# 2: ' bound 4096'
+# 2: ' bound {0:7}'
 tpc[2, 0] <- 32
 tpc[2, 1] <- 98
 tpc[2, 2] <- 111
@@ -90,11 +90,21 @@ tpc[2, 3] <- 117
 tpc[2, 4] <- 110
 tpc[2, 5] <- 100
 tpc[2, 6] <- 32
-tpc[2, 7] <- 52
-tpc[2, 8] <- 48
-tpc[2, 9] <- 57
-tpc[2, 10] <- 54
-# 3: ' bound 256 256'
+tph[2, 7] <- 1
+tpd[2, 7] <- 6
+tph[2, 8] <- 1
+tpd[2, 8] <- 5
+tph[2, 9] <- 1
+tpd[2, 9] <- 4
+tph[2, 10] <- 1
+tpd[2, 10] <- 3
+tph[2, 11] <- 1
+tpd[2, 11] <- 2
+tph[2, 12] <- 1
+tpd[2, 12] <- 1
+tph[2, 13] <- 1
+tpd[2, 13] <- 0
+# 3: ' bound {0:7} {1:7}'
 tpc[3, 0] <- 32
 tpc[3, 1] <- 98
 tpc[3, 2] <- 111
@@ -102,13 +112,35 @@ tpc[3, 3] <- 117
 tpc[3, 4] <- 110
 tpc[3, 5] <- 100
 tpc[3, 6] <- 32
-tpc[3, 7] <- 50
-tpc[3, 8] <- 53
-tpc[3, 9] <- 54
-tpc[3, 10] <- 32
-tpc[3, 11] <- 50
-tpc[3, 12] <- 53
-tpc[3, 13] <- 54
+tph[3, 7] <- 1
+tpd[3, 7] <- 6
+tph[3, 8] <- 1
+tpd[3, 8] <- 5
+tph[3, 9] <- 1
+tpd[3, 9] <- 4
+tph[3, 10] <- 1
+tpd[3, 10] <- 3
+tph[3, 11] <- 1
+tpd[3, 11] <- 2
+tph[3, 12] <- 1
+tpd[3, 12] <- 1
+tph[3, 13] <- 1
+tpd[3, 13] <- 0
+tpc[3, 14] <- 32
+tph[3, 15] <- 2
+tpd[3, 15] <- 6
+tph[3, 16] <- 2
+tpd[3, 16] <- 5
+tph[3, 17] <- 2
+tpd[3, 17] <- 4
+tph[3, 18] <- 2
+tpd[3, 18] <- 3
+tph[3, 19] <- 2
+tpd[3, 19] <- 2
+tph[3, 20] <- 2
+tpd[3, 20] <- 1
+tph[3, 21] <- 2
+tpd[3, 21] <- 0
 # 4: '0'
 tpc[4, 0] <- 48
 # 5: '\n_t{0:2}c{1:2}[{2:7}] <- {3:10}'
@@ -3397,16 +3429,57 @@ field lrn : max bound 262144                # range の表の名のトークン�
 lrn[int1[u]] <- tix[u]              for (u,zc) in ch if kwin[u] if ltr[tix[u]]
 
 # ── 場の広さ（下ろした後の）─────────────────────────────────────────────
+# **広さは書き先の座標が言う**（区間解析）。書き先の次元ごとに添字の最大を出す: 数ならその数、
+# 表の変数なら列の最大、区間の変数なら上端、それぞれ ± ずれ。分からない（読み・式・上端が場）
+# 次元は既定（一次元 4096、二次元 256）以上。読みは広さに効かない（外は両方で ⊥）。
+# 狭く推しすぎれば焼いた本が「宣言が嘘」（終了コード 6）と言う —— 黙って違う答えにはならない。
 field lhb : or bound 1024                   # 場 f は広さを書いてある
 lhb[fdno[t]] <- true                for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+field ltcm : max bound 16 16                # 表 k の列 j の最大の値
+ltcm[tbk[snum[t]], colc[t]] <- tval[t]   for (t,zc) in ch if isfr[t] if colc[t] <= 15
+field ljo : max bound 262144                # 添字 j のずれ（無ければ 0）
+ljo[j] <- 0                        for (j,zc) in ch if not ixhf[j]
+ljo[j] <- ixnv[j]                  for (j,zc) in ch if ixhf[j] if isplus[ixop[j]]
+ljo[j] <- 0 - ixnv[j]              for (j,zc) in ch if ixhf[j] if ismin[ixop[j]]
+field ljm : max bound 262144                # 添字 j の最大（ずれ込み）
+field ljk : or bound 262144                 # 添字 j の最大が分かる
+ljm[j] <- tval[j] + ljo[j]         for (j,zc) in ch if isnum[j]
+ljk[j] <- true                     for (j,zc) in ch if isnum[j]
+field lvlk : max bound 262144               # 変数 j のループの書き方（lkd）
+lvlk[j] <- lkd[snum[j], vlpz[j]]   for (j,zc) in ch if tkind[j] == 1 if vbnd[j] >= 0 if not isocc[j]
+ljm[j] <- ltcm[lvt[j], vcolz[j]] + ljo[j]   for (j,zc) in ch if lvlk[j] == 0 if not ltr[lvt[j]]
+ljk[j] <- true                     for (j,zc) in ch if lvlk[j] == 0 if not ltr[lvt[j]]
+ljm[j] <- trh[lvt[j]] - 1 + ljo[j] for (j,zc) in ch if lvlk[j] == 0 if ltr[lvt[j]]
+ljk[j] <- true                     for (j,zc) in ch if lvlk[j] == 0 if ltr[lvt[j]]
+ljm[j] <- lhi2[snum[j], vlpz[j]] + ljo[j]   for (j,zc) in ch if lvlk[j] == 1
+ljk[j] <- true                     for (j,zc) in ch if lvlk[j] == 1
+field lhj0 : max bound 262144               # 書き先 o の次元 0 の添字
+lhj0[o] <- ob1[o]                  for (o,zc) in ch if lhd[o] if obk[o]
+field lhj1 : max bound 262144               # 書き先 o の次元 1 の添字
+lhj1[o] <- d1t[o]                  for (o,zc) in ch if lhd[o] if obk[o] if iscom[d0cm[o]]
+field lhf : max bound 262144                # 書き先 o の場（0 起点）
+lhf[o] <- ofl[oseq[o]] - 1         for (o,zc) in ch if lhd[o]
+field lbm : max bound 1024 2                # 場 f の次元 d の書き先の添字の最大
+field lbu : or bound 1024 2                 # 場 f の次元 d に分からない書き先がある
+lbm[lhf[o], 0] <- ljm[lhj0[o]]     for (o,zc) in ch if lhd[o] if ljk[lhj0[o]] if not lcs0[lhj0[o]]
+lbu[lhf[o], 0] <- true             for (o,zc) in ch if lhd[o] if obk[o] if not ljk[lhj0[o]] if not lemp[obr[o]]
+lbu[lhf[o], 0] <- true             for (o,zc) in ch if lhd[o] if lcs0[lhj0[o]]
+lbm[lhf[o], 0] <- 0                for (o,zc) in ch if lhd[o] if lemp[obr[o]]
+lbm[lhf[o], 1] <- ljm[lhj1[o]]     for (o,zc) in ch if lhd[o] if ljk[lhj1[o]] if not lcs0[lhj1[o]]
+lbu[lhf[o], 1] <- true             for (o,zc) in ch if lhd[o] if lhj1[o] >= 0 if not ljk[lhj1[o]]
+lbu[lhf[o], 1] <- true             for (o,zc) in ch if lhd[o] if lcs0[lhj1[o]]
 field lb1 : max bound 1024                  # 場 f の次元0 の広さ
 lb1[f] <- fwid[f]                   for (f) in 0 .. nfdz[0] if lhb[f]
-lb1[f] <- 4096                      for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 1
-lb1[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2
+lb1[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f]
+lb1[f] <- lbm[f, 0] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if lbm[f, 0] >= 0
+lb1[f] <- 4096                      for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 1 if lbu[f, 0]
+lb1[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbu[f, 0]
 field lb2 : max bound 1024                  # 場 f の次元1 の広さ（一次元は 1）
 lb2[f] <- 1                         for (f) in 0 .. nfdz[0] if farr[f] == 1
 lb2[f] <- fwid2[f]                  for (f) in 0 .. nfdz[0] if lhb[f] if farr[f] == 2
-lb2[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2
+lb2[f] <- 1                         for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2
+lb2[f] <- lbm[f, 1] + 1             for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbm[f, 1] >= 0
+lb2[f] <- 256                       for (f) in 0 .. nfdz[0] if not lhb[f] if farr[f] == 2 if lbu[f, 1]
 field lsz : max bound 1024                  # 場 f の升の数
 lsz[f] <- lb1[f] * lb2[f]           for (f) in 0 .. nfdz[0]
 
@@ -3672,6 +3745,8 @@ field lnl : max bound 262144                # その束のトークン
 lnl[t] <- latt[t]                  for (t,zc) in ch if lnb[t]
 iti[lin[lnl[t]], 0] <- 2           for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 1
 iti[lin[lnl[t]], 0] <- 3           for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 2
+ih0[lin[lnl[t]], 0] <- lb1[fdno[t]] for (t,zc) in ch if lnb[t]
+ih1[lin[lnl[t]], 0] <- lb2[fdno[t]] for (t,zc) in ch if lnb[t] if farr[fdno[t]] == 2
 irw[lin[lnl[t]], 0] <- lrw[lte[lnl[t]]] for (t,zc) in ch if lnb[t]
 ibd[lin[lnl[t]], 0] <- true for (t,zc) in ch if lnb[t]
 # 型紙 4: `n[]` → `n[0]`
