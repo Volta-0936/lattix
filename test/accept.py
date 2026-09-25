@@ -778,10 +778,27 @@ a[i] <- c   for (i,c) in ch
 field big : or bound 16
 big[i] <- true   for (i,c) in ch if not a[i] > 97
 """, data=b"ab", exit=7, why=(5,8))
-case("集約に二重のループ（言う）", """table ch = (0,32)
+# **二重以上のループの集約**（13f）。一度だけ数える印は外側の行でしか引いていないので、前は断っていた。
+# 読む場を下の層に閉じれば（前段が集約の読みで層を切る）規則は一度しか回らず、印は要らない。
+case("集約に二重のループ（count・表と区間）", """table ch = (0,32)
 field a : count bound 4
 a[0] <- 1   for (i,c) in ch for (k) in 0 .. 2
-""", data=b"ab", exit=7, why=(3,8))
+""", data=b"ab")
+case("集約に三重のループ（読む場は同じ源の規則）", """table ch = (0,32)
+field w : max bound 4 4
+w[i, j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 3
+field c : count bound 4
+c[i] <- 1   for (i) in 0 .. 3 for (j) in 0 .. 3 if w[i, j] >= 3
+field s : sum bound 4
+s[i] <- w[i, j] * k   for (i) in 0 .. 3 for (j) in 0 .. 3 for (k) in 1 .. 2
+field m : max bound 4
+m[i] <- s[i] + c[i]   for (i) in 0 .. 3
+""")
+case("集約に二重のループで、自分を読み返す（言う）", """table ch = (0,32)
+field c : count bound 4
+c[0] <- 1
+c[i] <- 1   for (i) in 1 .. 3 for (j) in 0 .. 1 if c[j] >= 1
+""", exit=7, why=(4,7))
 case("true は 1（max）", """table ch = (0,32)
 field x : max bound 4
 x[i] <- true   for (i) in 0 .. 2

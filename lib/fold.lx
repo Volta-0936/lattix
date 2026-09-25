@@ -599,8 +599,8 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sreg[t] if t
 # **集約の規則はループ一つまで**（理由 8）。sum / count の「一度だけ数える印」は
 # 外側の表の行（rcx）でしか引いていない —— 二重のループでは内側の実例が同じ印を
 # 踏み、`for (i,c) in ch for (k) in 0 .. 2` の count が 12 でなく 4 になっていた。
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwfor[t] if lseq[t] >= 2
-      if sagg[snum[t]]
+#   → **13f で生成器へ移した**: 読む場がすべて下の層で閉じていれば、規則は一度しか回らない
+#     ので印が要らない（31_gen の `amul` / `sagr`）。断るのは同じ層を読む集約だけ。
 # **形の崩れた源は焼かない**（理由 8）。解釈実行は構文で断るのに、焼く側は
 # 頭の無い矢印の文（`ri] <- …`）を規則でないものとして黙って落とし、答えを出していた。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t]

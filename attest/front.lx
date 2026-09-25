@@ -321,6 +321,12 @@ tnonm[t] <- true for (t,zc) in ch if isneg[t]
 tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]] if not rfl[t]
 tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1 if not rfl[t]
 tnonm[t] <- true for (t,zc) in ch if tnm4[t]
+# **二重以上のループの集約は、読みで層を切る**（13f）。集約は「一度だけ数える」を日程で持つ
+# （31_gen の `amul`）—— 読む場が同じ層で動くと二周目で数え直すので、読む場を下の層に閉じる。
+# 余分に層を切るのは答えを変えない（読む場が集約を読み返していれば輪になって断る —— 前と同じ）。
+field sagm : or bound 16384             # 文 s は二重以上のループの集約
+sagm[snum[t]] <- true for (t,zc) in ch if kwfor[t] if lseq[t] >= 2 if sagg[snum[t]]
+tnonm[t] <- true for (t,zc) in ch if sagm[snum[t]] if t > arrowt[snum[t]]
 field onm : or bound 32768
 onm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tnonm[t]
 
@@ -1903,8 +1909,8 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sreg[t] if t
 # **集約の規則はループ一つまで**（理由 8）。sum / count の「一度だけ数える印」は
 # 外側の表の行（rcx）でしか引いていない —— 二重のループでは内側の実例が同じ印を
 # 踏み、`for (i,c) in ch for (k) in 0 .. 2` の count が 12 でなく 4 になっていた。
-badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwfor[t] if lseq[t] >= 2
-      if sagg[snum[t]]
+#   → **13f で生成器へ移した**: 読む場がすべて下の層で閉じていれば、規則は一度しか回らない
+#     ので印が要らない（31_gen の `amul` / `sagr`）。断るのは同じ層を読む集約だけ。
 # **形の崩れた源は焼かない**（理由 8）。解釈実行は構文で断るのに、焼く側は
 # 頭の無い矢印の文（`ri] <- …`）を規則でないものとして黙って落とし、答えを出していた。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t]

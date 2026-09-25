@@ -3099,12 +3099,31 @@ imm[jb[r] + 8]  <- foff[rrwf[r]] + bias[0]  for (r) in 0 .. nrlz[0] if rrlt[r] =
 scb[jb[r] + 8]  <- fscb[rrwf[r]] for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 
 # sum / count: 印が冪等を持つ（行は一度しか数えない）。count は値を 1 に直す
-form[jb[r]] <- 68      for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-imm[jb[r]]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-form[jb[r] + 1] <- 22  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-form[jb[r] + 2] <- 69  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
-imm[jb[r] + 2]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8
+form[jb[r]] <- 68      for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+imm[jb[r]]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+form[jb[r] + 1] <- 22  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+jt[jb[r] + 1]   <- av[r]  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+form[jb[r] + 2] <- 69  for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+imm[jb[r] + 2]  <- fdsp[r] + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if not amul[r]
+# **二重以上のループの集約は、印を持たずに一度だけ回す**（13f）。印は外側の行（rcx）でしか
+# 引いていないので、内側の実例は同じ印を踏んで数え落ちる（`for (i,c) in ch for (k) in 0 .. 2`
+# の count が 12 でなく 4）—— だから前段が断っていた。だが印が要るのは **規則がもう一度回る**
+# ときだけである。読む場がすべて下の層で閉じていれば、日程の入口（EP と LAST）が二周目を
+# 通さない —— 最初の周回で一度回ったら、読んだ場はもう動かない。**冪等は印ではなく日程が持つ。**
+# 同じ層（か上）で書かれる場を読む集約は、二周目があるので断る（理由 8、前と同じ）。
+form[jb[r]] <- 195     for (r) in 0 .. nrlz[0] if amul[r]             # nop（印の三命令の席）
+form[jb[r] + 1] <- 195 for (r) in 0 .. nrlz[0] if amul[r]
+form[jb[r] + 2] <- 195 for (r) in 0 .. nrlz[0] if amul[r]
+field amul : or bound 16384                     # 集約の規則で、ループが二つ以上
+amul[r] <- true   for (r) in 0 .. nrlz[0] if rrlt[r] >= 8 if gnl[r] >= 2
+field fwst : max bound 2048                     # 場 f を書く規則の層（いちばん上）
+fwst[rrwf[r]] <- rrst[r]   for (r) in 0 .. nrlz[0]
+field sagr : or bound 16384                     # 規則 r は同じ層（か上）で書かれる場を読む
+sagr[tmr[gt]] <- true   for (gt) in 0 .. ngtz[0] if isrd[gt] if fwr[tmf[gt]] if fwst[tmf[gt]] >= rrst[tmr[gt]]
+sagr[gdr[gg]] <- true   for (gg) in 0 .. nggz[0] if gisr[gg] if fwr[gdf[gg]] if fwst[gdf[gg]] >= rrst[gdr[gg]]
+sagr[cdr[gc]] <- true   for (gc) in 0 .. ngcz[0] if cdrd[gc] if fwr[cdcf[gc]] if fwst[cdcf[gc]] >= rrst[cdr[gc]]
+sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lpk[gl] == 2 if fwr[lpbf[gl]] if fwst[lpbf[gl]] >= rrst[lpr[gl]]
+badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if sagr[r]
 form[jb[r] + 3] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 imm[jb[r] + 3]  <- 1 + bias[0]   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 
