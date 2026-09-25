@@ -21,18 +21,19 @@
 #   `print f`                → 消して、末尾で `_o[行, 桁]` に字を置く規則に。行は印字する升の
 #                              座標の線形の番号 —— 無い升は何も書かないので、詰める鎖が要らない
 #   末尾に print の機械（work/lower/engine.lx。一度だけ）と `table ch = (0,32)`
+#   `fourv` の場              → or の旗二つ（`x[e, 0]` T / `x[e, 1]` F。否定は旗の入れ替え —— 14b）
 
 # ── 型紙 ───────────────────────────────────────────────────────────────
-field tpc : max bound 256 64                 # 型紙 k の升 j の字
-field tph : max bound 256 64                 # 型紙 k の升 j の穴（1..4。字の升には無い）
-field tpd : max bound 256 64                 # その穴の何桁目か（右から）
-field tpn : max bound 256 64                 # 宣言の名前の升（1..16 = 何文字目 + 1）
-field tpm : max bound 256 64                 # トークンの綴りの升（1..8。束縛の変数名）
+field tpc : max bound 288 64                 # 型紙 k の升 j の字
+field tph : max bound 288 64                 # 型紙 k の升 j の穴（1..4。字の升には無い）
+field tpd : max bound 288 64                 # その穴の何桁目か（右から）
+field tpn : max bound 288 64                 # 宣言の名前の升（1..16 = 何文字目 + 1）
+field tpm : max bound 288 64                 # トークンの綴りの升（1..8。束縛の変数名）
 field lk : max bound 4096                   # print の機械（字 0..127 と句 128 + m を三バイトずつ畳んだ並び）
 field lkz : max bound 1                     # その最後の番号
 field lep : max bound 4096 3                # 種 i の j バイト目の位置
 field leb : max bound 12288                 # 位置 p のバイト
-field ex : max bound 12288 48               # 開いた字: 字は ex[p, 0]、句は ex[p, k] = 型紙 160 + m の字（⊥ は幅 0）
+field ex : max bound 12288 48               # 開いた字: 字は ex[p, 0]、句は ex[p, k] = 型紙 192 + m の字（⊥ は幅 0）
 # ── 帯を開く: 型紙の帯 `tv`（三バイトずつ）→ 位置 p のバイト → 型紙の番号と升の番号（区切り 0 の鎖）
 field tv : max bound 2048
 field tvz : max bound 1
@@ -219,97 +220,109 @@ tpm[tvk[p], tvj[p]] <- tvb[p] - 207 for (p) in 0 .. tvn[0] if tvb[p] >= 208 if t
 # 157: '_g{0:6}[0]'
 # 158: 'field'
 # 159: '_e{0:6}[0]'
-# 160: 句 ' for (r) in 0 .. _Rz[0]'
-# 161: 句 ') in 0 .. '
-# 162: 句 ' for (p) in 87 .. _TWx[0]'
-# 163: 句 '] <- '
-# 164: 句 ' for ('
-# 165: 句 '[r, '
-# 166: 句 ' : max bound '
-# 167: 句 '\nfield _'
-# 168: 句 ' if '
-# 169: 句 '_Sz[0]'
-# 170: 句 '[g, '
-# 171: 句 'p], '
-# 172: 句 '[_pp[r]]'
-# 173: 句 '] >= '
-# 174: 句 ' bound '
-# 175: 句 '\n_bt['
-# 176: 句 '_AA[_O'
-# 177: 句 '16384'
-# 178: 句 'not _'
-# 179: 句 '_dq[_q4[_VN'
-# 180: 句 '], p]'
-# 181: 句 '] % '
-# 182: 句 '] == '
-# 183: 句 '_cs[_V'
-# 184: 句 ' + 1'
-# 185: 句 '[r]\n_'
-# 186: 句 '_sid['
-# 187: 句 ' : flat'
-# 188: 句 '1[_V'
-# 189: 句 ') in 1 .. '
-# 190: 句 '48 + '
-# 191: 句 '0000'
-# 192: 句 '[_VN'
-# 193: 句 ' : or'
-# 194: 句 '2684353'
-# 195: 句 '_pp[r'
-# 196: 句 '_pv[r'
-# 197: 句 '_sn[g'
-# 198: 句 'p]], '
-# 199: 句 '[_pgs[r]'
-# 200: 句 ', j]'
-# 201: 句 ' + _'
-# 202: 句 '147456\n_'
-# 203: 句 '_sP[_s10[y]] + y % 10'
-# 204: 句 '_ptp'
-# 205: 句 '1\n_o'
-# 206: 句 '\n_aw'
-# 207: 句 '], e'
-# 208: 句 ' * 1'
-# 209: 句 '[a, '
-# 210: 句 '_AM['
-# 211: 句 '_Pz[0]'
-# 212: 句 '_cuc['
-# 213: 句 'true'
-# 214: 句 ' - 1'
-# 215: 句 '_pst'
-# 216: 句 '[k, '
-# 217: 句 ' 4\n_'
-# 218: 句 '0\n_V'
-# 219: 句 '] / 10'
-# 220: 句 '1023'
-# 221: 句 '], 0'
-# 222: 句 '\n_VN'
-# 223: 句 '\n_VD'
-# 224: 句 '_rs[r'
-# 225: 句 '1[_q9'
-# 226: 句 '_sc[p, '
-# 227: 句 '1024'
-# 228: 句 '8\n_o'
-# 229: 句 '] < '
-# 230: 句 '_sva'
-# 231: 句 '[_cq'
-# 232: 句 '0[_V'
-# 233: 句 '2[_V'
-# 234: 句 '_ph[r'
-# 235: 句 '_anl[a'
-# 236: 句 '_an['
-# 237: 句 '_dv0'
-# 238: 句 '64 1'
-# 239: 句 '[g]]'
-# 240: 句 '_AA['
-# 241: 句 '_cul[u]'
-# 242: 句 '_knl['
-# 243: 句 'ck0[g'
-# 244: 句 ' >= 0'
-# 245: 句 'r\n_o'
-# 246: 句 '_dk1'
-# 247: 句 '_dk2'
-# 248: 句 '_dv1'
-# 249: 句 '\n_af'
-# 型紙の帯（5010 バイトを三バイトずつ）
+# 160: ' 2'
+# 161: ', _r9] for (_r9) in 0 .. 1'
+# 162: ', _r9] for (_r9) in 0 .. 1 for (_z) in 0 .. 0'
+# 163: ', _fsw[_r9]] for (_r9) in 0 .. 1'
+# 164: ', _fsw[_r9]] for (_r9) in 0 .. 1 for (_z) in 0 .. 0'
+# 165: ', {0:7}] for (_z) in 0 .. 0'
+# 166: '\n_pv[_pr{0:2}[_k]] <- {1:4} for (_k) in 0 .. {2:6}'
+# 167: ' if @[_k, {0:1}]'
+# 168: '\n_pv[_pr{0:2}[_k, _m]] <- {1:4}'
+# 169: ' if @[_k, _m, {0:1}]'
+# 170: '\nfield _fsw : flat bound 2\n_fsw[0] <- 1\n_fsw[1] <- 0'
+# 171: '\n      if _pv[_pr{0:2}[_k, _m]] >= 0'
+# 192: 句 ' for (r) in 0 .. _Rz[0]'
+# 193: 句 ') in 0 .. '
+# 194: 句 ' for (p) in 87 .. _TWx[0]'
+# 195: 句 '] <- '
+# 196: 句 ' for ('
+# 197: 句 '[r, '
+# 198: 句 ' : max bound '
+# 199: 句 '\nfield _'
+# 200: 句 ' if '
+# 201: 句 '_Sz[0]'
+# 202: 句 '[g, '
+# 203: 句 'p], '
+# 204: 句 '[_pp[r]]'
+# 205: 句 '] >= '
+# 206: 句 ' bound '
+# 207: 句 '\n_bt['
+# 208: 句 '_AA[_O'
+# 209: 句 '16384'
+# 210: 句 'not _'
+# 211: 句 '_dq[_q4[_VN'
+# 212: 句 '], p]'
+# 213: 句 '] % '
+# 214: 句 '] == '
+# 215: 句 '_cs[_V'
+# 216: 句 ' + 1'
+# 217: 句 '[r]\n_'
+# 218: 句 '_sid['
+# 219: 句 ' : flat'
+# 220: 句 '1[_V'
+# 221: 句 ') in 1 .. '
+# 222: 句 '48 + '
+# 223: 句 '0000'
+# 224: 句 '[_VN'
+# 225: 句 ' : or'
+# 226: 句 '2684353'
+# 227: 句 '_pp[r'
+# 228: 句 '_pv[r'
+# 229: 句 '_sn[g'
+# 230: 句 'p]], '
+# 231: 句 '[_pgs[r]'
+# 232: 句 ', j]'
+# 233: 句 ' + _'
+# 234: 句 '147456\n_'
+# 235: 句 '_sP[_s10[y]] + y % 10'
+# 236: 句 '_ptp'
+# 237: 句 '1\n_o'
+# 238: 句 '\n_aw'
+# 239: 句 '], e'
+# 240: 句 ' * 1'
+# 241: 句 '[a, '
+# 242: 句 '_AM['
+# 243: 句 '_Pz[0]'
+# 244: 句 '_cuc['
+# 245: 句 'true'
+# 246: 句 ' - 1'
+# 247: 句 '_pst'
+# 248: 句 '[k, '
+# 249: 句 ' 4\n_'
+# 250: 句 '0\n_V'
+# 251: 句 '] / 10'
+# 252: 句 '1023'
+# 253: 句 '], 0'
+# 254: 句 '\n_VN'
+# 255: 句 '\n_VD'
+# 256: 句 '_rs[r'
+# 257: 句 '1[_q9'
+# 258: 句 '_sc[p, '
+# 259: 句 '1024'
+# 260: 句 '8\n_o'
+# 261: 句 '] < '
+# 262: 句 '_sva'
+# 263: 句 '[_cq'
+# 264: 句 '0[_V'
+# 265: 句 '2[_V'
+# 266: 句 '_ph[r'
+# 267: 句 '_anl[a'
+# 268: 句 '_an['
+# 269: 句 '_dv0'
+# 270: 句 '64 1'
+# 271: 句 '[g]]'
+# 272: 句 '_AA['
+# 273: 句 '_cul[u]'
+# 274: 句 '_knl['
+# 275: 句 'ck0[g'
+# 276: 句 ' >= 0'
+# 277: 句 'r\n_o'
+# 278: 句 '_dk1'
+# 279: 句 '_dk2'
+# 280: 句 '_dv1'
+# 281: 句 '\n_af'
+# 型紙の帯（5442 バイトを三バイトずつ）
 tv[0] <- 6236192
 tv[1] <- 2719858
 tv[2] <- 7235872
@@ -1779,208 +1792,352 @@ tv[1465] <- 8684901
 tv[1466] <- 8487555
 tv[1467] <- 3169152
 tv[1468] <- 2097245
-tv[1469] <- 7499622
-tv[1470] <- 7481376
-tv[1471] <- 6889513
-tv[1472] <- 3154030
-tv[1473] <- 3026464
-tv[1474] <- 5398304
-tv[1475] <- 3169146
-tv[1476] <- 2687069
-tv[1477] <- 7235872
-tv[1478] <- 2109472
-tv[1479] <- 2108974
-tv[1480] <- 6692864
-tv[1481] <- 2126447
-tv[1482] <- 2715688
-tv[1483] <- 7235872
-tv[1484] <- 3618848
-tv[1485] <- 3026464
-tv[1486] <- 5529376
-tv[1487] <- 5994583
-tv[1488] <- 23856
-tv[1489] <- 3940445
-tv[1490] <- 8237
-tv[1491] <- 7300640
-tv[1492] <- 2629746
-tv[1493] <- 7494400
-tv[1494] <- 8236
-tv[1495] <- 2112032
-tv[1496] <- 7889261
-tv[1497] <- 7299616
-tv[1498] <- 6581877
-tv[1499] <- 655392
-tv[1500] <- 6646118
-tv[1501] <- 2122860
-tv[1502] <- 2097247
-tv[1503] <- 2123369
-tv[1504] <- 5463808
-tv[1505] <- 3169146
-tv[1506] <- 5963869
-tv[1507] <- 2108519
-tv[1508] <- 6123520
-tv[1509] <- 8236
-tv[1510] <- 7364443
-tv[1511] <- 7494512
-tv[1512] <- 23901
-tv[1513] <- 4071517
-tv[1514] <- 8253
-tv[1515] <- 7299616
-tv[1516] <- 6581877
-tv[1517] <- 655392
-tv[1518] <- 7627359
-tv[1519] <- 6226011
-tv[1520] <- 5980481
-tv[1521] <- 20319
-tv[1522] <- 3356209
-tv[1523] <- 13368
-tv[1524] <- 7630702
-tv[1525] <- 24352
-tv[1526] <- 7431263
-tv[1527] <- 7429979
-tv[1528] <- 6249268
-tv[1529] <- 20054
-tv[1530] <- 2108509
-tv[1531] <- 23920
-tv[1532] <- 2433117
-tv[1533] <- 6094880
-tv[1534] <- 4013344
-tv[1535] <- 6225952
-tv[1536] <- 5993315
-tv[1537] <- 22111
-tv[1538] <- 2108192
-tv[1539] <- 5963825
-tv[1540] <- 679282
-tv[1541] <- 6226015
-tv[1542] <- 6580595
-tv[1543] <- 2097243
-tv[1544] <- 6692922
-tv[1545] <- 7627116
-tv[1546] <- 5976320
-tv[1547] <- 22111
-tv[1548] <- 6889513
-tv[1549] <- 3219566
-tv[1550] <- 3026464
-tv[1551] <- 3407904
-tv[1552] <- 2826296
-tv[1553] <- 3145760
-tv[1554] <- 3158064
-tv[1555] <- 6249216
-tv[1556] <- 20054
-tv[1557] <- 2112032
-tv[1558] <- 29295
-tv[1559] <- 3683890
-tv[1560] <- 3486516
-tv[1561] <- 6225971
-tv[1562] <- 5992560
-tv[1563] <- 6226034
-tv[1564] <- 5994096
-tv[1565] <- 6226034
-tv[1566] <- 5992051
-tv[1567] <- 7340135
-tv[1568] <- 2907485
-tv[1569] <- 5963808
-tv[1570] <- 6778975
-tv[1571] <- 7494515
-tv[1572] <- 2883677
-tv[1573] <- 6122016
-tv[1574] <- 2826240
-tv[1575] <- 24352
-tv[1576] <- 3617841
-tv[1577] <- 3552564
-tv[1578] <- 24330
-tv[1579] <- 5272415
-tv[1580] <- 7561051
-tv[1581] <- 5976113
-tv[1582] <- 6118777
-tv[1583] <- 2108192
-tv[1584] <- 2433145
-tv[1585] <- 3158304
-tv[1586] <- 7364352
-tv[1587] <- 28788
-tv[1588] <- 6228529
-tv[1589] <- 655471
-tv[1590] <- 7823711
-tv[1591] <- 2907392
-tv[1592] <- 25888
-tv[1593] <- 2107936
-tv[1594] <- 5963825
-tv[1595] <- 2108513
-tv[1596] <- 4284160
-tv[1597] <- 23373
-tv[1598] <- 8015967
-tv[1599] <- 6107227
-tv[1600] <- 6512384
-tv[1601] <- 5989237
-tv[1602] <- 7500800
-tv[1603] <- 25973
-tv[1604] <- 2108704
-tv[1605] <- 6225969
-tv[1606] <- 7631728
-tv[1607] <- 7035648
-tv[1608] <- 8236
-tv[1609] <- 668704
-tv[1610] <- 3145823
-tv[1611] <- 5660426
-tv[1612] <- 2120960
-tv[1613] <- 3219503
-tv[1614] <- 3211312
-tv[1615] <- 3355184
-tv[1616] <- 2907392
-tv[1617] <- 12320
-tv[1618] <- 5660426
-tv[1619] <- 655438
-tv[1620] <- 4478559
-tv[1621] <- 7495424
-tv[1622] <- 7494515
-tv[1623] <- 5976320
-tv[1624] <- 3764575
-tv[1625] <- 7560960
-tv[1626] <- 7363427
-tv[1627] <- 8236
-tv[1628] <- 3289137
-tv[1629] <- 3670068
-tv[1630] <- 7298826
-tv[1631] <- 2120960
-tv[1632] <- 8252
-tv[1633] <- 7762783
-tv[1634] <- 5963873
-tv[1635] <- 7431007
-tv[1636] <- 5976064
-tv[1637] <- 22111
-tv[1638] <- 6249266
-tv[1639] <- 6226006
-tv[1640] <- 5990512
-tv[1641] <- 6226034
-tv[1642] <- 7106145
-tv[1643] <- 24923
-tv[1644] <- 7233887
-tv[1645] <- 6226011
-tv[1646] <- 3176036
-tv[1647] <- 3421696
-tv[1648] <- 12576
-tv[1649] <- 6121307
-tv[1650] <- 6226013
-tv[1651] <- 5980481
-tv[1652] <- 6512384
-tv[1653] <- 5991541
-tv[1654] <- 23925
-tv[1655] <- 7236447
-tv[1656] <- 23404
-tv[1657] <- 3173219
-tv[1658] <- 26459
-tv[1659] <- 4013600
-tv[1660] <- 12320
-tv[1661] <- 6228594
-tv[1662] <- 6226031
-tv[1663] <- 3238756
-tv[1664] <- 6577920
-tv[1665] <- 12907
-tv[1666] <- 7758943
-tv[1667] <- 655409
-tv[1668] <- 6709599
-tv[1669] <- 0
-tvz[0] <- 1669
+tv[1469] <- 2883634
+tv[1470] <- 7495456
+tv[1471] <- 2121017
+tv[1472] <- 7499622
+tv[1473] <- 6236192
+tv[1474] <- 2701682
+tv[1475] <- 7235872
+tv[1476] <- 2109472
+tv[1477] <- 2108974
+tv[1478] <- 2883633
+tv[1479] <- 7495456
+tv[1480] <- 2121017
+tv[1481] <- 7499622
+tv[1482] <- 6236192
+tv[1483] <- 2701682
+tv[1484] <- 7235872
+tv[1485] <- 2109472
+tv[1486] <- 2108974
+tv[1487] <- 6692913
+tv[1488] <- 2126447
+tv[1489] <- 8019752
+tv[1490] <- 6889513
+tv[1491] <- 3154030
+tv[1492] <- 3026464
+tv[1493] <- 12320
+tv[1494] <- 6234156
+tv[1495] <- 7828326
+tv[1496] <- 7495515
+tv[1497] <- 6118713
+tv[1498] <- 7300640
+tv[1499] <- 2629746
+tv[1500] <- 3764831
+tv[1501] <- 6889513
+tv[1502] <- 3154030
+tv[1503] <- 3026464
+tv[1504] <- 12576
+tv[1505] <- 6234156
+tv[1506] <- 7828326
+tv[1507] <- 7495515
+tv[1508] <- 6118713
+tv[1509] <- 7300640
+tv[1510] <- 2629746
+tv[1511] <- 3764831
+tv[1512] <- 6889513
+tv[1513] <- 3154030
+tv[1514] <- 3026464
+tv[1515] <- 2109728
+tv[1516] <- 7499622
+tv[1517] <- 6236192
+tv[1518] <- 2107770
+tv[1519] <- 2125417
+tv[1520] <- 3022896
+tv[1521] <- 3153966
+tv[1522] <- 2108416
+tv[1523] <- 8684934
+tv[1524] <- 8487555
+tv[1525] <- 2121088
+tv[1526] <- 7499622
+tv[1527] <- 6236192
+tv[1528] <- 2107770
+tv[1529] <- 2125417
+tv[1530] <- 3022896
+tv[1531] <- 3153966
+tv[1532] <- 6228480
+tv[1533] <- 5994096
+tv[1534] <- 7499871
+tv[1535] <- 5996673
+tv[1536] <- 6122335
+tv[1537] <- 3940445
+tv[1538] <- 9642029
+tv[1539] <- 9474450
+tv[1540] <- 7300640
+tv[1541] <- 2629746
+tv[1542] <- 2714463
+tv[1543] <- 7235872
+tv[1544] <- 2109472
+tv[1545] <- 2108974
+tv[1546] <- 10724517
+tv[1547] <- 10527138
+tv[1548] <- 6889472
+tv[1549] <- 12591206
+tv[1550] <- 12829377
+tv[1551] <- 13026756
+tv[1552] <- 13224135
+tv[1553] <- 13421514
+tv[1554] <- 13618893
+tv[1555] <- 7036763
+tv[1556] <- 8396844
+tv[1557] <- 655453
+tv[1558] <- 7762015
+tv[1559] <- 7364443
+tv[1560] <- 8421746
+tv[1561] <- 7036763
+tv[1562] <- 6234156
+tv[1563] <- 6118765
+tv[1564] <- 2964512
+tv[1565] <- 9605920
+tv[1566] <- 37009
+tv[1567] <- 6711584
+tv[1568] <- 12697632
+tv[1569] <- 12895170
+tv[1570] <- 13092549
+tv[1571] <- 13289928
+tv[1572] <- 13487307
+tv[1573] <- 6016974
+tv[1574] <- 2911071
+tv[1575] <- 7167776
+tv[1576] <- 8396844
+tv[1577] <- 655453
+tv[1578] <- 6646118
+tv[1579] <- 2122860
+tv[1580] <- 7562847
+tv[1581] <- 3809399
+tv[1582] <- 7104032
+tv[1583] <- 2126945
+tv[1584] <- 7696226
+tv[1585] <- 2122862
+tv[1586] <- 6228530
+tv[1587] <- 7828326
+tv[1588] <- 6107227
+tv[1589] <- 2964512
+tv[1590] <- 667936
+tv[1591] <- 7562847
+tv[1592] <- 3234679
+tv[1593] <- 3940445
+tv[1594] <- 3153965
+tv[1595] <- 2099712
+tv[1596] <- 2105376
+tv[1597] <- 6889504
+tv[1598] <- 6234214
+tv[1599] <- 5994096
+tv[1600] <- 7499871
+tv[1601] <- 5996673
+tv[1602] <- 2911071
+tv[1603] <- 7167776
+tv[1604] <- 2121053
+tv[1605] <- 2112830
+tv[1606] <- 48
+tv[1607] <- 0
+tv[1608] <- 0
+tv[1609] <- 0
+tv[1610] <- 0
+tv[1611] <- 0
+tv[1612] <- 0
+tv[1613] <- 6692864
+tv[1614] <- 2126447
+tv[1615] <- 2716200
+tv[1616] <- 7235872
+tv[1617] <- 2109472
+tv[1618] <- 2108974
+tv[1619] <- 8016479
+tv[1620] <- 6107227
+tv[1621] <- 2107648
+tv[1622] <- 2125417
+tv[1623] <- 3022896
+tv[1624] <- 8238
+tv[1625] <- 7300640
+tv[1626] <- 2629746
+tv[1627] <- 2107760
+tv[1628] <- 2125417
+tv[1629] <- 2111288
+tv[1630] <- 2108974
+tv[1631] <- 5723231
+tv[1632] <- 3169144
+tv[1633] <- 6094941
+tv[1634] <- 2964512
+tv[1635] <- 2097184
+tv[1636] <- 7499622
+tv[1637] <- 10272
+tv[1638] <- 2912859
+tv[1639] <- 2097184
+tv[1640] <- 7151674
+tv[1641] <- 2127969
+tv[1642] <- 7696226
+tv[1643] <- 2122862
+tv[1644] <- 6687232
+tv[1645] <- 7103849
+tv[1646] <- 6234212
+tv[1647] <- 6889472
+tv[1648] <- 8294
+tv[1649] <- 8016735
+tv[1650] <- 6107227
+tv[1651] <- 6773504
+tv[1652] <- 8236
+tv[1653] <- 2907504
+tv[1654] <- 5963808
+tv[1655] <- 7368799
+tv[1656] <- 6124123
+tv[1657] <- 6094941
+tv[1658] <- 4013600
+tv[1659] <- 2097184
+tv[1660] <- 7696226
+tv[1661] <- 2122862
+tv[1662] <- 6228480
+tv[1663] <- 5993570
+tv[1664] <- 4284160
+tv[1665] <- 6249281
+tv[1666] <- 3211343
+tv[1667] <- 3683126
+tv[1668] <- 7209012
+tv[1669] <- 2126959
+tv[1670] <- 6226015
+tv[1671] <- 5992804
+tv[1672] <- 3436895
+tv[1673] <- 5660507
+tv[1674] <- 6094926
+tv[1675] <- 7348268
+tv[1676] <- 6094941
+tv[1677] <- 2106656
+tv[1678] <- 2120960
+tv[1679] <- 2112829
+tv[1680] <- 6512384
+tv[1681] <- 6249331
+tv[1682] <- 2097238
+tv[1683] <- 3219499
+tv[1684] <- 7494400
+tv[1685] <- 6228573
+tv[1686] <- 7560960
+tv[1687] <- 5989481
+tv[1688] <- 3809280
+tv[1689] <- 7104032
+tv[1690] <- 29793
+tv[1691] <- 6249265
+tv[1692] <- 2687062
+tv[1693] <- 7235872
+tv[1694] <- 2109728
+tv[1695] <- 2108974
+tv[1696] <- 3683328
+tv[1697] <- 2108192
+tv[1698] <- 3158016
+tv[1699] <- 12336
+tv[1700] <- 5660507
+tv[1701] <- 2097230
+tv[1702] <- 7282746
+tv[1703] <- 3276914
+tv[1704] <- 3422262
+tv[1705] <- 3355955
+tv[1706] <- 7364352
+tv[1707] <- 7494512
+tv[1708] <- 7364352
+tv[1709] <- 7494518
+tv[1710] <- 7560960
+tv[1711] <- 6773614
+tv[1712] <- 6123520
+tv[1713] <- 2108509
+tv[1714] <- 6249216
+tv[1715] <- 7563120
+tv[1716] <- 6124123
+tv[1717] <- 2108416
+tv[1718] <- 23914
+tv[1719] <- 2108192
+tv[1720] <- 3211359
+tv[1721] <- 3422004
+tv[1722] <- 669237
+tv[1723] <- 6226015
+tv[1724] <- 5984371
+tv[1725] <- 3240799
+tv[1726] <- 7953200
+tv[1727] <- 2121053
+tv[1728] <- 7938091
+tv[1729] <- 2106656
+tv[1730] <- 12337
+tv[1731] <- 7630943
+tv[1732] <- 3211376
+tv[1733] <- 7298826
+tv[1734] <- 6228480
+tv[1735] <- 30561
+tv[1736] <- 2108509
+tv[1737] <- 2097253
+tv[1738] <- 3219498
+tv[1739] <- 6380288
+tv[1740] <- 8236
+tv[1741] <- 5063007
+tv[1742] <- 6226011
+tv[1743] <- 5995088
+tv[1744] <- 23856
+tv[1745] <- 7693151
+tv[1746] <- 23395
+tv[1747] <- 7697012
+tv[1748] <- 2097253
+tv[1749] <- 3219501
+tv[1750] <- 7364352
+tv[1751] <- 29811
+tv[1752] <- 2911067
+tv[1753] <- 2097184
+tv[1754] <- 6228532
+tv[1755] <- 667648
+tv[1756] <- 22111
+tv[1757] <- 3088477
+tv[1758] <- 3158304
+tv[1759] <- 3158272
+tv[1760] <- 13106
+tv[1761] <- 2108509
+tv[1762] <- 655408
+tv[1763] <- 5133919
+tv[1764] <- 6228480
+tv[1765] <- 17494
+tv[1766] <- 7565919
+tv[1767] <- 29275
+tv[1768] <- 6249265
+tv[1769] <- 14705
+tv[1770] <- 6517599
+tv[1771] <- 2912347
+tv[1772] <- 3211296
+tv[1773] <- 3420720
+tv[1774] <- 669696
+tv[1775] <- 28511
+tv[1776] <- 3940445
+tv[1777] <- 6225952
+tv[1778] <- 6387315
+tv[1779] <- 6249216
+tv[1780] <- 29027
+tv[1781] <- 6249264
+tv[1782] <- 3276886
+tv[1783] <- 5660507
+tv[1784] <- 7364352
+tv[1785] <- 7494504
+tv[1786] <- 6381312
+tv[1787] <- 5991534
+tv[1788] <- 6226017
+tv[1789] <- 5992033
+tv[1790] <- 6577920
+tv[1791] <- 12406
+tv[1792] <- 2110518
+tv[1793] <- 5963825
+tv[1794] <- 6118759
+tv[1795] <- 4284160
+tv[1796] <- 23361
+tv[1797] <- 7693151
+tv[1798] <- 7691116
+tv[1799] <- 6226013
+tv[1800] <- 7106155
+tv[1801] <- 6488155
+tv[1802] <- 5976171
+tv[1803] <- 2097255
+tv[1804] <- 2112830
+tv[1805] <- 7471152
+tv[1806] <- 7298826
+tv[1807] <- 6577920
+tv[1808] <- 12651
+tv[1809] <- 7038047
+tv[1810] <- 6225970
+tv[1811] <- 3241572
+tv[1812] <- 6228480
+tv[1813] <- 26209
+tvz[0] <- 1813
 # print の機械（work/lower/engine.lx を句 90 で畳んだ 7743 バイトを三バイトずつ）
 lk[0] <- 6451335
 lk[1] <- 3573363
@@ -4917,6 +5074,227 @@ lsxs[t] <- lsx1[t]          for (t,zc) in ch if lsx1[t] >= 0
 field lsxf : or bound 262144                # 集合の書き先の `[` か `]`（否定で読むための旗）
 lsxf[t] <- true             for (t,zc) in ch if lsxs[t] >= 0
 
+# ── fourv（Belnap の四値）→ or の旗二つ（14b）───────────────────────────────
+# Belnap の FOUR は知識の順序で **2 × 2 の積の束**である（Ginsberg の双束、Fitting の不動点意味論）:
+# T の旗と F の旗の対で、⊥ = どちらも無い、T = T だけ、F = F だけ、⊤ = 両方。join は旗ごとの or、
+# 否定は **旗を入れ替えるだけ**で、反転ではない —— だから否定が単調で、層が要らない。
+# ガードが立つのは T の旗（解釈実行の `_truthy`: T と ⊤）、`not x` が立つのは F の旗（F と ⊤）。
+# だから場に次元を一つ足した or に下ろす: `x[e]` → `x[e, 0]`（T の旗）/ `x[e, 1]`（F の旗）。
+#   宣言      `fourv` → `or`（f・u・v の三字を消すだけ）。広さに旗の次元 ` 2` を足す
+#   書き先    `x[e] <- true` → `x[e, 0] <- true`、`x[e] <- false` → `x[e, 1] <- true`
+#   写し      `x[e] <- y[f]` → `x[e, _r9] <- y[f, _r9] for (_r9) in 0 .. 1`（旗ごとに写す）
+#             `x[e] <- o[f]`（o は or の場）→ `x[e, 0] <- o[f]`（true は T —— 解釈実行と同じ）
+#   否定の写し `x[e] <- not y[f]` → `x[e, _r9] <- y[f, _fsw[_r9]] for (_r9) in 0 .. 1`（入れ替えて写す）
+#   ガード    `if x[e]` → `if x[e, 0]`、`if not x[e]` → `if x[e, 1]`（**否定が消える**）
+#   print     値を原子 `T4` / `F4` の番号として書き（`_pav`）、⊤ の行は flat と同じ道（`⊤ CONFLICT`）
+# **白い名簿で書く**（気づき47）: fourv の場の出現が上の形のどれでもなければ、その場は下ろさない
+# （`fourv` のまま残る → 焼き手が宣言の行で理由 8 と言う）。旗は or の場の読みなので、焼き手の
+# 「or の場に書けるのは true と or の場の読みだけ」（理由 9）の内側に収まる。
+field kw4v : or bound 262144                # `fourv`
+kw4v[t] <- true   for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 111
+      if tch[t,2] == 117 if tch[t,3] == 114 if tch[t,4] == 118
+field kwfls : or bound 262144               # `false`
+kwfls[t] <- true  for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 97
+      if tch[t,2] == 108 if tch[t,3] == 115 if tch[t,4] == 101
+field l4f : or bound 1024                   # 場 f は fourv
+l4f[fdno[t]] <- true   for (t,zc) in ch if isdcl[t] if kw4v[latt[t]]
+field l4h : or bound 8192                   # 文 s の書き先は fourv
+l4h[s] <- true         for (s) in 0 .. nstz[0] if hasr[s] if l4f[hfz[s]]
+field l4vk : max bound 8192                 # 値の形（1 `true` / 2 `false` / 3 fourv の読み / 4 `not` + fourv の読み /
+                                            #          5 or の場の読み —— 解釈実行は true を T と読む）
+l4vk[s] <- 1   for (s) in 0 .. nstz[0] if l4h[s] if kwtru[lvf[s]]
+l4vk[s] <- 2   for (s) in 0 .. nstz[0] if l4h[s] if kwfls[lvf[s]]
+l4vk[s] <- 3   for (s) in 0 .. nstz[0] if l4h[s] if isocc[lvf[s]] if l4f[lof[lvf[s]]]
+l4vk[s] <- 4   for (s) in 0 .. nstz[0] if l4h[s] if kwnot[lvf[s]] if isocc[nextw[lvf[s]]]
+      if l4f[lof[nextw[lvf[s]]]]
+l4vk[s] <- 5   for (s) in 0 .. nstz[0] if l4h[s] if isocc[lvf[s]] if flatt[lof[lvf[s]]] == 3
+field l4vf : or bound 8192                  # 値の形が分かった
+l4vf[s] <- true   for (s) in 0 .. nstz[0] if l4vk[s] >= 1
+field l4ve : max bound 8192                 # 値の最後の語（`true` / `false` / 読みの `]`）
+l4ve[s] <- lvf[s]                    for (s) in 0 .. nstz[0] if l4vk[s] >= 1 if l4vk[s] <= 2
+l4ve[s] <- tclos[obr[lvf[s]]]        for (s) in 0 .. nstz[0] if l4vk[s] == 3
+l4ve[s] <- tclos[obr[nextw[lvf[s]]]] for (s) in 0 .. nstz[0] if l4vk[s] == 4
+l4ve[s] <- tclos[obr[lvf[s]]]        for (s) in 0 .. nstz[0] if l4vk[s] == 5
+field l4bd : or bound 1024                  # fourv の場 f は下ろせない
+#   値の形が名簿に無い / 値の後ろに語が続く（`y[i] + 1`・`true == x` …）
+l4bd[hfz[s]] <- true   for (s) in 0 .. nstz[0] if l4h[s] if not l4vf[s]
+l4bd[hfz[s]] <- true   for (s) in 0 .. nstz[0] if l4vf[s] if snum[nextw[l4ve[s]]] == s
+      if not cbrk[nextw[l4ve[s]]] if not tcom[nextw[l4ve[s]]]
+#   ガードの読み（`if x[e]` / `if not x[e]` —— 後ろに比較も算術も続かない）
+field l4g : max bound 262144                # ガードの fourv の読み t → 旗（0 `if x` / 1 `if not x`）
+l4g[t] <- 0   for (t,zc) in ch if isocc[t] if l4f[lof[t]] if kwif[prevw[t]]
+l4g[t] <- 1   for (t,zc) in ch if isocc[t] if l4f[lof[t]] if kwnot[prevw[t]] if kwif[prevw[prevw[t]]]
+field l4gc : max bound 262144               # その読みの `]`
+l4gc[t] <- tclos[obr[t]]   for (t,zc) in ch if l4g[t] >= 0
+field l4gx : or bound 262144                # ガードの読みの後ろに語が続く
+l4gx[t] <- true   for (t,zc) in ch if l4g[t] >= 0 if snum[nextw[l4gc[t]]] == snum[t]
+      if not cbrk[nextw[l4gc[t]]] if not tcom[nextw[l4gc[t]]]
+#   名簿: 書き先・print・ガード・写しの読み。ほかの出現（座標・算術・比較・render・`is` …）は断る
+field l4ok : or bound 262144                # fourv の場の出現 t は名簿の形
+l4ok[t] <- true   for (t,zc) in ch if isocc[t] if lhd[t] if l4h[snum[t]]
+l4ok[t] <- true   for (t,zc) in ch if lpo[t]
+l4ok[t] <- true   for (t,zc) in ch if l4g[t] >= 0 if not l4gx[t]
+l4ok[t] <- true   for (t,zc) in ch if isocc[t] if lvf[snum[t]] == t if l4vk[snum[t]] == 3
+l4ok[t] <- true   for (t,zc) in ch if isocc[t] if nextw[lvf[snum[t]]] == t if l4vk[snum[t]] == 4
+l4bd[lof[t]] <- true   for (t,zc) in ch if isocc[t] if l4f[lof[t]] if not l4ok[t]
+#   次元は二つまで。広さを書いたなら、書いた広さの数が次元の数と同じ（` 2` を後ろに足すので）。
+#   `x[]` と `x[i]` を両方使う場は `[]` が `[0]` に寄らない（別の升）ので下ろさない
+l4bd[f] <- true   for (f) in 0 .. nfdz[0] if l4f[f] if farr[f] >= 3
+l4bd[f] <- true   for (f) in 0 .. nfdz[0] if l4f[f] if lf0[f] if lfm1[f]
+l4bd[fdno[t]] <- true   for (t,zc) in ch if isdcl[t] if l4f[fdno[t]] if kwbnd[bndt[t]] if hasw2[fdno[t]]
+      if farr[fdno[t]] == 1
+l4bd[fdno[t]] <- true   for (t,zc) in ch if isdcl[t] if l4f[fdno[t]] if kwbnd[bndt[t]] if not hasw2[fdno[t]]
+      if farr[fdno[t]] == 2
+l4bd[fdno[t]] <- true   for (t,zc) in ch if isdcl[t] if l4f[fdno[t]] if hasw3[fdno[t]]
+field l4k : or bound 1024                   # fourv の場 f を下ろす
+l4k[f] <- true   for (f) in 0 .. nfdz[0] if l4f[f] if not l4bd[f]
+# 消す字: 宣言の束の f・u・v（`fourv` → `or`）、`false`、ガードと写しの `not`
+field l4x : or bound 262144                 # 字を全部消すトークン（`false` / `not`）
+ldl[i] <- true   for (i,c) in ch if l4x[tnum[i]]
+field l4lt : or bound 262144                # 下ろす fourv の宣言の束のトークン
+l4lt[latt[t]] <- true   for (t,zc) in ch if isdcl[t] if l4k[fdno[t]]
+ldl[i] <- true   for (i,c) in ch if l4lt[tnum[i]] if cpos[i] == 0
+ldl[i] <- true   for (i,c) in ch if l4lt[tnum[i]] if cpos[i] == 2
+ldl[i] <- true   for (i,c) in ch if l4lt[tnum[i]] if cpos[i] == 4
+# 宣言の広さ: 書いていなければ型紙 3（一次元 → `bound B 2`）/ 148（二次元 → `bound B1 B2 2`）。
+# iti は max なので 2 / 3 に勝つ（穴 1 / 2 に旗の 2）。書いてあれば最後の広さの後ろに ` 2`（160）
+iti[lin[lnl[t]], 0] <- 3     for (t,zc) in ch if lnb[t] if l4k[fdno[t]] if farr[fdno[t]] == 1
+ih1[lin[lnl[t]], 0] <- 2     for (t,zc) in ch if lnb[t] if l4k[fdno[t]] if farr[fdno[t]] == 1
+iti[lin[lnl[t]], 0] <- 148   for (t,zc) in ch if lnb[t] if l4k[fdno[t]] if farr[fdno[t]] == 2
+ih2[lin[lnl[t]], 0] <- 2     for (t,zc) in ch if lnb[t] if l4k[fdno[t]] if farr[fdno[t]] == 2
+field l4bt : max bound 262144               # 下ろす fourv の宣言 t の最後の広さのトークン
+l4bt[t] <- bw1[t]   for (t,zc) in ch if isdcl[t] if l4k[fdno[t]] if kwbnd[bndt[t]] if farr[fdno[t]] == 1
+l4bt[t] <- bw2[t]   for (t,zc) in ch if isdcl[t] if l4k[fdno[t]] if kwbnd[bndt[t]] if farr[fdno[t]] == 2
+iti[lin[l4bt[t]], 0] <- 160               for (t,zc) in ch if l4bt[t] >= 0
+irw[lin[l4bt[t]], 0] <- lrw[lte[l4bt[t]]] for (t,zc) in ch if l4bt[t] >= 0
+ibd[lin[l4bt[t]], 0] <- true              for (t,zc) in ch if l4bt[t] >= 0
+# 書き先の `]` → `, 旗]`（true 0 / false 1 / or の読み 0 —— 型紙 53）か `, _r9]`（写し —— 型紙 46）
+field l4hc : max bound 8192                 # 下ろす fourv の書き先の `]`
+l4hc[s] <- tclos[obr[hotok[s]]]    for (s) in 0 .. nstz[0] if l4h[s] if l4k[hfz[s]]
+ldl[tstart[l4hc[s]]] <- true       for (s) in 0 .. nstz[0] if l4hc[s] >= 0
+iti[lin[l4hc[s]], 0] <- 53         for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] <= 2
+ih0[lin[l4hc[s]], 0] <- l4vk[s] - 1   for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] <= 2
+iti[lin[l4hc[s]], 0] <- 53         for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 5
+ih0[lin[l4hc[s]], 0] <- 0          for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 5
+iti[lin[l4hc[s]], 0] <- 46         for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] >= 3 if l4vk[s] <= 4
+ih1[lin[l4hc[s]], 0] <- 9          for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] >= 3 if l4vk[s] <= 4
+irw[lin[l4hc[s]], 0] <- lrw[lte[l4hc[s]]]   for (s) in 0 .. nstz[0] if l4hc[s] >= 0
+ibd[lin[l4hc[s]], 0] <- true       for (s) in 0 .. nstz[0] if l4hc[s] >= 0
+# 値: `false` → `true`（54）。写しは読みの `]` を消して 161 / 163 を差す。種を規則にした文
+# （型紙 8 が同じ `]` に ` for (_z) in 0 .. 0` を差す）は 162 / 164 —— 番号が大きいので max が選ぶ
+l4x[lvf[s]] <- true                for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 2
+iti[lin[lvf[s]], 0] <- 54          for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 2
+irw[lin[lvf[s]], 0] <- lrw[lte[lvf[s]]]   for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 2
+ibd[lin[lvf[s]], 0] <- true        for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 2
+l4x[lvf[s]] <- true                for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 4
+ldl[tstart[l4ve[s]]] <- true       for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] >= 3 if l4vk[s] <= 4
+iti[lin[l4ve[s]], 0] <- 161        for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 3
+iti[lin[l4ve[s]], 0] <- 162        for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 3 if lsq[l4ve[s]]
+iti[lin[l4ve[s]], 0] <- 163        for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 4
+iti[lin[l4ve[s]], 0] <- 164        for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] == 4 if lsq[l4ve[s]]
+irw[lin[l4ve[s]], 0] <- lrw[lte[l4ve[s]]]   for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] >= 3
+      if l4vk[s] <= 4
+ibd[lin[l4ve[s]], 0] <- true       for (s) in 0 .. nstz[0] if l4hc[s] >= 0 if l4vk[s] >= 3 if l4vk[s] <= 4
+field l4sw : or bound 1                     # 否定の写しがある（入れ替えの表 `_fsw` を一度だけ置く）
+l4sw[z] <- true    for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if l4hc[s] >= 0 if l4vk[s] == 4
+iti[13, 0] <- 170  for (z) in 0 .. 0 if l4sw[0]
+# ガード: 読みの `]` → `, 旗]`（53。種を規則にした文は 165）、`if not` の `not` を消す
+field l4gk : or bound 262144                # 下ろすガードの読み t
+l4gk[t] <- true    for (t,zc) in ch if l4g[t] >= 0 if l4k[lof[t]]
+l4x[prevw[t]] <- true              for (t,zc) in ch if l4gk[t] if l4g[t] == 1
+ldl[tstart[l4gc[t]]] <- true       for (t,zc) in ch if l4gk[t]
+iti[lin[l4gc[t]], 0] <- 53         for (t,zc) in ch if l4gk[t]
+iti[lin[l4gc[t]], 0] <- 165        for (t,zc) in ch if l4gk[t] if lsq[l4gc[t]]
+ih0[lin[l4gc[t]], 0] <- l4g[t]     for (t,zc) in ch if l4gk[t]
+irw[lin[l4gc[t]], 0] <- lrw[lte[l4gc[t]]]   for (t,zc) in ch if l4gk[t]
+ibd[lin[l4gc[t]], 0] <- true       for (t,zc) in ch if l4gk[t]
+# print: 値は原子 T4 / F4（番号は利用者の原子の後ろ —— 綴りの順の番号は最後の出現の通し番号を越えない）。
+# ⊤ の行は旗が両方立つ行（151 / 154）。原子の道（`_pav`）は数の字を書かず、⊤ の行は `⊤ CONFLICT` が書く
+field lp4 : or bound 262144                 # 下ろす fourv の場の print
+lp4[t] <- true     for (t,zc) in ch if lpo[t] if l4k[lpf[t]]
+field l4a : max bound 1                     # 原子 T4 の番号（F4 はその次）
+l4a[z] <- 0              for (z) in 0 .. 0
+l4a[z] <- atz[0] + 1     for (z) in 0 .. 0
+field l4pr : or bound 1                     # fourv の print がある
+l4pr[z] <- true    for (t,zc) in ch for (z) in 0 .. 0 if lp4[t]
+iti[12, 0] <- 29   for (z) in 0 .. 0 if l4pr[0]
+ih0[12, 0] <- l4a[0]       for (z) in 0 .. 0 if l4pr[0]
+ih1[12, 0] <- 0            for (z) in 0 .. 0 if l4pr[0]
+ih2[12, 0] <- 84           for (z) in 0 .. 0 if l4pr[0]
+iti[12, 1] <- 29   for (z) in 0 .. 0 if l4pr[0]
+ih0[12, 1] <- l4a[0]       for (z) in 0 .. 0 if l4pr[0]
+ih1[12, 1] <- 1            for (z) in 0 .. 0 if l4pr[0]
+ih2[12, 1] <- 52           for (z) in 0 .. 0 if l4pr[0]
+iti[12, 2] <- 29   for (z) in 0 .. 0 if l4pr[0]
+ih0[12, 2] <- l4a[0] + 1   for (z) in 0 .. 0 if l4pr[0]
+ih1[12, 2] <- 0            for (z) in 0 .. 0 if l4pr[0]
+ih2[12, 2] <- 70           for (z) in 0 .. 0 if l4pr[0]
+iti[12, 3] <- 29   for (z) in 0 .. 0 if l4pr[0]
+ih0[12, 3] <- l4a[0] + 1   for (z) in 0 .. 0 if l4pr[0]
+ih1[12, 3] <- 1            for (z) in 0 .. 0 if l4pr[0]
+ih2[12, 3] <- 52           for (z) in 0 .. 0 if l4pr[0]
+iti[lpd2[t], 2] <- 28              for (t,zc) in ch if lp4[t]
+ih0[lpd2[t], 2] <- lpp[t]          for (t,zc) in ch if lp4[t]
+#   一次元: 166 T + 167 旗0 / 166 F + 167 旗1 / 151 ⊤ + 167 旗0 + 167 旗1（三文字目・四文字目に並べる）
+iti[lpd2[t], 3] <- 166             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd2[t], 3] <- lpp[t]          for (t,zc) in ch if lp1[t] if lp4[t]
+ih1[lpd2[t], 3] <- l4a[0]          for (t,zc) in ch if lp1[t] if lp4[t]
+ih2[lpd2[t], 3] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd2[t], 4] <- 167             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd2[t], 4] <- 0               for (t,zc) in ch if lp1[t] if lp4[t]
+ind[lpd2[t], 4] <- lpf[t] + 1      for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd2[t], 5] <- 166             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd2[t], 5] <- lpp[t]          for (t,zc) in ch if lp1[t] if lp4[t]
+ih1[lpd2[t], 5] <- l4a[0] + 1      for (t,zc) in ch if lp1[t] if lp4[t]
+ih2[lpd2[t], 5] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd2[t], 6] <- 167             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd2[t], 6] <- 1               for (t,zc) in ch if lp1[t] if lp4[t]
+ind[lpd2[t], 6] <- lpf[t] + 1      for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd2[t], 7] <- 151             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd2[t], 7] <- lpp[t]          for (t,zc) in ch if lp1[t] if lp4[t]
+ih2[lpd2[t], 7] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd3[t], 0] <- 167             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd3[t], 0] <- 0               for (t,zc) in ch if lp1[t] if lp4[t]
+ind[lpd3[t], 0] <- lpf[t] + 1      for (t,zc) in ch if lp1[t] if lp4[t]
+iti[lpd3[t], 1] <- 167             for (t,zc) in ch if lp1[t] if lp4[t]
+ih0[lpd3[t], 1] <- 1               for (t,zc) in ch if lp1[t] if lp4[t]
+ind[lpd3[t], 1] <- lpf[t] + 1      for (t,zc) in ch if lp1[t] if lp4[t]
+#   二次元: 168 T + 18 + 169 旗0 / 168 F + 18 + 169 旗1 / 154 ⊤ + 18 + 169 旗0 + 169 旗1。
+#   座標の行（20 / 21）のガードは「場の読みが自分と等しい」（22）ではなく「行に値がある」（171 —— max で勝つ）
+iti[lpd[t], 7] <- 171              for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd[t], 7] <- lpp[t]           for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd1[t], 2] <- 171             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd1[t], 2] <- lpp[t]          for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd2[t], 3] <- 168             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd2[t], 3] <- lpp[t]          for (t,zc) in ch if lp2[t] if lp4[t]
+ih1[lpd2[t], 3] <- l4a[0]          for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd2[t], 4] <- 18              for (t,zc) in ch if lp2[t] if lp4[t]
+ih1[lpd2[t], 4] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+ih2[lpd2[t], 4] <- lb2[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd2[t], 5] <- 169             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd2[t], 5] <- 0               for (t,zc) in ch if lp2[t] if lp4[t]
+ind[lpd2[t], 5] <- lpf[t] + 1      for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd2[t], 6] <- 168             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd2[t], 6] <- lpp[t]          for (t,zc) in ch if lp2[t] if lp4[t]
+ih1[lpd2[t], 6] <- l4a[0] + 1      for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd2[t], 7] <- 18              for (t,zc) in ch if lp2[t] if lp4[t]
+ih1[lpd2[t], 7] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+ih2[lpd2[t], 7] <- lb2[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd3[t], 0] <- 169             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd3[t], 0] <- 1               for (t,zc) in ch if lp2[t] if lp4[t]
+ind[lpd3[t], 0] <- lpf[t] + 1      for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd3[t], 1] <- 154             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd3[t], 1] <- lpp[t]          for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd3[t], 2] <- 18              for (t,zc) in ch if lp2[t] if lp4[t]
+ih1[lpd3[t], 2] <- lb1[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+ih2[lpd3[t], 2] <- lb2[lpf[t]] - 1 for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd3[t], 3] <- 169             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd3[t], 3] <- 0               for (t,zc) in ch if lp2[t] if lp4[t]
+ind[lpd3[t], 3] <- lpf[t] + 1      for (t,zc) in ch if lp2[t] if lp4[t]
+iti[lpd3[t], 4] <- 169             for (t,zc) in ch if lp2[t] if lp4[t]
+ih0[lpd3[t], 4] <- 1               for (t,zc) in ch if lp2[t] if lp4[t]
+ind[lpd3[t], 4] <- lpf[t] + 1      for (t,zc) in ch if lp2[t] if lp4[t]
+
 # ── `is`（上集合の帰属 x ⊒ c）──────────────────────────────────────────
 # 単調な読みだが、焼ける形では比較で書く: min は `<=`、max・sum・count は `>=`、flat は `==`
 # （flat の ⊤ は、比較で読めば焼いた側が 5 で止まって言う）。左は場の読み（解釈実行もそれしか取らない）
@@ -5531,7 +5909,7 @@ iti[lpd[t], 1] <- 11               for (t,zc) in ch if lp1[t]
 ih0[lpd[t], 1] <- lpp[t]           for (t,zc) in ch if lp1[t]
 ih1[lpd[t], 1] <- lpb[t] + 1       for (t,zc) in ch if lp1[t]
 ih2[lpd[t], 1] <- lb1[lpf[t]] - 1  for (t,zc) in ch if lp1[t]
-iti[lpd[t], 2] <- 12               for (t,zc) in ch if lp1[t] if not lpfl[t]
+iti[lpd[t], 2] <- 12               for (t,zc) in ch if lp1[t] if not lpfl[t] if not lp4[t]
 #   flat の一次元（13e）: 値の写しは print のトークンの三文字目へ移して ⊤ の行を避ける後ろ（150）を
 #   付け、⊤ の行（151 + 152）を続ける —— 型紙は升 63 までなので分けて並べる
 iti[lpd2[t], 3] <- 12              for (t,zc) in ch if lp1[t] if lpfl[t]
@@ -5571,7 +5949,7 @@ iti[lpd[t], 1] <- 17               for (t,zc) in ch if lp2[t]
 ih0[lpd[t], 1] <- lpp[t]           for (t,zc) in ch if lp2[t]
 ih1[lpd[t], 1] <- lb2[lpf[t]]      for (t,zc) in ch if lp2[t]
 ih2[lpd[t], 1] <- lpb[t] + 1       for (t,zc) in ch if lp2[t]
-iti[lpd[t], 3] <- 19               for (t,zc) in ch if lp2[t] if not lpfl[t]
+iti[lpd[t], 3] <- 19               for (t,zc) in ch if lp2[t] if not lpfl[t] if not lp4[t]
 ih0[lpd[t], 3] <- lpp[t]           for (t,zc) in ch if lp2[t]
 ind[lpd[t], 3] <- lpf[t] + 1       for (t,zc) in ch if lp2[t]
 iti[lpd[t], 5] <- 20               for (t,zc) in ch if lp2[t]
@@ -5595,7 +5973,7 @@ iti[lpd1[t], 6] <- 15              for (t,zc) in ch if lp2[t] if lpor[t]
 ih0[lpd1[t], 6] <- lpp[t]          for (t,zc) in ch if lp2[t] if lpor[t]
 #   輪（18）は 2 / 4 / 6 と二文字目の 1 に置く（値・座標の規則の続きの行）
 iti[lpd[t], 2] <- 18               for (t,zc) in ch if lp2[t]
-iti[lpd[t], 4] <- 18               for (t,zc) in ch if lp2[t] if not lpfl[t]
+iti[lpd[t], 4] <- 18               for (t,zc) in ch if lp2[t] if not lpfl[t] if not lp4[t]
 #   flat の二次元（13e）: 値の写し（19 + 18）を三文字目へ移して ⊤ の行を避ける後ろ（153）を付け、
 #   ⊤ の行（154 + 18 + 155 + 156）を四文字目に（四文字目は集合の print も使うが、集合は flat でない）
 iti[lpd2[t], 3] <- 19              for (t,zc) in ch if lp2[t] if lpfl[t]
@@ -6796,7 +7174,7 @@ leb[lep[i, 2]] <- lk[i] / 65536     for (i) in 0 .. lkz[0]
 field lez : max bound 1
 lez[z] <- lkz[0] * 3 + 2            for (z) in 0 .. 0
 ex[p, 0] <- leb[p]                  for (p) in 0 .. lez[0] if leb[p] <= 127
-ex[p, k] <- tpc[leb[p] + 32, k]     for (p) in 0 .. lez[0] for (k) in 0 .. 47 if leb[p] >= 128
+ex[p, k] <- tpc[leb[p] + 64, k]     for (p) in 0 .. lez[0] for (k) in 0 .. 47 if leb[p] >= 128
 render lx
 render lb
 render ex

@@ -1,0 +1,50 @@
+# fourv の下ろし（14b）: T の旗と F の旗の対（Belnap の四値は知識の順序で 2 × 2 の積の束）。
+# 否定は旗を入れ替えるだけなので、否定を通る再帰にも層が要らない。
+
+# 写し（旗ごと）と否定の写し（入れ替え）を辺に沿って流す
+table e = (0, 1), (1, 2), (2, 0), (3, 4)
+field a : fourv
+a[0] <- true
+a[3] <- false
+a[j] <- a[i]   for (i, j) in e
+field b : fourv bound 8
+b[j] <- not a[i]   for (i, j) in e
+b[1] <- true
+
+# fourv を読むガード: `if x` は T と ⊤ で立ち、`if not x` は F と ⊤ で立つ
+field c : max bound 8
+c[i] <- 10 + i   for (i) in 0 .. 7 if a[i]
+c[i] <- 20 + i   for (i) in 0 .. 7 if not b[i]
+
+# 二次元の fourv
+field d : fourv bound 2 3
+d[i, j] <- true   for (i) in 0 .. 1 for (j) in 0 .. 2 if a[j]
+d[1, 2] <- false
+
+# 座標の無い fourv
+field z : fourv
+z[] <- true
+
+# 種の形: 写し・否定の写し・ガードつき
+field w : fourv bound 4
+w[0] <- b[1]
+w[1] <- not b[4]
+w[2] <- true   if a[0]
+w[3] <- false   if not b[0]
+
+# 否定を通る再帰（嘘つきの輪）は ⊥ のまま、外から F を入れれば輪が回る
+table cyc = (0, 1), (1, 2), (2, 0)
+field g : fourv bound 3
+g[j] <- not g[i]   for (i, j) in cyc
+field h : fourv bound 3
+h[j] <- not h[i]   for (i, j) in cyc
+h[0] <- false
+
+print a
+print b
+print c
+print d
+print z
+print w
+print g
+print h
