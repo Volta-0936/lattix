@@ -2159,6 +2159,10 @@ field fexz : max bound 1                          # その場（0 起点。無�
 field exk : max bound 1                           # その鍵 25715160308（即値に入らないので掛けて作る —— 理由 C）
 exk[z] <- 1569528 * 16384 + 13556 for (z) in 0 .. 0
 fexz[z] <- d - 1 for (d) in 0 .. ndcz[0] for (z) in 0 .. 0 if din[d] if dkey[d] == exk[0] if dkey2[d] == 0
+# **場の名**（14w。31_gen の fnm）: 宣言の綴りの 1〜16 文字目（焼ける名は十六文字まで —— 十七文字は理由 1）。
+# 出口が「どの場の箱を越えたか」を名で言うのに使う
+field fnm : max bound 2048 16                     # 場 f の名の k 文字目
+fnm[f, k] <- dch[f + 1, k] for (f) in 0 .. ndcz[0] for (k) in 0 .. 15 if din[f + 1]
 field sunk : or bound 16384                        # 知らない種類（否定は層を切る）
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 
@@ -3699,6 +3703,25 @@ encb[214,0] <- 72                    # 48 3B 83 d32  cmp rax, [rbx+d32]    （�
 encb[214,1] <- 59
 encb[214,2] <- 131
 shp[214] <- 28868
+# **出口が場を名で言う**（14w）: r15 の場番号 f から、名の表の行 f + 1（行 0 は入力の表 —— 踏み台は r15 に -1 を
+# 置く）の番地を作る。32 ビットで足すので -1 + 1 は 0 に戻る
+encb[246,0] <- 65                    # 41 8D 77 01  lea esi, [r15+1]
+encb[246,1] <- 141
+encb[246,2] <- 119
+encb[246,3] <- 1
+encb[246,4] <- 193                   # C1 E6 05     shl esi, 5（一行 32 バイト）
+encb[246,5] <- 230
+encb[246,6] <- 5
+shp[246] <- 28672                    # 長さ7・穴なし
+encb[247,0] <- 72                    # 48 81 C6 id  add rsi, imm32（名の表の番地）
+encb[247,1] <- 129
+encb[247,2] <- 198
+encb[247,7] <- 186                   # BA 20 00 00 00  mov edx, 32
+encb[247,8] <- 32
+encb[247,9] <- 0
+encb[247,10] <- 0
+encb[247,11] <- 0
+shp[247] <- 49348                    # 長さ12・穴3・imm32
 encb[245,0] <- 72                    # 48 3B B3 d32  cmp rsi, [rbx+d32]    （数の場の ⊤ の印と比べる。14v）
 encb[245,1] <- 59
 encb[245,2] <- 179
@@ -6633,8 +6656,9 @@ form[ovz[z] + 4] <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[ovz[z] + 5] <- 158   for (z) in 0 .. 0# syscall
 form[ovz[z] + 6] <- 165   for (z) in 0 .. 0# mov eax, 1
 form[ovz[z] + 7] <- 166   for (z) in 0 .. 0# mov edi, 2
-form[ovz[z] + 8] <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[ovz[z] + 9] <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[ovz[z] + 8] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[ovz[z] + 9] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[ovz[z] + 9]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[ovz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
 form[ovz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[ovz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -6655,8 +6679,9 @@ form[tpz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[tpz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
 form[tpz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
 form[tpz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
-form[tpz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[tpz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[tpz[z] + 8] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[tpz[z] + 9] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[tpz[z] + 9]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[tpz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
 form[tpz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[tpz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -6677,8 +6702,9 @@ form[vpz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[vpz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
 form[vpz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
 form[vpz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
-form[vpz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[vpz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[vpz[z] + 8] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[vpz[z] + 9] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[vpz[z] + 9]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[vpz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
 form[vpz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[vpz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -6699,8 +6725,9 @@ form[opz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[opz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
 form[opz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
 form[opz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
-form[opz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[opz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[opz[z] + 8] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[opz[z] + 9] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[opz[z] + 9]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[opz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
 form[opz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[opz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -6726,8 +6753,9 @@ form[rpz[z] + 5]  <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[rpz[z] + 6]  <- 158   for (z) in 0 .. 0# syscall
 form[rpz[z] + 7]  <- 165   for (z) in 0 .. 0# mov eax, 1
 form[rpz[z] + 8]  <- 166   for (z) in 0 .. 0# mov edi, 2
-form[rpz[z] + 9]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[rpz[z] + 10] <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[rpz[z] + 9] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[rpz[z] + 10] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[rpz[z] + 10]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[rpz[z] + 11] <- 158   for (z) in 0 .. 0# syscall
 form[rpz[z] + 12] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[rpz[z] + 12]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -6748,8 +6776,9 @@ form[gxz[z] + 4]  <- 168   for (z) in 0 .. 0# mov rdx, 61
 form[gxz[z] + 5]  <- 158   for (z) in 0 .. 0# syscall
 form[gxz[z] + 6]  <- 165   for (z) in 0 .. 0# mov eax, 1
 form[gxz[z] + 7]  <- 166   for (z) in 0 .. 0# mov edi, 2
-form[gxz[z] + 8]  <- 181   for (z) in 0 .. 0# mov rsi, 枠
-form[gxz[z] + 9]  <- 182   for (z) in 0 .. 0# mov rdx, 4
+form[gxz[z] + 8] <- 246   for (z) in 0 .. 0# lea esi,[r15+1] ; shl esi,5（名の表の行）
+form[gxz[z] + 9] <- 247   for (z) in 0 .. 0# add rsi, 名の表 ; mov edx, 32
+imm[gxz[z] + 9]  <- nmtv[0] + bias[0]   for (z) in 0 .. 0
 form[gxz[z] + 10] <- 158   for (z) in 0 .. 0# syscall
 form[gxz[z] + 11] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[gxz[z] + 11]  <- 60 + bias[0]   for (z) in 0 .. 0
@@ -7672,6 +7701,69 @@ encb[181,3] <- mad3[0] % 256   for (z) in 0 .. 0
 encb[181,4] <- mad3[0] / 256 % 256   for (z) in 0 .. 0
 encb[181,5] <- mad3[0] / 65536 % 256   for (z) in 0 .. 0
 encb[181,6] <- mad3[0] / 16777216 % 256   for (z) in 0 .. 0
+# ── **場の名の表**（14w）。出口は「どの場か」を場番号の四バイト（読めない）で言っていた。像の末尾の知らせの
+# 手前に一行 32 バイトの表を置き、出口は r15 の場番号の行を書く（形 246 / 247）: 行 f + 1 が場 f
+# （"  field " + 右寄せ四桁の番号 + " " + 名 + 空白 + 改行）、行 0 は入力の表（踏み台が r15 に -1 を置く）。
+# 表は場の数に依らず 2,049 行ぶん（65,568 バイト）を取る —— 場の数（育つ場）を引き算に使わない（気づき38）。
+# 名は宣言の綴り（fnm。表の道には無いので番号だけ）。行の中は `out`（max）に重ねる: 空白（32）を敷いて
+# 字（どれも 32 より大きい）が勝つ。改行（10）の席だけは空白を敷かない
+field nmtb : max bound 1                    # 名の表の頭（像の中のずれ）
+nmtb[z] <- total[0] - 66592           for (z) in 0 .. 0
+field nmtv : max bound 1                    # その番地
+nmtv[z] <- nmtb[0] + 4194304           for (z) in 0 .. 0
+field nb0 : max bound 32                    # 行 0（入力の表）の j バイト目の像の中の位置
+nb0[j] <- nmtb[0] + j                 for (j) in 0 .. 31
+field nbf : max bound 2048 32               # 場 f の行（f + 1）の j バイト目の位置
+nbf[f, j] <- nmtb[0] + f * 32 + 32 + j   for (f) in 0 .. nflz[0] for (j) in 0 .. 31
+field nbk : max bound 2048 16               # 場 f の名の k 文字目の位置（行の 13 バイト目から）
+nbk[f, k] <- nmtb[0] + f * 32 + 45 + k   for (f) in 0 .. nflz[0] for (k) in 0 .. 15
+field nhd : max bound 16                    # 行の頭 "  field "
+nhd[0] <- 32
+nhd[1] <- 32
+nhd[2] <- 102          # 'f'
+nhd[3] <- 105          # 'i'
+nhd[4] <- 101          # 'e'
+nhd[5] <- 108          # 'l'
+nhd[6] <- 100          # 'd'
+nhd[7] <- 32
+field nin : max bound 32                    # 行 0 "  the input table"
+nin[0] <- 32
+nin[1] <- 32
+nin[2] <- 116          # 't'
+nin[3] <- 104          # 'h'
+nin[4] <- 101          # 'e'
+nin[5] <- 32
+nin[6] <- 105          # 'i'
+nin[7] <- 110          # 'n'
+nin[8] <- 112          # 'p'
+nin[9] <- 117          # 'u'
+nin[10] <- 116         # 't'
+nin[11] <- 32
+nin[12] <- 116         # 't'
+nin[13] <- 97          # 'a'
+nin[14] <- 98          # 'b'
+nin[15] <- 108         # 'l'
+nin[16] <- 101         # 'e'
+out[nb0[j]] <- 32                    for (j) in 0 .. 30
+out[nb0[j]] <- nin[j]                for (j) in 0 .. 16
+out[nb0[j]] <- 10                    for (j) in 31 .. 31
+out[nbf[f, j]] <- 32                 for (f) in 0 .. nflz[0] for (j) in 0 .. 30
+out[nbf[f, j]] <- 10                 for (f) in 0 .. nflz[0] for (j) in 31 .. 31
+out[nbf[f, j]] <- nhd[j]             for (f) in 0 .. nflz[0] for (j) in 0 .. 7
+out[nbf[f, j]] <- 48 + f / 1000 % 10   for (f) in 0 .. nflz[0] for (j) in 8 .. 8 if f >= 1000
+out[nbf[f, j]] <- 48 + f / 100 % 10    for (f) in 0 .. nflz[0] for (j) in 9 .. 9 if f >= 100
+out[nbf[f, j]] <- 48 + f / 10 % 10     for (f) in 0 .. nflz[0] for (j) in 10 .. 10 if f >= 10
+out[nbf[f, j]] <- 48 + f % 10          for (f) in 0 .. nflz[0] for (j) in 11 .. 11
+out[nbk[f, k]] <- fnm[f, k]          for (f) in 0 .. nflz[0] for (k) in 0 .. 15 if fnm[f, k] >= 33
+# **符号は名の表の手前で終わらねばならない**（`out` は max なので、重なれば符号と表のバイトの大きい方が残り、
+# 符号が黙って壊れる。前は末尾の知らせ 516 バイトとの重なりを誰も見ていなかった）。だが符号の長さは符号から
+# 出るので、断り（badk）には書けない —— 断りは符号を変えるので輪になり、成層できない（capi の註の通り。打って
+# 確かめた: 理由 7）。代わりに **一升の箱を踏ませる**: 越えたバイト数を座標に書けば、広さの検査が焼き手を止め、
+# この場の名（codeoverrun）を言う。見張りは箱そのもの —— 断りの道を通らないので輪にならない
+field cov : max bound 1                     # 符号が名の表へはみ出したバイト数
+cov[z] <- codelen[0] - nmtb[0]       for (z) in 0 .. 0 if codelen[0] > nmtb[0]
+field codeoverrun : or bound 1
+codeoverrun[cov[z]] <- true          for (z) in 0 .. 0 if cov[z] >= 1
 # **⊤ の知らせ**（終了コード 5）。場番号は同じ枠に落として四バイトで続ける。
 field tmsg : max bound 64
 tmsg[0] <- 108
@@ -8113,55 +8205,18 @@ encb[174,6] <- mad2[0] / 16777216 % 256   for (z) in 0 .. 0
 render out
 
 
-# ══ 箱を超えたら言う —— `run.lx` の `zov` と同じ判断 ══════════════════
-#   ここには見張りが無かった。場が 1024 を、規則が 2048 を、符号が 131,072
-#   バイトを超えると、**黙って隣を踏み**、ELF の頭 23 バイトだけが出た
-#   （終了コードは 0）。「黙って空を返す」は、この企画がいちばん嫌う壊れ方
-#   である（気づき44: 上限は、超えたときを試すまで上限ではない）。
-#
-#   **上限は一箇所で言う**（気づき33）。下の `cap*` は宣言の `bound` と
-#   揃えてある —— 片方だけ動かせば、この見張りが先に声を出す。
-#   理由 0 は「箱が足りない」。行は 0（どの行のせいでもない、寸法の話）。
-field capf : max bound 1            # 場ごとの箱（fbot / fsz / foff … の bound）
-capf[0] <- 2047
-#   **場の見張りも、箱より小さく残っていた**（14u）。場ごとの配列（fsz / foff / fbot / frd … 四十枚）はどれも
-#   `bound 2048` に上がっていたのに、見張りだけ 1024 のまま —— 下ろし（lower.lx）の場が 1,025 本になった日
-#   （min / max の関数を足した日）に、箱に入る本を「箱が足りない」と断った。capw（14j）と同じ形の三度目。
-#   2048 ではなく 2047 なのは、前段の宣言の綴りの配列（dch / din / dk / dkey / dkey2、`bound 2048`）が **1 起点の
-#   宣言の番号**で引くから —— 2,048 本目の宣言は前段が面を超えて終了コード 6 で止まる（打って確かめた）。
-#   **見張りは、最初の問いで自分を捕まえた。** `lattix.lx` は規則 2,406 本で、
-#   規則ごとの箱は `bound 2048` だった —— 配っている焼き手が、自分の箱を
-#   358 規則ぶん超えて走っていた（g4d はバイト一致していたので、踏んだ先が
-#   たまたま無害だっただけである）。**黙って起きていた。** 箱を 4096 にした。
-field capr : max bound 1            # 規則ごとの箱（okr … の bound）
-capr[0] <- 8192
-#   **見張る箱は、推測せずに読む。** 所有者の配列は `bound 16384` なのに
-#   場の箱（1024）と比べて、正しい本まで断った —— 見張りが狼を呼んだ。
-#   下の三つは、それぞれの配列の宣言を読んで揃えてある。
-field capw : max bound 1            # 所有者ごとの箱（oflg / isin / coff / cb / ofld）
-#   **見張りの箱が、箱より小さく残っていた**（14j）。所有者の配列（oflg / isin / coff / cb / ofld /
-#   gpas / isngo / iswro）はどれも `bound 32768` に上がっていたのに、ここだけ 16384 のまま ——
-#   下ろし（lower.lx）の所有者が 16,384 を越えた日（割る数の種を四規則足した日）に、
-#   箱に入る本を「箱が足りない」と断った（気づき34 の何度目か。上げた人は見張りを数えなかった）。
-capw[0] <- 32768
-badk[z] <- 0   for (z) in 0 .. 0 if nfl[0] > capf[0]
-badk[z] <- 0   for (z) in 0 .. 0 if now[0] > capw[0]
-badk[z] <- 0   for (z) in 0 .. 0 if nrl[0] > capr[0]
-# **符号面だけ見張りが無かった。** 一度書いて外している —— `codelen`
-# （バイト数）で見ようとしたからで、それは循環する（符号 → 長さ → 断り →
-# 符号）。だが **命令の数** `nins` は循環しない: 規則と輪の数だけで決まり、
-# 命令を一本も置く前に分かっている。ここを見ていなかったので、規則を 81 本
-# 足した日に 131,072 本を越え、**黙って終了コード 6** が出た（知らせも
-# 出ない —— 知らせを書く命令そのものが地図の外だったからである）。
-field capi : max bound 1            # 命令ごとの箱（form / imm / jt … の bound）
-capi[0] <- 262144
-badk[z] <- 0   for (z) in 0 .. 0 if nins[0] > capi[0]
-# **種にも見張りが無かった。** 種は「輪の無い規則」—— `x[3] <- 1` の形で、
-# .lx を書いていると気づかないうちに増える（宣言の既定値、表の頭、
-# 命令の綴り…）。1024 本目を書いた日に黙って落ちる、いちばん踏みやすい床。
-field caps : max bound 1            # 種ごとの箱（sdf / sdc / sdv / sdp … の bound）
-caps[0] <- 8192
-badk[z] <- 0   for (z) in 0 .. 0 if nsd[0] > caps[0]
+# ══ 箱を超えたら言う ══════════════════════════════════════════════
+#   **見張りは箱そのものである**（14w）。ここには長いあいだ、配列の `bound` の写しを持つ見張りが五つあった
+#   （場 capf・規則 capr・所有者 capw・命令 capi・種 caps）。写しは配列を広げた人に数えられずに残り、
+#   **四度とも正しい本を断った**: capw は 16,384 のまま（配列は 32,768。14j）、capf は 1,024 のまま（2,048。14u）、
+#   caps と capr は 8,192 のまま（配列は 16,384 —— 種 8,200 の本を「箱が足りない」と断っていた。14w で打った）。
+#   **写しの見張りは、正しいときは決して鳴らない。** 焼き手は Lattix の本なので、箱を越える書きはその場で
+#   広さの検査に止められる（終了コード 6）—— 数を数えて比べる見張りは、配列を埋めたあとでしか答えが出ない。
+#   打って確かめた（14w）: 場 2,048・種 16,383・規則 8,200・所有者 35,100・比較のガード 10,200（二行ずつ）の本は、
+#   見張りの有無に関わらず広さの検査が先に止めた（前段の宣言の綴り・文の数 rdo・項 tmx・所有者 coff・ガード goff）。
+#   見張りが鳴れるのは、箱に入る本だけ —— つまり写しが古いときだけで、そのとき嘘を言う。
+#   だから写しを捨て、広さの検査に **どの箱かを名で言わせる**（上の名の表。焼き手自身の箱なら焼き手の場の名、
+#   たとえば `field  176 rdo`）。上限は一箇所 —— 宣言の `bound` —— にしか書かれていない（気づき33）。
 # **詰め直しの置き場も見る。** 上の `rcap` の所に「`out` の升数が
 # rcap + 65536 を超えると、詰め直しが地図の外へ出る」と **書いてあった** ——
 # 註だけで、検査は無かった。`total` を 1 MB に上げた日、焼いた道具は

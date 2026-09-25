@@ -1571,19 +1571,21 @@ nmr[n] <- sk[q2i1[n, j]]   for (n) in 0 .. ninz[0] for (j) in 0 .. 15 if j < nrc
       if wst[ccf[osd1[n, j]], nst[n]]
 
 # ══ 種（寄与は階数 0 の読みから）═══════════════════════════════════════════
-field aS : max bound 4096
+# 種は 16,384 まで（焼き手の種の箱と同じ。前は 4,096 —— 14w で accept に種 8,200 の本を足した日、ir は ATTESTED、
+# attest.lx は種の箱 aS を越えて終了コード 6 で止まり、そう名で言った）
+field aS : max bound 16384
 aS[s] <- sb[z] + s * 3   for (z) in 1 .. 1 for (s) in 0 .. nsdz[0]
-field sdf : max bound 4096
+field sdf : max bound 16384
 sdf[s] <- wd[aS[s]]   for (s) in 0 .. nsdz[0]
-field sdc : max bound 4096
+field sdc : max bound 16384
 sdc[s] <- wd[aS[s] + 1]   for (s) in 0 .. nsdz[0]
-field sdv : max bound 4096
+field sdv : max bound 16384
 sdv[s] <- wd[aS[s] + 2]   for (s) in 0 .. nsdz[0]
-field scel : max bound 4096
+field scel : max bound 16384
 scel[s] <- fcb[sdf[s]] + sdc[s]   for (s) in 0 .. nsdz[0]
-field slt : max bound 4096
+field slt : max bound 16384
 slt[s] <- flt[sdf[s]]   for (s) in 0 .. nsdz[0]
-field sval : flat bound 4096                    # 種の値の四倍（count は 1、or は 1）
+field sval : flat bound 16384                    # 種の値の四倍（count は 1、or は 1）
 sval[s] <- sdv[s] * 4   for (s) in 0 .. nsdz[0] if slt[s] != 9 if slt[s] != 3
 sval[s] <- 4   for (s) in 0 .. nsdz[0] if slt[s] == 9
 sval[s] <- 4   for (s) in 0 .. nsdz[0] if slt[s] == 3

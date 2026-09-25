@@ -2149,6 +2149,10 @@ field fexz : max bound 1                          # その場（0 起点。無�
 field exk : max bound 1                           # その鍵 25715160308（即値に入らないので掛けて作る —— 理由 C）
 exk[z] <- 1569528 * 16384 + 13556 for (z) in 0 .. 0
 fexz[z] <- d - 1 for (d) in 0 .. ndcz[0] for (z) in 0 .. 0 if din[d] if dkey[d] == exk[0] if dkey2[d] == 0
+# **場の名**（14w。31_gen の fnm）: 宣言の綴りの 1〜16 文字目（焼ける名は十六文字まで —— 十七文字は理由 1）。
+# 出口が「どの場の箱を越えたか」を名で言うのに使う
+field fnm : max bound 2048 16                     # 場 f の名の k 文字目
+fnm[f, k] <- dch[f + 1, k] for (f) in 0 .. ndcz[0] for (k) in 0 .. 15 if din[f + 1]
 field sunk : or bound 16384                        # 知らない種類（否定は層を切る）
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 

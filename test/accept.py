@@ -2087,6 +2087,9 @@ f[i] <- c for (i,c) in
 # まま残り、下ろし（lower.lx）の場が 1,025 本になった日に箱に入る本を断った。宣言の番号は 1 起点なので 2,047 まで
 case("場 2,047 本（通る）", "table ch = (0,32)\n" + "".join(f"field f{i} : max bound 2\n" for i in range(2047))
      + "f0[i] <- i   for (i) in 0 .. 1\nf2046[i] <- f0[i] + 1   for (i) in 0 .. 1\n", data=b"a")
+# **写しの見張りは捨てた**（14w）: 種の見張り（caps）は 8,192 のまま、種の配列は 16,384 —— 箱に入る本を「箱が足りない」と
+# 断っていた。見張りは箱そのもの（越えれば広さの検査が場の名を言う。mouths）
+case("種 8,200 個（通る）", "table ch = (0,32)\nfield f : max bound 9000\n" + "".join(f"f[{k}] <- {k}\n" for k in range(8200)), data=b"a")
 case("宣言の無い場を読む（言う）", """table ch = (0,32)
 field f : max bound 8
 f[i] <- g[i] for (i,c) in ch

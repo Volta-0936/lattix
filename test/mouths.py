@@ -77,6 +77,19 @@ rc, _ = run(CNT, b'ab', shell='exec 3>&-; exec %s < /dev/null > /dev/null' % CNT
 case('証人の fd 3 が閉じている（0）', rc, 0)
 rc, _ = run(CNT, shell='exec 3>/dev/full; exec %s < /dev/null > /dev/null' % CNT)
 case('証人の fd 3 が /dev/full（9）', rc, 9)
+# **箱を越えた書きは、どの場かを名で言う**（14w。前は場の番号を四バイトで続けていた —— 人には読めない）
+SMALL = bake('small', "table ch = (0,32)\nfield other : max bound 8\nfield small : max bound 4\n"
+                      "other[i] <- i   for (i) in 0 .. 7\nsmall[i] <- other[i] * 2   for (i) in 0 .. 7\n")
+r = subprocess.run([SMALL], input=b'a', capture_output=True)
+case('箱を越えた書きは場を名で言う（6）', (r.returncode, r.stderr.split(b'\n')[1].split()), (6, [b'field', b'1', b'small']))
+r = subprocess.run([CNT], input=b'a' * (CAP + 1), capture_output=True)
+case('置き場を越えた入力は表と言う（6）', (r.returncode, r.stderr.split(b'\n')[1].strip()), (6, b'the input table'))
+# **焼き手の箱を越えた本は、焼き手自身が箱の名を言う**（14w。場 2,048 本 —— 前段の宣言の綴りの箱）。前は写しの
+# 見張り（capf）が「箱が足りない」と言い、写しが古いと箱に入る本まで断った
+src2048 = "table ch = (0,32)\n" + "".join(f"field f{i} : max bound 2\n" for i in range(2048)) + "f0[i] <- i   for (i) in 0 .. 1\n"
+r = subprocess.run([LATTIX], input=src2048.encode(), capture_output=True)
+nm = r.stderr.split(b'\n')[1].split() if r.stderr.count(b'\n') >= 2 else []
+case('焼き手の箱を越えた本は箱の名を言う（6）', (r.returncode, nm[:1], len(nm)), (6, [b'field'], 3))
 p = subprocess.Popen([BIG], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 p.stdout.read(1); p.stdout.close(); rc = p.wait()
 case('読み手が先に閉じた大きい答え（0 以外）', rc != 0, True)
