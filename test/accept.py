@@ -1873,7 +1873,9 @@ for _nm, _f in [("後ろに数", "for (n) in 0 .. 3 4"), ("区間が二つ", "fo
                 ("in が二つ", "for (n) in 0 .. 3 in 5"), ("括弧の中に空白の並び", "for (n c) in ch"),
                 ("括弧で包んだ表", "for (n,c) in (ch)"), ("無い表", "for (n,c) in xyz"),
                 ("表の名が無い", "for (n,c) in"), ("上端の添字にずれ", "for (n) in 0 .. b[0+1]"),
-                ("for の無い in", "(n) in 0 .. 3")]:
+                ("for の無い in", "(n) in 0 .. 3"),
+                # 14x: 下端の無い区間を、焼く側は既定の 0 から回していた（mutate が見つけた）
+                ("下端が無い", "for (n) in .. 3"), ("上端が無い", "for (n) in 0 ..")]:
     case("for の形: " + _nm + "（言う）", """table ch = (0,32)
 field b : max bound 8
 field c : max bound 300
@@ -2090,6 +2092,19 @@ case("場 2,047 本（通る）", "table ch = (0,32)\n" + "".join(f"field f{i} :
 # **写しの見張りは捨てた**（14w）: 種の見張り（caps）は 8,192 のまま、種の配列は 16,384 —— 箱に入る本を「箱が足りない」と
 # 断っていた。見張りは箱そのもの（越えれば広さの検査が場の名を言う。mouths）
 case("種 8,200 個（通る）", "table ch = (0,32)\nfield f : max bound 9000\n" + "".join(f"f[{k}] <- {k}\n" for k in range(8200)), data=b"a")
+# **文の切れ目は定義の規則**（14x）: 行の最初の語が文の頭（字下げは問わない）。前の行が開いている行と `for` / `if` で
+# 始まる行だけが続き。前は字下げした行を前の文の続きと読み、字下げした文（部品の中身）を断っていた
+case("字下げした文・開いた行の続き（通る）", """table ch = (0,32)
+field d : max bound 4
+  d[i] <- i * 2   for (i) in 0 .. 3
+field g : max bound 4
+g[i] <- d[i] +
+1   for (i) in 0 .. 3
+field h : max bound 4
+h[i] <- g[i] *
+2   for (i) in 0 .. 3
+    if i > 0
+""", data=b"a")
 case("宣言の無い場を読む（言う）", """table ch = (0,32)
 field f : max bound 8
 f[i] <- g[i] for (i,c) in ch

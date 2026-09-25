@@ -1,0 +1,14 @@
+# 集合の要素が負（14x）: 要素の次元の原点を k ずらし、print は `座標 - k` を綴りの順に並べる（負の数が先、
+# 負の数どうしは大きさの綴りの順）。表の列・区間の数の下端・`-N` の字面・鍵が一つの集合
+table e = (1,2), (0,5), (3,-1), (2,-12), (4,-10)
+field d : set
+field g : set
+field h : set
+d[] <- {w}   for (u, w) in e
+d[] <- {-3}
+g[u] <- {w}   for (u, w) in e
+g[1] <- {-7}
+h[] <- {i}   for (i) in -12 .. 3
+print d
+print g
+print h

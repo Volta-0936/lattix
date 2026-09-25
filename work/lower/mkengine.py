@@ -114,7 +114,11 @@ L.append(f"_o[r, 87] <- 123   {S} if _gf[_pgs[r]] == r")
 L.append(f"_o[r, 88] <- 44   {S} if _gf[_pgs[r]] < r")
 L.append(f"_o[r, 89] <- 32   {S} if _gf[_pgs[r]] < r")
 L.append(f"_o[r, j + 90] <- _an[_pe[r], j]   {S} for (j) in 0 .. 23 if _pea[_pp[r]]")
-digits("_de", "_pe[r]", 113, "if _pst[_pp[r]] if not _pea[_pp[r]]")
+# 数の要素は負になれる（14x。下ろしが要素の次元の原点をずらした集合 —— `_pe` は `座標 - k`）。
+# `-` は桁の一つ左（桁は右寄せで、上の桁の ⊥ は幅 0）
+L.append(f"_o[r, 103] <- 45   {S} if not _pea[_pp[r]] if _pe[r] < 0")
+L.append(f"_de[r, 9] <- 0 - _pe[r]   {S} if not _pea[_pp[r]] if _pe[r] < 0")
+digits("_de", "_pe[r]", 113, "if _pst[_pp[r]] if not _pea[_pp[r]] if _pe[r] >= 0")
 L.append(f"_o[r, 114] <- 125   {S} if _gl[_pgs[r]] == r")
 L.append(f"_o[r, 115] <- 10   {S} if _gl[_pgs[r]] == r")
 L.append("_o[_pbs[p], j] <- _pnm[p, j]   for (p) in 0 .. _Pz[0] for (j) in 0 .. 31 if not _pn[p]")
@@ -131,6 +135,12 @@ _sP[y] <- y * 1331 + 1331   for (y) in 0 .. 9
 _sP[y] <- _sP[_s10[y]] + y % 10 * 121 + 121   for (y) in 10 .. 99
 _sP[y] <- _sP[_s10[y]] + y % 10 * 11 + 11   for (y) in 100 .. 999
 _sP[y] <- _sP[_s10[y]] + y % 10 + 1   for (y) in 1000 .. 9999
+# **負の数の鍵**（14x）: `-` は どの数字より小さいので、負の数の綴りはどの非負の数より先に来て、負の数どうしは
+# 大きさの綴りの順に並ぶ（-1 < -10 < -2）。非負の数の鍵は最初の桁が 1 以上なので 1331 から上に居る ——
+# その下の 1331 升に、大きさ 999 までの負の数の鍵を置く（大きさの鍵の最後の桁は 0 なので、十一で割れば順を
+# 保つ三桁になる）。`_sPn[y]` は -y の鍵
+field _sPn : max bound 1000
+_sPn[y] <- _sP[y] / 11   for (y) in 1 .. 999
 field _psi : or bound 64                     # print p は数の集合
 field _sh : or bound 64 14641
 field _sc : max bound 64 14641

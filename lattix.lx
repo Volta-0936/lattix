@@ -140,15 +140,47 @@ kwif[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t]
       if tch[t,0] == 105 if tch[t,1] == 102
 
 # ── 文と節の切れ目 ──────────────────────────────────────────────────
-# 行頭から始まる語が文の頭。継続行は字下げされるので、行頭でなければ続き。
+# **文の切れ目は定義と同じ規則で引く**（14x）。行の最初の語が文の頭 —— ただし `for` / `if` で始まる行と、
+# 前の文がまだ開いている行（最後の字が `=` `,` `<-` `+` `-` `*` `/` `%` `(` か、丸括弧が閉じていない）は続き。
+# **字下げは問わない**（lattix.py の `_logical_lines`）。前は「行頭（字下げ無し）の語が文の頭、字下げした行は
+# 続き」と読んでいて、字下げした文（部品の中身）を前の文の続きにしていた。焼き手・下ろし・attest の源と例題は
+# どちらの規則でも同じ切れ目になる（測った —— 違ったのは部品の中身だけ）。
 field lstart : or bound 589824
 lstart[0] <- true
 lstart[i] <- true for (i,c) in ch if i >= 1 if nl[i-1]
-field col0 : or bound 589824
-col0[tnum[i]] <- true for (i,c) in ch if lstart[i] if cls[i] != 3 if not incom[i]
+field sp0 : or bound 589824              # 行頭から i の手前まで空白だけ
+sp0[i] <- true for (i,c) in ch if lstart[i]
+sp0[i] <- true for (i,c) in ch if i >= 1 if sp0[i-1] if space[i-1] if not nl[i-1]
+field col0 : or bound 589824             # 行の最初の語（注釈でない）
+col0[tnum[i]] <- true for (i,c) in ch if sp0[i] if cls[i] != 3 if not incom[i]
+field ppr : max bound 589824             # 丸括弧だけの深さ（定義の `_open_parens` は `(` だけを数える）
+ppr[0] <- 0
+ppr[i] <- ppr[i-1]     for (i,c) in ch if i >= 1 if not pop[i-1] if not pcl[i-1]
+ppr[i] <- ppr[i-1] + 1 for (i,c) in ch if i >= 1 if pop[i-1]
+ppr[i] <- ppr[i-1] - 1 for (i,c) in ch if i >= 1 if pcl[i-1]
+field pop : or bound 589824
+pop[i] <- true for (i,c) in ch if c == 40 if not incom[i]
+field pcl : or bound 589824
+pcl[i] <- true for (i,c) in ch if c == 41 if not incom[i]
+field lsig : max bound 589824            # t 以下で最後の、空白でも注釈でもないトークン
+lsig[t] <- t          for (t,zc) in ch if tkind[t] != 3 if not tcom[t]
+lsig[t] <- lsig[t-1] for (t,zc) in ch if t >= 1 if tkind[t] == 3
+lsig[t] <- lsig[t-1] for (t,zc) in ch if t >= 1 if tcom[t]
+field opsym : or bound 589824            # トークン t は文を開いたままにする字（記号は一字ずつのトークン）
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 61
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 44
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 43
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 45
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 42
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 47
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 37
+opsym[t] <- true for (t,zc) in ch if tkind[t] == 4 if not tcom[t] if tch[t,0] == 40
+field sopen : or bound 589824            # トークン t の手前で文が開いている
+sopen[t] <- true for (t,zc) in ch if t >= 1 if opsym[lsig[t-1]]
+sopen[tnum[i]] <- true for (i,c) in ch if ppr[i] >= 1 if sp0[i] if cls[i] != 3
 
-field sbrk : or bound 589824             # 文の頭（`for` / `if` で始まる行は続き）
-sbrk[t] <- true for (t,zc) in ch if col0[t] if not kwfor[t] if not kwif[t]
+field sbrk : or bound 589824             # 文の頭
+sbrk[t] <- true for (t,zc) in ch if col0[t] if not kwfor[t] if not kwif[t] if not sopen[t]
 field snum : max bound 589824            # 文番号（トークンに沿った鎖）
 snum[0] <- 0
 snum[t] <- snum[t-1]     for (t,zc) in ch if t >= 1 if not sbrk[t]
@@ -2167,6 +2199,10 @@ field sunk : or bound 16384                        # 知らない種類（否定
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 
 field badk : min bound 1                          # 最初に焼けなかった (行 * 16 + 理由)
+# **下端の無い区間は断る**（14x。mutate が撒いて見つけた前からの穴）: `for (n) in  .. 0` は `in` の次の語が
+# もう `..` の一つ目の `.` で、下端が無い。定義は式を読めずに断るのに、前段は下端の種を既定の数（0）と読み、
+# `0 .. 0` として黙って焼いていた
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t] if int1[t] == int2[t]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if sunk[snum[t]]
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17

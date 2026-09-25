@@ -459,6 +459,10 @@ field sunk : or bound 16384                        # 知らない種類（否定
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 
 field badk : min bound 1                          # 最初に焼けなかった (行 * 16 + 理由)
+# **下端の無い区間は断る**（14x。mutate が撒いて見つけた前からの穴）: `for (n) in  .. 0` は `in` の次の語が
+# もう `..` の一つ目の `.` で、下端が無い。定義は式を読めずに断るのに、前段は下端の種を既定の数（0）と読み、
+# `0 .. 0` として黙って焼いていた
+badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if kwin[t] if irng[t] if int1[t] == int2[t]
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if sunk[snum[t]]
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isocc[t] if tlen[t] >= 17
 badk[z] <- tlin[t] * 16 + 1   for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tlen[t] >= 17
