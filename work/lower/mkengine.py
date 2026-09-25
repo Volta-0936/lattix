@@ -22,7 +22,10 @@ ROWS = [("_o", "max", "O"), ("_pv", "max", 0), ("_pk1", "max", 0), ("_pk2", "max
         # 成層できない。深さは 8 までなので、段ごとに場を分ければ輪が消える）。出力は段を合わせた `_VN` / `_VD`
         ("_V0", "flat", "O"), ("_V1", "flat", "O"), ("_V2", "flat", "O"), ("_V3", "flat", "O"), ("_V4", "flat", "O"),
         ("_V5", "flat", "O"), ("_V6", "flat", "O"), ("_V7", "flat", "O"), ("_V8", "flat", "O"),
-        ("_VN", "flat", "O"), ("_VD", "flat", "O"), ("_VG", "flat", "O")]
+        ("_VN", "flat", "O"), ("_VD", "flat", "O"), ("_VG", "flat", "O"),
+        # flat の ⊤ の行（下ろしが `if f[k] < 0 if f[k] >= 0` で立てる —— 比較は ⊤ で立つので、
+        # 両方が立つのは ⊤ の升だけ。値の写しはこの行を避ける）
+        ("_ptp", "or", 0)]
 R = "for (r) in 0 .. _Rz[0]"
 L = []
 L.append("# ── print を _o に下ろす機械（下ろした本の末尾に一度だけ置く。work/lower/mkengine.py が起こす）──")
@@ -48,6 +51,7 @@ field _pst : or bound 64                     # print p は集合
 field _pea : or bound 64                     # 集合の要素は原子"""
 L += decl.split("\n")
 L.append(f"_pp[r] <- p   {R} for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _pv[r] == _pv[r]")
+L.append(f"_pp[r] <- p   {R} for (p) in 0 .. _Pz[0] if r > _pbs[p] if r <= _pen[p] if _ptp[r]")
 L.append(f"_pn[_pp[r]] <- true   {R}")
 L.append(f"_pk1[r] <- r - _pbs[_pp[r]] - 1   {R} if _pp[r] >= 0 if not _pd2[_pp[r]] if not _pd0[_pp[r]] if not _pst[_pp[r]]")
 L.append(f"_gf[_pgs[r]] <- r   {R} if _pst[_pp[r]]")
@@ -76,6 +80,9 @@ V = 87
 for j, c in enumerate("true"):
     L.append(f"_o[r, {V+j}] <- {ord(c)}   {R} if _por[_pp[r]]")
 L.append(f"_o[r, j + {V}] <- _an[_pv[r], j]   {R} for (j) in 0 .. 23 if _pav[_pp[r]]")
+# flat の ⊤ は `⊤ CONFLICT`（解釈実行の print と同じ綴り。⊤ は UTF-8 の三バイト）
+for j, b in enumerate("⊤ CONFLICT".encode("utf-8")):
+    L.append(f"_o[r, {V+j}] <- {b}   {R} if _ptp[r]")
 L.append(f"_o[r, {V}] <- 45   {R} if _pv[r] < 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]]")
 L.append(f"_pab[r] <- _pv[r]   {R} if _pv[r] >= 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]] if not _rt[r]")
 L.append(f"_pab[r] <- 0 - _pv[r]   {R} if _pv[r] < 0 if _pp[r] >= 0 if not _por[_pp[r]] if not _pav[_pp[r]] if not _pst[_pp[r]] if not _rt[r]")

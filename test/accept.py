@@ -678,17 +678,65 @@ liar[i] <- true   for (i,c) in ch
 liar[i] <- not liar[i]   for (i,c) in ch
 """, data=b"ab", exit=7, why=(2,8))
 
-# **⊤ に達したら言う**（終了コード 5）。SPEC は「⊤ は少なくとも真」（比較は ⊤ で立つ）、
-# 「⊤ は座標になれない」、算術は ⊤ 厳密と言う。焼いた符号はこの規律を持たず、⊤ の印
-# 0x7ffffffe を **ただの数**として読んでいた —— `if g[0] < 5` で解釈実行は立ち、焼いた
-# 側は立たなかった。規律を焼けるまでは、⊤ を作る所で止まって言う。
-case("⊤ に達した（言う）", """table ch = (0,32)
+# **⊤ の規律**（13e）。SPEC は「⊤ は少なくとも真」（比較は ⊤ で立つ）、「⊤ は座標になれない」、
+# 算術は ⊤ 厳密と言う。焼いた符号は長いあいだこの規律を持たず、⊤ の印 0x7ffffffe を
+# **ただの数**として読んでいた —— `if g[0] < 5` で解釈実行は立ち、焼いた側は立たなかった。
+# そのあいだは ⊤ を作る所で止まって言っていた（終了コード 5）。いまは規律を焼く:
+#   比較は ⊤ で立つ（⊥ とは比べられない）/ flat へ書く算術は ⊤ 厳密 / 数の場へ読めば止まる。
+case("⊤ で比較は立つ", """table ch = (0,32)
 field g : flat bound 4
 g[0] <- 1   for (i,c) in ch if c == 97
 g[0] <- 2   for (i,c) in ch if c == 98
 field x : max bound 4
 x[0] <- 1   for (i) in 0 .. 0 if g[0] < 5
-""", data=b"ab", exit=5)
+""", data=b"ab")
+case("⊤ で比較は立つ（左右・両辺・⊥ とは立たない）", """table ch = (0,32)
+field f : flat bound 4
+f[0] <- 1
+f[0] <- 2
+f[1] <- 5
+f[3] <- 7
+field g : flat bound 4
+g[0] <- 3
+g[0] <- 4
+g[1] <- 5
+field c : or bound 4
+c[i] <- true   for (i) in 0 .. 3 if f[i] < 3
+field d : or bound 4
+d[i] <- true   for (i) in 0 .. 3 if f[i] >= 3
+field e : or bound 4
+e[i] <- true   for (i) in 0 .. 3 if 4 < f[i]
+field k : or bound 4
+k[i] <- true   for (i) in 0 .. 3 if f[i] == g[i]
+field q : or bound 4
+q[i] <- true   for (i) in 0 .. 3 if f[i] != g[i]
+field u : or bound 4
+u[i] <- true   for (i) in 0 .. 3 if i <= f[i]
+""")
+case("⊤ は flat へ書く算術で ⊤（⊥ なら撃たない）", """table ch = (0,32)
+field f : flat bound 4
+f[0] <- 1
+f[0] <- 2
+f[1] <- 5
+f[2] <- 9
+field b : flat bound 4
+b[0] <- 10
+b[1] <- 20
+b[3] <- 30
+field g : flat bound 4
+g[i] <- f[i] * 3 + b[i] - 1   for (i) in 0 .. 3
+field h : flat bound 4
+h[i] <- b[i] - f[i] * f[i]   for (i) in 0 .. 3
+field w : flat bound 4
+w[i] <- g[i] / 2 + 1   for (i) in 0 .. 3
+""")
+case("⊤ を数の場へ読む（言う）", """table ch = (0,32)
+field f : flat bound 4
+f[0] <- 1
+f[0] <- 2
+field m : max bound 4
+m[i] <- f[i] + 1   for (i) in 0 .. 3
+""", exit=5)
 case("同じ値なら ⊤ にならない", """table ch = (0,32)
 field g : flat bound 4
 g[0] <- 1   for (i,c) in ch if c == 97

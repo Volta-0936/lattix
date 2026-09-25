@@ -3173,6 +3173,33 @@ encb[215,0] <- 72                    # 48 FF 83 d32  inc qword [rbx+d32]   （�
 encb[215,1] <- 255
 encb[215,2] <- 131
 shp[215] <- 28868
+# **⊤ の規律の旗**（場の下の余白の二バイト。`[rbx-104]` は比較の左辺、`[rbx-112]` は項）。
+# 穴の無い形 —— 番地は定数なので、形そのものに書いてある。
+encb[216,0] <- 15                    # 0F 94 43 98  sete byte [rbx-104]   （左辺は ⊤ か）
+encb[216,1] <- 148
+encb[216,2] <- 67
+encb[216,3] <- 152
+shp[216] <- 16384
+encb[217,0] <- 128                   # 80 7B 98 00  cmp byte [rbx-104], 0
+encb[217,1] <- 123
+encb[217,2] <- 152
+encb[217,3] <- 0
+shp[217] <- 16384
+encb[218,0] <- 198                   # C6 43 90 01  mov byte [rbx-112], 1  （項が ⊤ を読んだ）
+encb[218,1] <- 67
+encb[218,2] <- 144
+encb[218,3] <- 1
+shp[218] <- 16384
+encb[219,0] <- 198                   # C6 43 90 00  mov byte [rbx-112], 0  （実例ごとに下ろす）
+encb[219,1] <- 67
+encb[219,2] <- 144
+encb[219,3] <- 0
+shp[219] <- 16384
+encb[220,0] <- 128                   # 80 7B 90 00  cmp byte [rbx-112], 0
+encb[220,1] <- 123
+encb[220,2] <- 144
+encb[220,3] <- 0
+shp[220] <- 16384
 
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
@@ -3539,10 +3566,29 @@ glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 8
 glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 9
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] >= 10 if gknown[gg]
 glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 2
-glen[gg] <- ctot[gdoo[gg]] + 5      for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
-glen[gg] <- ctot[gdoo[gg]] + 7      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+glen[gg] <- ctot[gdoo[gg]] + 5 + gxl[gg]   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0
+glen[gg] <- ctot[gdoo[gg]] + 7 + gxr[gg] + gxp[gg]   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
 glen[gg] <- 1                    for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] >= 1
-glen[gg] <- 3                    for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
+glen[gg] <- 3 + gxp[gg]          for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
+# **比較は ⊤ で立つ**（13e）。左辺が flat の場の読みなら、⊥ の検査のあとで「⊤ か」を旗に
+# 置く（sete —— 立てるのも下ろすのも一命令）。右辺が flat の場の読みなら ⊤ で立つ方へ飛ぶ。
+# 右辺は左辺の旗も見る（左辺が ⊤ でも右辺の ⊥ は見てから —— ⊥ は比べられない）。
+# 比較の二行は隣り合う（左辺が gg - 1、右辺が gg。fold.lx の `gbt[t]` と `gbt[t] + 1`）。
+field gtl : or bound 16384                      # 比較の左辺は flat の場の読み
+gtl[gg] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] == 3 if gdok[gg] == 0 if ftc[gdf[gg]]
+field gtr : or bound 16384                      # 比較の右辺は flat の場の読み
+gtr[gg] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0 if ftc[gdf[gg]]
+field gtp : or bound 16384                      # 比較の右辺で、左辺が flat の場の読み
+gtp[gg] <- true   for (gg) in 1 .. nggz[0] if gdk[gg] == 4 if gtl[gg-1]
+field gxl : max bound 16384
+gxl[gg] <- 0      for (gg) in 0 .. nggz[0] if not gtl[gg]
+gxl[gg] <- 2      for (gg) in 0 .. nggz[0] if gtl[gg]
+field gxr : max bound 16384
+gxr[gg] <- 0      for (gg) in 0 .. nggz[0] if not gtr[gg]
+gxr[gg] <- 2      for (gg) in 0 .. nggz[0] if gtr[gg]
+field gxp : max bound 16384
+gxp[gg] <- 0      for (gg) in 0 .. nggz[0] if not gtp[gg]
+gxp[gg] <- 2      for (gg) in 0 .. nggz[0] if gtp[gg]
 
 field goff : max bound 16384                    # 規則 r の中でのガード g の始まり
 goff[gg] <- 0            for (gg) in 0 .. nggz[0]
@@ -3793,9 +3839,9 @@ tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
 tml0[gt] <- 2                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 12   # imul + jo
 tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 13
 tml0[gt] <- 2                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 14   # imul + jo
-tml0[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
-tml0[gt] <- ctot[tmoo[gt]] + 6    for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
-tml0[gt] <- ctot[tmoo[gt]] + 7    for (gt) in 0 .. ngtz[0] if tmk[gt] == 10   # imul + jo
+tml0[gt] <- ctot[tmoo[gt]] + 6 + tvk[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
+tml0[gt] <- ctot[tmoo[gt]] + 6 + tvk[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
+tml0[gt] <- ctot[tmoo[gt]] + 7 + tvk[gt]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10   # imul + jo
 field tmlen : max bound 16384                   # 項ぜんぶ（升の出し入れを含む）
 tmlen[gt] <- tml0[gt] + tmn[gt] + tmx[gt]   for (gt) in 0 .. ngtz[0]
 field toff : max bound 16384
@@ -3803,7 +3849,7 @@ toff[gt] <- 0                  for (gt) in 0 .. ngtz[0]
 toff[gt] <- toff[gt-1] + tmlen[gt-1]   for (gt) in 0 .. ngtz[0] if tmi[gt] > 0
 field tof : max bound 16384                     # 項ぜんぶ（＋階数の初期化 1 命令）
 tof[r] <- 1                     for (r) in 0 .. nrlz[0]
-tof[tmr[gt]] <- toff[gt] + tmlen[gt] + 1   for (gt) in 0 .. ngtz[0]
+tof[tmr[gt]] <- toff[gt] + tmlen[gt] + 1 + trs[tmr[gt]]   for (gt) in 0 .. ngtz[0]
 field tmc18 : max bound 16384                   # 列のずれ（バイト）
 tmc18[gt] <- tmc1[gt] * 8       for (gt) in 0 .. ngtz[0]
 field tpos : max bound 16384                    # 項 gt の命令の位置（**一次元**）——
@@ -3812,7 +3858,7 @@ field tpos : max bound 16384                    # 項 gt の命令の位置（**
 # になる（自分を焼くには、自分が焼ける形で書く）。
 tpos[gt] <- tb[tmr[gt]] + toff[gt]  for (gt) in 0 .. ngtz[0]
 field tb : max bound 16384                      # 最初の項の位置
-tb[r] <- bb[r] + 1 + gof[r]     for (r) in 0 .. nrlz[0]
+tb[r] <- bb[r] + 1 + gof[r] + trs[r]   for (r) in 0 .. nrlz[0]
 
 # 書き座標の位置。**束の族で分かれない** —— 項が値の差を吸収した
 field wpos : max bound 16384
@@ -3851,10 +3897,10 @@ jlen[r] <- 11 + vchk[r]  for (r) in 0 .. nrlz[0] if rrlt[r] == 6
 jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 8     # 足す + jo（溢れ）
 jlen[r] <- 6    for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 field jb : max bound 16384                      # join の位置
-jb[r] <- wpos[r] + 1 + wof[r] + vchk[r]   for (r) in 0 .. nrlz[0]
+jb[r] <- wpos[r] + 1 + wof[r] + tvx[r] + vchk[r]   for (r) in 0 .. nrlz[0]
 
 field blen : max bound 16384
-blen[r] <- 3 + gnl4[r] + gof[r] + tof[r] + wof[r] + jlen[r]   for (r) in 0 .. nrlz[0]
+blen[r] <- 3 + gnl4[r] + gof[r] + tof[r] + wof[r] + tvx[r] + jlen[r]   for (r) in 0 .. nrlz[0]
 
 # ── 層。**規則の並びが層の昇順である**ことは呼ぶ側の契約 ─────────────
 field stf : max bound 16384
@@ -4406,8 +4452,18 @@ form[gc[gg]] <- 2       for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 
 imm[gc[gg]]  <- gdov[gg] + bias[0]      for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 3
 
 field gcm : max bound 16384                     # `cmp rax,rsi` の居る命令
-gcm[gg] <- gc[gg] + 5  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
-gcm[gg] <- gc[gg] + 1  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
+gcm[gg] <- gc[gg] + 5 + gxr[gg] + gxp[gg]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] == 0
+gcm[gg] <- gc[gg] + 1 + gxp[gg]  for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdok[gg] >= 1
+form[gc[gg] + 5] <- 66   for (gg) in 0 .. nggz[0] if gtl[gg]           # cmp rsi, ⊤ の印
+imm[gc[gg] + 5]  <- ftop[0]   for (gg) in 0 .. nggz[0] if gtl[gg]
+form[gc[gg] + 6] <- 216  for (gg) in 0 .. nggz[0] if gtl[gg]           # sete byte [旗]
+form[gc[gg] + 5] <- 12   for (gg) in 0 .. nggz[0] if gtr[gg]           # cmp rax, ⊤ の印
+imm[gc[gg] + 5]  <- ftop[0]   for (gg) in 0 .. nggz[0] if gtr[gg]
+form[gc[gg] + 6] <- 13   for (gg) in 0 .. nggz[0] if gtr[gg]           # je → 立つ
+jt[gc[gg] + 6]   <- gcm[gg] + 2   for (gg) in 0 .. nggz[0] if gtr[gg]
+form[gcm[gg] - 2] <- 217 for (gg) in 0 .. nggz[0] if gtp[gg]           # cmp byte [旗], 0
+form[gcm[gg] - 1] <- 22  for (gg) in 0 .. nggz[0] if gtp[gg]           # jne → 立つ
+jt[gcm[gg] - 1]   <- gcm[gg] + 2   for (gg) in 0 .. nggz[0] if gtp[gg]
 form[gcm[gg]] <- 67     for (gg) in 0 .. nggz[0] if gdk[gg] == 4
 form[gcm[gg] + 1] <- 22   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdgv[gg] == 1
 form[gcm[gg] + 1] <- 13   for (gg) in 0 .. nggz[0] if gdk[gg] == 4 if gdgv[gg] == 2
@@ -4701,23 +4757,81 @@ form[tc[gt] + 1] <- 66  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[tc[gt] + 1]  <- fbot[tmf[gt]]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[tc[gt] + 2] <- 13  for (gt) in 0 .. ngtz[0] if isrd[gt]
 jt[tc[gt] + 2]   <- av[tmr[gt]]   for (gt) in 0 .. ngtz[0] if isrd[gt]
-form[tc[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
-form[tc[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 9   # mov rax,rsi（引くのは群の符号）
+form[tcv[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 3
+form[tcv[gt] + 3] <- 85  for (gt) in 0 .. ngtz[0] if tmk[gt] == 9   # mov rax,rsi（引くのは群の符号）
 # **掛けられるのに掛けられないのは分類の穴だった。** 場と場の積は
 # 二次元の畳みの掛け数（`fw[f,0] * fw[f,1]`）に要る —— 命令は一つ。
-form[tc[gt] + 3] <- 146 for (gt) in 0 .. ngtz[0] if tmk[gt] == 10  # imul rax, rsi
+form[tcv[gt] + 3] <- 146 for (gt) in 0 .. ngtz[0] if tmk[gt] == 10  # imul rax, rsi
 # 種10 は imul の直後に jo を置く（階数の cmp が旗を潰すので、その前）。階数の二命令は一つ後ろへ
-form[tc[gt] + 4] <- 191  for (gt) in 0 .. ngtz[0] if tmk[gt] == 10      # jo → 溢れの踏み台
-jt[tc[gt] + 4]   <- osf[rrwf[tmr[gt]]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+form[tcv[gt] + 4] <- 191  for (gt) in 0 .. ngtz[0] if tmk[gt] == 10      # jo → 溢れの踏み台
+jt[tcv[gt] + 4]   <- osf[rrwf[tmr[gt]]]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 field trk : max bound 16384                     # 項 gt の階数の二命令の位置
-trk[gt] <- tc[gt] + 4   for (gt) in 0 .. ngtz[0] if isrd[gt]
-trk[gt] <- tc[gt] + 5   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+trk[gt] <- tcv[gt] + 4   for (gt) in 0 .. ngtz[0] if isrd[gt]
+trk[gt] <- tcv[gt] + 5   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
 form[trk[gt]] <- 88  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[trk[gt]]  <- koff[tmf[gt]] + bias[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 scb[trk[gt]]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 form[trk[gt] + 1] <- 89  for (gt) in 0 .. ngtz[0] if isrd[gt]
 imm[trk[gt] + 1]  <- koff[tmf[gt]] + bias[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
 scb[trk[gt] + 1]  <- kscb[0]  for (gt) in 0 .. ngtz[0] if isrd[gt]
+
+# ══ ⊤ の規律（13e）══════════════════════════════════════════════════
+# 焼いた符号は ⊤ の印（0x7ffffffe）を **ただの数**として読んでいたので、印が比較・算術で
+# 読まれる場は「⊤ に達したら止まる」ことで守っていた（終了コード 5）。答えの定義は違う ——
+# **算術は ⊤ 厳密**（読みの一つが ⊤ なら値は ⊤。ただし他の読みが ⊥ なら撃たない）、
+# **比較は ⊤ で立つ**（⊤ は「少なくとも真」。そうでなければ述語は単調でない）。
+# 定数伝播は「経路が食い違えば ⊤」をこの二つで運ぶ（29_dataflow）。
+#
+# 項: flat の場を数として読む項（素の写しでない）は、⊥ の検査のあとで ⊤ も見る（四命令）。
+#   書き先が flat → 旗を立て、rsi を 0 にして続ける（溢れも割り算も起こさない）。
+#     全部の読みが済んだら（⊥ ならその前に抜けている）、旗が立っていれば値を ⊤ にして join へ。
+#     旗は実例ごとに項の前で下ろす —— 抜けた実例の旗が次の実例に残らない。
+#   書き先が flat でない → **読む前に止まって言う**（前は join で止まっていた。読む時に
+#     止めれば、`if not` で ⊤ の升を避けた読みは止まらない —— print がそれを使う）。
+# **⊤ になりうる場だけを見張る。** flat の場でも、規則が書かず種が衝突しない場（下ろした表の列
+# `_t<k>c<j>` がそれ —— 升ごとに種が一つ）は ⊤ にならない。見張れば四命令ずつ膨らむだけである。
+field fwr : or bound 2048                       # 場 f は規則が書く
+fwr[rrwf[r]] <- true   for (r) in 0 .. nrlz[0]
+field fsjt : or bound 2048                      # 場 f の種が衝突する（flat なら ⊤）
+fsjt[sdf[s]] <- true   for (s) in 0 .. nsdz[0] if sjfl[s]
+field ftc : or bound 2048                       # 場 f は ⊤ になりうる
+ftc[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 6 if fwr[f]
+ftc[f] <- true   for (f) in 0 .. nflz[0] if fdlat[f] == 6 if fsjt[f]
+field ttop : or bound 16384                     # 項 gt は ⊤ になりうる場を数として読む
+ttop[gt] <- true   for (gt) in 0 .. ngtz[0] if isrd[gt] if ftc[tmf[gt]] if not tcopy[gt]
+field tvk : max bound 16384                     # その見張りの命令数
+tvk[gt] <- 0       for (gt) in 0 .. ngtz[0] if not ttop[gt]
+tvk[gt] <- 4       for (gt) in 0 .. ngtz[0] if ttop[gt]
+field tcv : max bound 16384                     # 見張りのあとの位置（前の `tc + 3` の手前）
+tcv[gt] <- tc[gt] + tvk[gt]   for (gt) in 0 .. ngtz[0] if isrd[gt]
+field rtv : or bound 16384                      # 規則 r は ⊤ を値として運ぶ（書き先が flat）
+rtv[tmr[gt]] <- true   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6
+field trs : max bound 16384                     # 項の前で旗を下ろす一命令
+trs[r] <- 0        for (r) in 0 .. nrlz[0] if not rtv[r]
+trs[r] <- 1        for (r) in 0 .. nrlz[0] if rtv[r]
+field tvx : max bound 16384                     # join の前で旗を見る四命令
+tvx[r] <- 0        for (r) in 0 .. nrlz[0] if not rtv[r]
+tvx[r] <- 4        for (r) in 0 .. nrlz[0] if rtv[r]
+form[tc[gt] + 3] <- 66   for (gt) in 0 .. ngtz[0] if ttop[gt]          # cmp rsi, ⊤ の印
+imm[tc[gt] + 3]  <- ftop[0]   for (gt) in 0 .. ngtz[0] if ttop[gt]
+form[tc[gt] + 4] <- 22   for (gt) in 0 .. ngtz[0] if ttop[gt]          # jne → 見張りの後ろ
+jt[tc[gt] + 4]   <- tcv[gt] + 3   for (gt) in 0 .. ngtz[0] if ttop[gt]
+form[tc[gt] + 5] <- 218  for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6   # 旗を立てる
+form[tc[gt] + 6] <- 57   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] == 6   # xor esi, esi
+form[tc[gt] + 5] <- 162  for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6   # mov r15d, 場番号
+imm[tc[gt] + 5]  <- tmf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6
+form[tc[gt] + 6] <- 78   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6   # jmp → ⊤ の出口
+jt[tc[gt] + 6]   <- tpx[0]   for (gt) in 0 .. ngtz[0] if ttop[gt] if rrlt[tmr[gt]] != 6
+form[tb[r] - 1] <- 219   for (r) in 0 .. nrlz[0] if rtv[r]              # 旗を下ろす
+field tvp : max bound 16384                     # join の前の四命令の位置（書き座標のあと）
+tvp[r] <- wpos[r] + 1 + wof[r]   for (r) in 0 .. nrlz[0] if rtv[r]
+form[tvp[r]]     <- 220  for (r) in 0 .. nrlz[0] if rtv[r]              # cmp byte [旗], 0
+form[tvp[r] + 1] <- 13   for (r) in 0 .. nrlz[0] if rtv[r]              # je → 値の見張り
+jt[tvp[r] + 1]   <- tvp[r] + 4   for (r) in 0 .. nrlz[0] if rtv[r]
+form[tvp[r] + 2] <- 2    for (r) in 0 .. nrlz[0] if rtv[r]              # mov rax, ⊤ の印
+imm[tvp[r] + 2]  <- ftop[0]   for (r) in 0 .. nrlz[0] if rtv[r]
+form[tvp[r] + 3] <- 78   for (r) in 0 .. nrlz[0] if rtv[r]              # jmp → join（見張りを飛ばす）
+jt[tvp[r] + 3]   <- jb[r]   for (r) in 0 .. nrlz[0] if rtv[r]
 
 # ── 群の境目。**和は升に置く**（register は一つも空いていない）──────
 # 群0 は升に置き、以降は升に足す（引く）。最後に升から rax へ戻す。
@@ -4810,12 +4924,9 @@ field tcopy : or bound 16384                 # 項 gt は flat の場への素�
 tcopy[gt] <- true        for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if not tmany[tmr[gt]]
       if rrlt[tmr[gt]] == 6
 field tdang : or bound 2048                 # 場 f の ⊤ は、どこかで数として誤読される
-tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 3 if not tcopy[gt]
-tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 9
-tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 10
+# （13e）算術の読みは ⊤ 厳密に、比較は ⊤ で立つようにした —— どちらも誤読ではなくなったので
+# ここから外した。残るのは座標・区間の上端・描画と、そこへ素に写される場である。
 tdang[tmf[gt]] <- true   for (gt) in 0 .. ngtz[0] if tcopy[gt] if tdang[rrwf[tmr[gt]]]
-tdang[gdf[gg]] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] >= 3 if gdk[gg] <= 4
-      if gdok[gg] == 0
 tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 tdang[lpbf[gl]] <- true  for (gl) in 0 .. nglz[0] if lpk[gl] == 2

@@ -1,0 +1,21 @@
+# ⊤ の規律（13e）: 比較は ⊤ で立つ・flat へ書く算術は ⊤ 厳密・print は `⊤ CONFLICT`
+# 下ろした print は `if f[k] < 0 if f[k] >= 0`（両方立つのは ⊤ だけ）で ⊤ の行を見分ける
+table ch = (0,32)
+field f : flat bound 4
+f[0] <- 1
+f[0] <- 2
+f[1] <- 5
+f[3] <- 7
+field g : flat bound 4
+g[i] <- f[i] * 3 + 1   for (i) in 0 .. 3
+field w : flat bound 3 3
+w[i, j] <- f[i] + j   for (i) in 0 .. 2 for (j) in 0 .. 2
+field c : or bound 4
+c[i] <- true   for (i) in 0 .. 3 if f[i] < 3
+field d : or bound 4
+d[i] <- true   for (i) in 0 .. 3 if 6 <= f[i]
+print f
+print g
+print w
+print c
+print d
