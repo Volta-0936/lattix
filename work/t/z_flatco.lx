@@ -1,0 +1,23 @@
+# flat の場を **自分の再帰の中で座標に読む**（鎖を辿る・内側の二次元・ガード・比較）
+table t = (0,3), (3,5), (5,2), (2,7), (7,1)
+field nxt : flat bound 16
+nxt[a] <- b                        for (a,b) in t
+field reach : flat bound 8          # 0 から k 歩で着く所
+reach[0] <- 0
+reach[k] <- nxt[reach[k-1]]        for (k) in 1 .. 5
+field step : flat bound 16          # 着いた所 → 歩数（reach を座標に書く）
+step[reach[k]] <- k                for (k) in 0 .. 5
+field grid : flat bound 8 8         # 二次元の内側（grid[k, k] に次の点）
+grid[k, k] <- reach[k + 1]         for (k) in 0 .. 4
+field walk : flat bound 8           # walk[k+1] = grid[walk[k], walk[k]]
+walk[0] <- 0
+walk[k] <- grid[walk[k-1], walk[k-1]]   for (k) in 1 .. 5
+field seen : or bound 16            # ガードの座標に再帰の値
+seen[x] <- true                    for (x) in 0 .. 15 for (k) in 0 .. 5 if reach[k] == x
+field same : or bound 8             # 比較（flat どうし）
+same[k] <- true                    for (k) in 0 .. 5 if reach[k] == walk[k]
+print reach
+print step
+print walk
+print seen
+print same

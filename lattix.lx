@@ -315,10 +315,21 @@ field isneg : or bound 589824            # `not` の直後の語
 isneg[t] <- true for (t,zc) in ch if kwnot[prevw[t]]
 field tdep : max bound 589824            # トークンの括弧の深さ
 tdep[t] <- pre[tstart[t]] for (t,zc) in ch if tlen[t] >= 1
+# **flat の升は LVar である**（⊥ → v で止まる。⊤ は矛盾で、焼いた側は終了コード 4 で止まる）。
+# 一度決まった値は動かないので、比べても、座標にしても、読んだ答えは取り消されない ——
+# 比較と添字の中の flat の読みは単調である（解釈実行の classify と同じ判断。気づき24 の
+# 「座標の契約は確定していること」の表側）。否定だけは別で、`not f[…]` は ⊥ で真に読まれる。
+# 前は比較と添字を一律に非単調と数えていたので、flat の場を座標に読む再帰（項の番地の
+# 鎖・原子の符号化・アクセサ）が、解釈実行は解けるのに焼く側だけ成層できなかった。
+# **向きの合う比較（`lo <= hi`、min が左で max が右）はここでは緩めない。** 答えの上では単調だが、
+# 証人の階数は「升が最後に動いた周回」なので、ガードが先に立ったあとで辺の升が動くと、導いた升の
+# 階数が読んだ升の最後の階数より小さくなり、証明書が示せない（解釈実行の C の裏側 + attest.py でも
+# 同じ形の本が REJECTED になる —— 証人の形の限界であって、焼く側の限界ではない）。
+# flat は一度しか動かないので、使った値と最後の値が同じで、この問題が起きない。
 field tnonm : or bound 589824
 tnonm[t] <- true for (t,zc) in ch if isneg[t]
-tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]]
-tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1
+tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]] if not rfl[t]
+tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1 if not rfl[t]
 tnonm[t] <- true for (t,zc) in ch if tnm4[t]
 field onm : or bound 32768
 onm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tnonm[t]
@@ -3557,11 +3568,13 @@ clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] >= 1
 clen[gc] <- 1   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0
 clen[gc] <- 4   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] >= 1
 # 源2/3 は **座標を二つ持つ**（内側の添字と、読んだ値）—— どちらも濾す。下の形を見よ。
-clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
-clen[gc] <- 10  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 1
-clen[gc] <- 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
-# 源5: 内側の所有者の長さ + 読み三命令（読む・⊥ と比べる・⊥ なら抜ける）
-clen[gc] <- ctot[cdcc[gc]] + 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+# **座標の読みも階数を継ぐ**（二命令: cmp / cmovb）。flat の場は座標に読んでも単調なので、
+# 同じ層に居られる —— そのとき証明書は「読んだ升より階数が大きい」を要る（不変条件6）。
+clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
+clen[gc] <- 12  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 1
+clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+# 源5: 内側の所有者の長さ + 階数二命令 + 読み三命令（読む・⊥ と比べる・⊥ なら抜ける）
+clen[gc] <- ctot[cdcc[gc]] + 5   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 # 内側のスロット: 次元0 は載せるだけ、次元1 以降は **畳んで足す**（二命令）。
 # 畳んで足す形があるのは源 0 / 1 / 4（列・計数器・定数）だけである。源を問わずに
 # 長さを与えていたので、源の無い行（`k[0]` のような定数で引いた読みは源にならない）
@@ -3601,11 +3614,14 @@ cchk[gc] <- true  for (gc) in 0 .. ngcz[0] if cdhf[gc] == 1 if not inr1[gc]
 # `cdhf == 1` の 4 と 7 には濾しが既に入っているので足さない。
 clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] < 2  if cdhf[gc] == 0 if cchk[gc]
 clen[gc] <- 3   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 4 if cdhf[gc] == 0 if cchk[gc]
-clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
+clen[gc] <- 11  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 0
       if cchk[gc]
-clen[gc] <- 9   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
+clen[gc] <- 11  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3 if cdhf[gc] == 2
       if cchk[gc]
-clen[gc] <- ctot[cdcc[gc]] + 5   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5 if cchk[gc]
+clen[gc] <- ctot[cdcc[gc]] + 7   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5 if cchk[gc]
+# 源5 に後置のずれ（`f[g[i, j] + 1]`）があれば、ずれの add がもう一つ要る —— 前は長さが
+# 足りず、add が ⊥ の je と同じ位置に重なって（form は max）je が消えていた
+clen[gc] <- ctot[cdcc[gc]] + 8   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5 if cdhf[gc] == 1
 field coff : max bound 32768                    # 所有者の中での次元 d の始まり
 coff[gc] <- 0                 for (gc) in 0 .. ngcz[0]
 coff[gc] <- coff[gc-1] + clen[gc-1] + 2   for (gc) in 0 .. ngcz[0] if csd[gc] > 0
@@ -4348,13 +4364,19 @@ imm[cend[gc] - 1]  <- cscr[0]   for (gc) in 0 .. ngcz[0] if inr1[gc]
 # ── 源5: 内側の所有者が座標を作り終えた所で読む ──────────────────
 field inrd : max bound 32768                    # 読みの命令の位置
 inrd[gc] <- cdpos[gc] + ctot[cdcc[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-form[inrd[gc]] <- fcr[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-imm[inrd[gc]]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-scb[inrd[gc]]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-form[inrd[gc] + 1] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-imm[inrd[gc] + 1]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-form[inrd[gc] + 2] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
-jt[inrd[gc] + 2]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc]] <- 88   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5     # cmp r11d,[K_cf]（階数を継ぐ）
+imm[inrd[gc]]  <- koff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+scb[inrd[gc]]  <- kscb[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 1] <- 89   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5 # cmovb r11d,[K_cf]
+imm[inrd[gc] + 1]  <- koff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+scb[inrd[gc] + 1]  <- kscb[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 2] <- fcr[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+imm[inrd[gc] + 2]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+scb[inrd[gc] + 2]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 3] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+imm[inrd[gc] + 3]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+form[inrd[gc] + 4] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
+jt[inrd[gc] + 4]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 form[cdpos[gc]] <- 29   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 2
 imm[cdpos[gc]]  <- cdcc[gc] * 8 + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 2
 form[cdpos[gc]] <- 82   for (gc) in 0 .. ngcz[0] if cdsr[gc] == 3 if cdcc[gc] == 0
@@ -4373,13 +4395,20 @@ form[cdpos[gc] + 2] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc
 imm[cdpos[gc] + 2]  <- fw[cdcf[gc],0] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 form[cdpos[gc] + 3] <- 73   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 jt[cdpos[gc] + 3]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cdpos[gc] + 4] <- fcr[cdcf[gc]]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # mov r9,[F_cf]
-imm[cdpos[gc] + 4]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-scb[cdpos[gc] + 4]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cdpos[gc] + 5] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r9, ⊥
-imm[cdpos[gc] + 5]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cdpos[gc] + 6] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-jt[cdpos[gc] + 6]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+# 階数（項の読みと同じ二命令。r9 はまだ内側の升の番号を持っている —— 読む前に継ぐ）
+form[cdpos[gc] + 4] <- 88   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r11d,[K_cf]
+imm[cdpos[gc] + 4]  <- koff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+scb[cdpos[gc] + 4]  <- kscb[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 5] <- 89   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmovb r11d,[K_cf]
+imm[cdpos[gc] + 5]  <- koff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+scb[cdpos[gc] + 5]  <- kscb[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 6] <- fcr[cdcf[gc]]  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # mov r9,[F_cf]
+imm[cdpos[gc] + 6]  <- foff[cdcf[gc]] + bias[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+scb[cdpos[gc] + 6]  <- fscb[cdcf[gc]] for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 7] <- 50   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3  # cmp r9, ⊥
+imm[cdpos[gc] + 7]  <- fbot[cdcf[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+form[cdpos[gc] + 8] <- 13   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+jt[cdpos[gc] + 8]   <- av[cdr[gc]]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 
 # 座標のずれ（鎖）。範囲の外は ⊥ —— unsigned 比較が負も上も捕まえる
 
@@ -4825,14 +4854,19 @@ field ngd : max bound 16384
 ngd[r] <- 0                         for (r) in 0 .. nrlz[0]
 ngd[gdr[gg]] <- ggn[gg] + 2         for (gg) in 0 .. nggz[0] if gisr[gg]
 
-# 座標の読み（`f[g[i]]` の g）。源 2 / 3 が場を引く
+# 座標の読み（`f[g[i]]` の g）。源 2 / 3 が場を引き、源 5（内側の所有者 `o[p[i, j]]` の p）も引く。
+# 前は源 5 を数えていなかった —— 座標の読みはいつも下の層だったので、周回の入口で見なくても
+# 同じだった。flat の座標の読みが同じ層に居られるようになったので、数えないと **動いたのに回らない**
+field cdrd : or bound 32768                     # 座標のスロット gc は場を読む
+cdrd[gc] <- true                    for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+cdrd[gc] <- true                    for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 field ccn : max bound 32768
 ccn[gc] <- 0                        for (gc) in 0 .. ngcz[0]
 ccn[gc] <- ccn[gc-1]                for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc]
-ccn[gc] <- ccn[gc-1] + 2            for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc] if cdsr[gc-1] >= 2 if cdsr[gc-1] <= 3
+ccn[gc] <- ccn[gc-1] + 2            for (gc) in 0 .. ngcz[0] if gc > 0 if cdr[gc-1] == cdr[gc] if cdrd[gc-1]
 field ncd : max bound 16384
 ncd[r] <- 0                         for (r) in 0 .. nrlz[0]
-ncd[cdr[gc]] <- ccn[gc] + 2         for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
+ncd[cdr[gc]] <- ccn[gc] + 2         for (gc) in 0 .. ngcz[0] if cdrd[gc]
 
 # ループの上端の読み（種 2 = 上端が場）。**回る回数は宣言ではなく実測**
 field lcn : max bound 16384
@@ -4892,12 +4926,11 @@ jt[gck[gg] + 1]   <- ckj[gdr[gg]] + 1   for (gg) in 0 .. nggz[0] if gisr[gg]
 
 # 座標の読み
 field cck : max bound 32768
-cck[gc] <- ccn[gc] + ntm[cdr[gc]] + ngd[cdr[gc]] + ckp[cdr[gc]] + roff[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cck[gc]] <- 160                 for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-imm[cck[gc]]  <- cdcf[gc] * 8 + bias[0] - gpz[0]   for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-form[cck[gc] + 1] <- 73              for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
-jt[cck[gc] + 1]   <- ckj[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0]
-      if cdsr[gc] >= 2 if cdsr[gc] <= 3
+cck[gc] <- ccn[gc] + ntm[cdr[gc]] + ngd[cdr[gc]] + ckp[cdr[gc]] + roff[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if cdrd[gc]
+form[cck[gc]] <- 160                 for (gc) in 0 .. ngcz[0] if cdrd[gc]
+imm[cck[gc]]  <- cdcf[gc] * 8 + bias[0] - gpz[0]   for (gc) in 0 .. ngcz[0] if cdrd[gc]
+form[cck[gc] + 1] <- 73              for (gc) in 0 .. ngcz[0] if cdrd[gc]
+jt[cck[gc] + 1]   <- ckj[cdr[gc]] + 1   for (gc) in 0 .. ngcz[0] if cdrd[gc]
 
 # ループの上端の読み
 field lck : max bound 16384

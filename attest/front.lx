@@ -305,10 +305,21 @@ field isneg : or bound 589824            # `not` の直後の語
 isneg[t] <- true for (t,zc) in ch if kwnot[prevw[t]]
 field tdep : max bound 589824            # トークンの括弧の深さ
 tdep[t] <- pre[tstart[t]] for (t,zc) in ch if tlen[t] >= 1
+# **flat の升は LVar である**（⊥ → v で止まる。⊤ は矛盾で、焼いた側は終了コード 4 で止まる）。
+# 一度決まった値は動かないので、比べても、座標にしても、読んだ答えは取り消されない ——
+# 比較と添字の中の flat の読みは単調である（解釈実行の classify と同じ判断。気づき24 の
+# 「座標の契約は確定していること」の表側）。否定だけは別で、`not f[…]` は ⊥ で真に読まれる。
+# 前は比較と添字を一律に非単調と数えていたので、flat の場を座標に読む再帰（項の番地の
+# 鎖・原子の符号化・アクセサ）が、解釈実行は解けるのに焼く側だけ成層できなかった。
+# **向きの合う比較（`lo <= hi`、min が左で max が右）はここでは緩めない。** 答えの上では単調だが、
+# 証人の階数は「升が最後に動いた周回」なので、ガードが先に立ったあとで辺の升が動くと、導いた升の
+# 階数が読んだ升の最後の階数より小さくなり、証明書が示せない（解釈実行の C の裏側 + attest.py でも
+# 同じ形の本が REJECTED になる —— 証人の形の限界であって、焼く側の限界ではない）。
+# flat は一度しか動かないので、使った値と最後の値が同じで、この問題が起きない。
 field tnonm : or bound 589824
 tnonm[t] <- true for (t,zc) in ch if isneg[t]
-tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]]
-tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1
+tnonm[t] <- true for (t,zc) in ch if cmpcl[gcl[t]] if not rfl[t]
+tnonm[t] <- true for (t,zc) in ch if tdep[t] >= 1 if not rfl[t]
 tnonm[t] <- true for (t,zc) in ch if tnm4[t]
 field onm : or bound 32768
 onm[oseq[t]] <- true for (t,zc) in ch if isocc[t] if tnonm[t]
