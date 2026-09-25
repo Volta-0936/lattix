@@ -1,0 +1,6 @@
+# 行列の積
+table A = (0,0,1),(0,1,2),(1,0,3),(1,1,4)
+table B = (0,0,5),(0,1,6),(1,0,7),(1,1,8)
+field C : sum bound 2 2
+C[i, j] <- x * y   for (i,k,x) in A for (k2,j,y) in B if k == k2
+print C

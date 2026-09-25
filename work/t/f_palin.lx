@@ -1,0 +1,11 @@
+# 回文か（文字の表を両端から比べる）
+table s = (0,114),(1,97),(2,99),(3,101),(4,99),(5,97),(6,114)
+field c : flat bound 16
+c[i] <- x   for (i,x) in s
+field n : max bound 1
+n[0] <- i   for (i,x) in s
+field bad : or bound 1
+bad[0] <- true   for (i,x) in s if c[n[0] - i] != x
+field ok : or bound 1
+ok[0] <- true   for (z) in 0 .. 0 if not bad[0]
+print ok

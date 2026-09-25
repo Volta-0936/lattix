@@ -1,0 +1,18 @@
+# 文字の表から語を数える
+table ch = (0,116),(1,104),(2,101),(3,32),(4,99),(5,97),(6,116),(7,32),(8,115),(9,97),(10,116),(11,32),(12,111),(13,110),(14,32),(15,116),(16,104),(17,101),(18,32),(19,109),(20,97),(21,116)
+field alpha : or
+alpha[i] <- true   for (i,c) in ch if c >= 97 if c <= 122
+field start : or
+start[i] <- true   for (i,c) in ch if alpha[i] if not alpha[i-1]
+field words : count
+words[0] <- i   for (i,c) in ch if start[i]
+field letters : sum
+letters[0] <- 1   for (i,c) in ch if alpha[i]
+field longest : max
+field wlen : max
+wlen[i] <- 1   for (i,c) in ch if start[i]
+wlen[i] <- wlen[i-1] + 1   for (i,c) in ch if alpha[i] if not start[i]
+longest[0] <- wlen[i]   for (i,c) in ch
+print words
+print letters
+print longest

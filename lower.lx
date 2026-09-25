@@ -7640,10 +7640,15 @@ l0ok[t] <- true                    for (t,zc) in ch if lsa[t] if lak0[t] >= 1 if
 field l0cv : or bound 262144                # 出現 o の次元0 は、その次元ちょうどの塊になった
 l0cv[o] <- true                    for (o,zc) in ch if isocc[o] if lngd[o] >= 0 if l0ok[ob1[o]]
       if lse[ob1[o]] == lngd[o]
-field lngb : or bound 1024                  # 場 f はずらせない
+field lnh : max bound 1024                  # 場 f の次元1 のずらしの候補（下の「次元1」）
+field lnga : or bound 1024                  # 場 f はどちらかの次元をずらす候補
+lnga[f] <- true    for (f) in 0 .. nfdz[0] if lng[f] >= 1
+lnga[f] <- true    for (f) in 0 .. nfdz[0] if lnh[f] >= 1
+field lngb : or bound 1024                  # 場 f はずらせない（どちらの次元も）
 lngb[f] <- true    for (f) in 0 .. nfdz[0] if lng[f] >= 1000
-lngb[f] <- true    for (f) in 0 .. nfdz[0] if lng[f] >= 1 if l4f[f]
-lngb[f] <- true    for (f) in 0 .. nfdz[0] if lng[f] >= 1 if lf0[f]
+lngb[f] <- true    for (f) in 0 .. nfdz[0] if lnh[f] >= 1000
+lngb[f] <- true    for (f) in 0 .. nfdz[0] if lnga[f] if l4f[f]
+lngb[f] <- true    for (f) in 0 .. nfdz[0] if lnga[f] if lf0[f]
 lngb[lpf[t]] <- true               for (t,zc) in ch if lpo[t]
 lngb[lof[o]] <- true               for (o,zc) in ch if isocc[o] if clfor[snum[o], cnum[o]]
 lngb[lof[o]] <- true               for (o,zc) in ch if isocc[o] if lng[lof[o]] >= 1 if lngd[o] >= 0
@@ -7668,6 +7673,38 @@ lngn[ob1[o]] <- tval[ob1[o]] + lngk[lof[o]]   for (o,zc) in ch if isocc[o] if ln
 ih0[lin[lnl[t]], 0] <- lb1[fdno[t]] + lngk[fdno[t]]   for (t,zc) in ch if lnb[t] if lngk[fdno[t]] >= 1
 lngn[bw1[t]] <- lb1[fdno[t]] + lngk[fdno[t]]   for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
       if lngk[fdno[t]] >= 1
+# **次元1**（`row[i, -1] <- 0`・`d[-1, j]` と両方 —— 動的計画法の縁）: 同じ形を次元1 の区間で。
+# 次元1 の区間は深さ一の最初の `,` の次の語から `]` の前の語まで（三次元の出現はずらさない）
+field lnhs : max bound 262144               # 出現 o の次元1 の最初の語
+lnhs[o] <- nextw[lfcm[o]]          for (o,zc) in ch if isocc[o] if obr[o] >= 0 if lhc[o] if not l3o[o]
+field lnhd : max bound 262144               # その最後の語
+lnhd[o] <- prevw[tclos[obr[o]]]    for (o,zc) in ch if lnhs[o] >= 0
+field lnht : max bound 262144               # 書き先の出現 o の次元1 が `-N` なら N
+lnht[o] <- tval[nextw[lnhs[o]]]    for (o,zc) in ch if lhd[o] if lnhs[o] >= 0 if tlen[lnhs[o]] == 1
+      if tch[lnhs[o], 0] == 45 if isnum[nextw[lnhs[o]]] if lnhd[o] == nextw[lnhs[o]]
+lnh[lof[o]] <- lnht[o]             for (o,zc) in ch if lnht[o] >= 1
+field lnh1 : or bound 262144                # 出現 o の次元1 は数一つ
+lnh1[o] <- true                    for (o,zc) in ch if lnhs[o] >= 0 if isnum[lnhs[o]] if lnhd[o] == lnhs[o]
+lqx[lnhs[o]] <- o                  for (o,zc) in ch if lnhs[o] >= 0 if lnh[lof[o]] >= 1 if not lnh1[o]
+field l1cv : or bound 262144                # 出現 o の次元1 は、その次元ちょうどの塊になった
+l1cv[o] <- true                    for (o,zc) in ch if lnhs[o] >= 0 if l0ok[lnhs[o]] if lse[lnhs[o]] == lnhd[o]
+#   二次元でない出現（一次元・三次元）・持ち上がらない出現・広さを一つしか書いていない宣言があればずらさない
+lngb[lof[o]] <- true               for (o,zc) in ch if isocc[o] if obr[o] >= 0 if lnh[lof[o]] >= 1
+      if not lhc[o]
+lngb[lof[o]] <- true               for (o,zc) in ch if isocc[o] if lnh[lof[o]] >= 1 if l3o[o]
+lngb[lof[o]] <- true               for (o,zc) in ch if lnhs[o] >= 0 if lnh[lof[o]] >= 1 if not lnh1[o]
+      if not l1cv[o]
+lngb[fdno[t]] <- true              for (t,zc) in ch if isdcl[t] if lnh[fdno[t]] >= 1 if kwbnd[bndt[t]]
+      if not hasw2[fdno[t]]
+field lnhk : max bound 1024                 # 場 f の次元1 のずらし
+lnhk[f] <- lnh[f]  for (f) in 0 .. nfdz[0] if lnh[f] >= 1 if not lngb[f]
+lngr[lnhs[o]] <- lnhk[lof[o]]      for (o,zc) in ch if lnhs[o] >= 0 if lnhk[lof[o]] >= 1 if not lnh1[o]
+lngr[lnhs[o]] <- lnhk[lof[o]]      for (o,zc) in ch if lnhs[o] >= 0 if lnhk[lof[o]] >= 1 if lnh1[o] if l1cv[o]
+lngn[lnhs[o]] <- tval[lnhs[o]] + lnhk[lof[o]]   for (o,zc) in ch if lnhs[o] >= 0 if lnhk[lof[o]] >= 1
+      if lnh1[o] if not l1cv[o]
+ih1[lin[lnl[t]], 0] <- lb2[fdno[t]] + lnhk[fdno[t]]   for (t,zc) in ch if lnb[t] if lnhk[fdno[t]] >= 1
+lngn[bw2[t]] <- lb2[fdno[t]] + lnhk[fdno[t]]   for (t,zc) in ch if isdcl[t] if kwbnd[bndt[t]]
+      if lnhk[fdno[t]] >= 1
 field lngf : or bound 262144                # 数を書き換えるトークン
 lngf[t] <- true                    for (t,zc) in ch if lngn[t] >= 0
 ldl[i] <- true                     for (i,c) in ch if lngf[tnum[i]]

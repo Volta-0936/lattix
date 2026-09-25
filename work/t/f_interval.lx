@@ -1,0 +1,10 @@
+# 区間の重なり（組を数える）と、覆う長さ
+table iv = (0,1,5), (1,3,7), (2,8,10), (3,6,9)
+field ov : count bound 1
+ov[0] <- a * 10 + b   for (a,s1,e1) in iv for (b,s2,e2) in iv if a < b if s1 < e2 if s2 < e1
+field cover : or bound 16
+cover[x] <- true   for (a,s,e) in iv for (x) in s .. e - 1
+field len : count bound 1
+len[0] <- x   for (x) in 0 .. 15 if cover[x]
+print ov
+print len

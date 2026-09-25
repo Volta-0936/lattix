@@ -1,0 +1,8 @@
+# 並べ替え: 自分より小さい値の数が順位
+table a = (0,42), (1,7), (2,19), (3,88), (4,3), (5,19)
+field rank : count bound 8
+rank[i] <- j   for (i,x) in a for (j,y) in a if y < x
+rank[i] <- j   for (i,x) in a for (j,y) in a if y == x if j < i
+field sorted : flat bound 8
+sorted[rank[i]] <- x   for (i,x) in a
+print sorted

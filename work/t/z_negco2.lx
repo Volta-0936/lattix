@@ -1,0 +1,17 @@
+# 二次元の次元1 の縁を -1 に置く（14e）。累積和の行の鎖
+# 二次元の累積和（端を -1 に置く）
+table v = (0,0,1),(0,1,2),(0,2,3),(1,0,4),(1,1,5),(1,2,6),(2,0,7),(2,1,8),(2,2,9)
+field a : max bound 3 3
+a[i, j] <- x   for (i,j,x) in v
+field row : max bound 3 3
+row[i, -1] <- 0   for (i) in 0 .. 2
+row[i, j] <- row[i, j - 1] + a[i, j]   for (i) in 0 .. 2 for (j) in 0 .. 2
+field ps : max bound 3 3
+ps[-1, j] <- 0   for (j) in 0 .. 2
+ps[i, j] <- ps[i - 1, j] + row[i, j]   for (i) in 0 .. 2 for (j) in 0 .. 2
+field total : max bound 1
+total[0] <- ps[2, 2]
+print total
+field rl : max bound 3
+rl[i] <- row[i, 2]   for (i) in 0 .. 2
+print rl

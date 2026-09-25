@@ -1,0 +1,9 @@
+# エラトステネスの篩
+field comp : or bound 64
+comp[i * j] <- true   for (i) in 2 .. 8 for (j) in 2 .. 31 if i * j <= 63
+field prime : or bound 64
+prime[n] <- true   for (n) in 2 .. 63 if not comp[n]
+field np : count bound 1
+np[0] <- n   for (n) in 2 .. 63 if prime[n]
+print np
+print prime

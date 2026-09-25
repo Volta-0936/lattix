@@ -1,0 +1,11 @@
+# 最大値と、それを持つ最初の添字
+table v = (0,4), (1,9), (2,2), (3,9), (4,7)
+field mx : max bound 1
+mx[0] <- x   for (i,x) in v
+field at : min bound 1
+at[0] <- i   for (i,x) in v if x == mx[0]
+field above : count bound 1
+above[0] <- i   for (i,x) in v if x * 2 > mx[0]
+print mx
+print at
+print above

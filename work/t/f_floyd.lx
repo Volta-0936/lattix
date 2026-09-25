@@ -1,0 +1,7 @@
+# 全点対最短路
+table e = (0,1,3), (1,2,4), (0,2,9), (2,3,1), (3,0,2)
+field d : min bound 4 4
+d[i, i] <- 0   for (i) in 0 .. 3
+d[i, j] <- w   for (i,j,w) in e
+d[i, k] <- d[i, j] + d[j, k]   for (i) in 0 .. 3 for (j) in 0 .. 3 for (k) in 0 .. 3
+print d

@@ -1,0 +1,11 @@
+# 迷路の最短距離（二次元）
+table wall = (1,1), (1,2), (1,3), (3,1), (3,3), (2,3)
+field blocked : or bound 5 5
+blocked[x, y] <- true   for (x,y) in wall
+field d : min bound 5 5
+d[0, 0] <- 0
+d[x + 1, y] <- d[x, y] + 1   for (x) in 0 .. 3 for (y) in 0 .. 4 if not blocked[x + 1, y]
+d[x - 1, y] <- d[x, y] + 1   for (x) in 1 .. 4 for (y) in 0 .. 4 if not blocked[x - 1, y]
+d[x, y + 1] <- d[x, y] + 1   for (x) in 0 .. 4 for (y) in 0 .. 3 if not blocked[x, y + 1]
+d[x, y - 1] <- d[x, y] + 1   for (x) in 0 .. 4 for (y) in 1 .. 4 if not blocked[x, y - 1]
+print d

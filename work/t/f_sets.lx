@@ -1,0 +1,13 @@
+# 隣の集合と、その大きさ
+table e = (0,1), (0,2), (1,2), (2,3)
+field nb : set
+nb[a] <- {b}   for (a,b) in e
+nb[b] <- {a}   for (a,b) in e
+field deg : count bound 4
+deg[a] <- b   for (a,b) in e
+deg[b] <- a   for (a,b) in e
+field hub : or bound 4
+hub[v] <- true   for (v) in 0 .. 3 if deg[v] is 3
+print nb
+print deg
+print hub

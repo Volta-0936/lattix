@@ -1,0 +1,9 @@
+# 到達可能性と、互いに行き来できる頂点の組（強連結成分の番号を最小の頂点で）
+table e = (0,1), (1,2), (2,0), (2,3), (3,4), (4,3), (5,4)
+field r : or bound 8 8
+r[i, j] <- true   for (i,j) in e
+r[i, k] <- true   for (i,j) in e for (k) in 0 .. 7 if r[j, k]
+field comp : min bound 8
+comp[v] <- v   for (v) in 0 .. 5
+comp[v] <- u   for (u) in 0 .. 5 for (v) in 0 .. 5 if r[u, v] if r[v, u]
+print comp

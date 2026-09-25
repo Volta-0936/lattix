@@ -1,0 +1,8 @@
+# 文字列を逆順にして描く
+table s = (0,76),(1,97),(2,116),(3,116),(4,105),(5,120)
+field n : max bound 1
+n[0] <- i   for (i,c) in s
+field out : flat bound 8
+out[n[0] - i] <- c   for (i,c) in s
+out[6] <- 10
+render out

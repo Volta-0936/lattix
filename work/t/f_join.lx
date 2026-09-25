@@ -1,0 +1,12 @@
+# 二つの表を結ぶ（社員と部署）と、部署ごとの集計
+table emp = (1,10,300), (2,20,450), (3,10,500), (4,30,200), (5,20,350)
+table dept = (10,1), (20,2), (30,3)
+field pay : sum bound 4
+pay[k] <- s   for (e,d,s) in emp for (d2,k) in dept if d == d2
+field top : max bound 4
+top[k] <- s   for (e,d,s) in emp for (d2,k) in dept if d == d2
+field who : min bound 4
+who[k] <- e   for (e,d,s) in emp for (d2,k) in dept if d == d2 if s == top[k]
+print pay
+print top
+print who
