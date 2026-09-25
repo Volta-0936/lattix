@@ -945,6 +945,26 @@ b[1, j] <- 2   for (j) in 0 .. 3
 b[n, j] <- a[n, j - 1] + 2   for (n) in 2 .. 11 for (j) in 1 .. 3
 a[n, j] <- b[n, j] + 1   for (n) in 2 .. 11 for (j) in 1 .. 3 if b[n - 2, 0] >= 3
 """, data=b"a")
+# **`budget depth <= N`**（14t）: 焼き手は利用者の文の層の数で数える（下ろしの機械 `_…` は数えない）。
+# 焼き手の層は定義の層より浅くならないので、焼き手が N 以下なら定義も N 以下。越えたら budget の行で言う
+case("budget depth 三層（通る）", """table ch = (0,32)
+field a : max bound 4
+field b : or bound 4
+field c : or bound 4
+a[i] <- i   for (i) in 0 .. 3
+b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
+c[i] <- true   for (i) in 0 .. 3 if not b[i]
+budget depth <= 3
+""", data=b"a")
+case("budget depth 三層を二で（言う）", """table ch = (0,32)
+field a : max bound 4
+field b : or bound 4
+field c : or bound 4
+a[i] <- i   for (i) in 0 .. 3
+b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
+c[i] <- true   for (i) in 0 .. 3 if not b[i]
+budget depth <= 2
+""", data=b"a", exit=7, why=(8,7))
 case("土台が同じ層で育つ場を読む（通る）", """table ch = (0,32)
 field x : max bound 16
 x[n] <- n   for (n) in 0 .. 15

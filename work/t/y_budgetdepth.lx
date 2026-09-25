@@ -1,0 +1,9 @@
+# budget depth を越える本（両方が断る。14t）
+field a : max bound 4
+field b : or bound 4
+field c : or bound 4
+a[i] <- i   for (i) in 0 .. 3
+b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
+c[i] <- true   for (i) in 0 .. 3 if not b[i]
+budget depth <= 2
+print c

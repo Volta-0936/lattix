@@ -1,0 +1,9 @@
+# 表の重なった行（負の数の列で区別する行は重ならない。14t）
+table e = (1,-5), (1,5), (1,-5), (2,5)
+field s : sum bound 3
+field c : count bound 3
+s[0] <- w   for (x, w) in e
+c[0] <- 1   for (x, w) in e
+c[1] <- x   for (x, w) in e
+print s
+print c

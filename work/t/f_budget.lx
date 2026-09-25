@@ -1,0 +1,7 @@
+# budget io（外界の文が無ければ 0）・depth・top <= 0（⊤ が無い）—— 14t
+field a : max bound 4
+a[i] <- i * 3   for (i) in 0 .. 3
+budget io <= 1
+budget depth <= 1
+budget top <= 0
+print a

@@ -1,0 +1,8 @@
+# 表の行は集合: 重なった行は一度と数える（sum / count。14t）
+table e = (1,5), (1,5), (2,5)
+field s : sum bound 2
+field c : count bound 2
+s[0] <- w   for (x, w) in e
+c[0] <- x   for (x, w) in e
+print s
+print c

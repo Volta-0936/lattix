@@ -1,0 +1,5 @@
+# 表の重なった行（原子の列。列を読まない count の規則。14t）
+table e = ("ab",1), ("ab",1), ("cd",1)
+field c : count bound 2
+c[0] <- 1   for (x, w) in e
+print c

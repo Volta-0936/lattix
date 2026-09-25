@@ -1,0 +1,9 @@
+# budget top を越える ⊤: 答えを出してから終了コード 4（14t）
+field a : flat bound 4
+field b : flat bound 3 2
+a[i] <- i   for (i) in 0 .. 3
+a[i] <- 7   for (i) in 1 .. 2
+b[i, j] <- i + j   for (i) in 0 .. 2 for (j) in 0 .. 1
+b[1, 1] <- 9
+budget top <= 2
+print a

@@ -2131,6 +2131,34 @@ badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if k
       if rdo[snum[t]] >= 8
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwprn[t]
 sknown[s] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
+# **`budget depth <= N`**（14t）。定義は層の数（逐次深度）が N を越えれば断る。焼き手の層は定義の層より
+# 深いことはあっても浅いことは無い（test/strat.py が守っている —— 非単調な読みは真に後ろ、単調な読みは
+# 同じか後ろ）ので、焼き手の深さが N 以下なら定義も N 以下。越えたら断る（定義が受け取るなら DIFF。黙らない）。
+# 数えるのは **利用者の場を書く文だけ** —— 下ろしが足した機械（名が `_` で始まる場。print の機械・表の列）は
+# 定義の本には無い。`budget io` / `budget top` は下ろしが扱う（io は外界の文が無ければ 0、top は走ったあと）
+field kwbdg : or bound 589824            # `budget`
+kwbdg[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t] if tch[t,0] == 98 if tch[t,1] == 117
+      if tch[t,2] == 100 if tch[t,3] == 103 if tch[t,4] == 101 if tch[t,5] == 116
+field kwdep : or bound 589824            # `depth`
+kwdep[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 100 if tch[t,1] == 101
+      if tch[t,2] == 112 if tch[t,3] == 116 if tch[t,4] == 104
+field bdst : or bound 16384              # 文 s は `budget depth <= N`
+bdst[snum[t]] <- true for (t,zc) in ch if sbrk[t] if kwbdg[t] if kwdep[nextw[t]]
+field bdl : max bound 16384              # その N
+bdl[snum[t]] <- tval[t] for (t,zc) in ch if isnum[t] if bdst[snum[t]]
+sknown[s] <- true        for (s) in 0 .. nstz[0] if bdst[s]
+field uscr : or bound 16384              # 文 s の書き先は下ろしの機械の場（名が `_` で始まる）
+uscr[s] <- true for (s) in 0 .. nstz[0] if hasr[s] if dch[hfl[s], 0] == 95
+field udep : max bound 1                 # 利用者の文の深さ（層の数）
+udep[z] <- 0 for (z) in 0 .. 0
+udep[z] <- level[s] + 1 for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if hasr[s] if not uscr[s]
+badk[z] <- tlin[t] * 16 + 7   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if bdst[snum[t]]
+      if udep[0] > bdl[snum[t]]
+# **終了コードの升 `_exit`**（14t。31_gen の fexz）: 名の鍵が `_exit`（95,101,120,105,116 を 128 進で畳む）の宣言
+field fexz : max bound 1                          # その場（0 起点。無ければ ⊥）
+field exk : max bound 1                           # その鍵 25715160308（即値に入らないので掛けて作る —— 理由 C）
+exk[z] <- 1569528 * 16384 + 13556 for (z) in 0 .. 0
+fexz[z] <- d - 1 for (d) in 0 .. ndcz[0] for (z) in 0 .. 0 if din[d] if dkey[d] == exk[0] if dkey2[d] == 0
 field sunk : or bound 16384                        # 知らない種類（否定は層を切る）
 sunk[s] <- true          for (s) in 0 .. nstz[0] if not sknown[s]
 
@@ -3659,6 +3687,10 @@ encb[212,1] <- 15
 encb[212,2] <- 175
 encb[212,3] <- 131
 shp[212] <- 33028
+encb[244,0] <- 72                    # 48 8B BB d32  mov rdi, [rbx+d32]    （終了コードの升。14t）
+encb[244,1] <- 139
+encb[244,2] <- 187
+shp[244] <- 28868
 encb[213,0] <- 72                    # 48 8B B3 d32  mov rsi, [rbx+d32]    （比較の左辺）
 encb[213,1] <- 139
 encb[213,2] <- 179
@@ -6709,6 +6741,12 @@ form[wbz[z] + 39] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[wbz[z] + 39]  <- 60 + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 40] <- 38   for (z) in 0 .. 0# mov rdi, 0
 imm[wbz[z] + 40]  <- 0 + bias[0]   for (z) in 0 .. 0
+# **終了コードの升**（14t）: `_exit` という場（sum、一升）があれば、答えを書いたあと、その値で終わる（無ければ 0）。
+# 下ろしが `budget top <= N` を「⊤ の升が N を越えたら 4」にするのに使う —— 定義は答えを出してから 4 で終わる
+form[wbz[z] + 40] <- 244   for (z) in 0 .. 0 if fexz[0] >= 0      # mov rdi,[rbx+d32]（_exit[0]）
+field fexo : max bound 1                    # その升のずれ（読みを一段に保つ写し）
+fexo[z] <- foff[fexz[z]]   for (z) in 0 .. 0 if fexz[z] >= 0
+imm[wbz[z] + 40]  <- fexo[0] + bias[0]   for (z) in 0 .. 0 if fexz[0] >= 0
 form[wbz[z] + 41] <- 25   for (z) in 0 .. 0
 
 # ── 番地。**命令番号に沿った鎖**（逐次実行ではない）────────────────

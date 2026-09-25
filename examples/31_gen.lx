@@ -128,6 +128,7 @@ field raxf : max bound 16384        # その軸の群
 field raxb : max bound 2048         # 場 f の軸の群
 field raxd : or bound 16384         # 規則 r は降りる軸の群
 field raxc : or bound 16384         # 規則 r は切り口の中に単調な輪を持つ群
+field fexz : max bound 1            # 終了コードの升 `_exit[0]` の場（14t。下ろしが `budget top` に使う。表の道には無い）
 field ngg : max                    # ガードの総数（規則をまたぐ通し番号）
 ngg[z] <- gg + 1                    for (gg,r,g,kd,f,c1,gv,ok,ov,oo) in grd for (z) in 0 .. 0
 field gdr : max
@@ -1309,6 +1310,10 @@ encb[212,1] <- 15
 encb[212,2] <- 175
 encb[212,3] <- 131
 shp[212] <- 33028
+encb[244,0] <- 72                    # 48 8B BB d32  mov rdi, [rbx+d32]    （終了コードの升。14t）
+encb[244,1] <- 139
+encb[244,2] <- 187
+shp[244] <- 28868
 encb[213,0] <- 72                    # 48 8B B3 d32  mov rsi, [rbx+d32]    （比較の左辺）
 encb[213,1] <- 139
 encb[213,2] <- 179
@@ -4359,6 +4364,12 @@ form[wbz[z] + 39] <- 24   for (z) in 0 .. 0# mov eax, 60
 imm[wbz[z] + 39]  <- 60 + bias[0]   for (z) in 0 .. 0
 form[wbz[z] + 40] <- 38   for (z) in 0 .. 0# mov rdi, 0
 imm[wbz[z] + 40]  <- 0 + bias[0]   for (z) in 0 .. 0
+# **終了コードの升**（14t）: `_exit` という場（sum、一升）があれば、答えを書いたあと、その値で終わる（無ければ 0）。
+# 下ろしが `budget top <= N` を「⊤ の升が N を越えたら 4」にするのに使う —— 定義は答えを出してから 4 で終わる
+form[wbz[z] + 40] <- 244   for (z) in 0 .. 0 if fexz[0] >= 0      # mov rdi,[rbx+d32]（_exit[0]）
+field fexo : max bound 1                    # その升のずれ（読みを一段に保つ写し）
+fexo[z] <- foff[fexz[z]]   for (z) in 0 .. 0 if fexz[z] >= 0
+imm[wbz[z] + 40]  <- fexo[0] + bias[0]   for (z) in 0 .. 0 if fexz[0] >= 0
 form[wbz[z] + 41] <- 25   for (z) in 0 .. 0
 
 # ── 番地。**命令番号に沿った鎖**（逐次実行ではない）────────────────

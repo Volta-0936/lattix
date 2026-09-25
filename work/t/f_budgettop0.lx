@@ -1,0 +1,6 @@
+# budget top <= 0 で ⊤ が一つ: 答えを出してから 4（14t）
+field a : flat bound 4
+a[i] <- i   for (i) in 0 .. 3
+a[2] <- 5
+budget top <= 0
+print a
