@@ -63,6 +63,8 @@ rc, out = run(CNT, b'a' * CAP); case('置き場ちょうど（答える）', (rc
 rc, out = run(CNT, b'a' * (CAP + 1)); case('一バイト多い（6）', rc, 6)
 rc, out = run(CNT, b''); case('空の入力（答える）', (rc, n0(out)), (0, 0))
 rc, out = run(WIDE); case('二百万升を描く（答える）', (rc, len(out), set(out)), (0, 2000000, {65}))
+# 表を回さない本は標準入力を読まない（前は端末で起こすと入力を待って止まった）。開いたままの管で測る
+rc, out = run(None, shell=f'sleep 2 | timeout 1 {WIDE} > /dev/null'); case('表を回さない本は入力を待たない（答える）', rc, 0)
 rc, out = run(CNT, args=(tmp,)); case('ディレクトリを読む（8）', rc, 8)
 rc, out = run(CNT, args=(os.path.join(tmp, 'nope'),)); case('無い源（8）', rc, 8)
 row = struct.pack('<qqq', 1, 2, 5)

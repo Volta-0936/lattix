@@ -64,6 +64,7 @@ def answer(s):
             if v is True: v = 1
             if v is False: continue
             if isinstance(v, dict): v = sum(v.values()) if lat == 'sum' else len(v)
+            if lat == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
             if not isinstance(v, int): v = 2147483646
             ref[(f,) + tuple(kk)] = v

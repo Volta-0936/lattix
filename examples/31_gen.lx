@@ -242,7 +242,7 @@ lpbc8[gl] <- lpbc[gl] * 8           for (gl) in 0 .. nglz[0]
 # ── 命令の骨。**表ではなく種で置く** —— 焼いた実行ファイルが読める表は
 # 標準入力の一つだけなので、生成器の定数は種でなければならない。
 # encb (形, 位置) → バイト。穴の位置には何も置かない（下で埋める）。
-field encb : max bound 208 12
+field encb : max bound 256 12
 encb[1,0] <- 72
 encb[1,1] <- 199
 encb[1,2] <- 195
@@ -828,7 +828,7 @@ encb[173,2] <- 193
 
 # 形の寸法を一つの数に畳む: 長さ*4096 + 穴の位置*64 + 穴の種
 # （二のべきで割れば戻る —— 種を三本並べるより一本の方が短い）
-field shp : max bound 208
+field shp : max bound 256
 shp[1] <- 28868
 shp[2] <- 28868
 shp[3] <- 28868
@@ -1243,6 +1243,45 @@ encb[16,5] <- 137
 encb[16,6] <- 131
 shp[16] <- 45508     # xor rax,[rbx-56] ; mov [rbx+d32],rax
 
+# ── **定数で割る**（二のべきでない正の除数）───────────────────────────────
+# `idiv` は 0 へ切り捨てるが、Lattix の `/` と `%` は床（Python の `//` と `%`）。除数 d > 0 なら
+# 床の商 = 切り捨ての商 + (余り >> 63)、床の余り = 余り + (d & (余り >> 63)) —— 分岐が要らない。
+# 除数は rsi に置く（項の途中では rsi は空いている。読みの項が一時に使うだけ）。rdx は書き先の
+# 座標だが、座標は項の **後ろ**で組む（wpos = 頭 + ガード + 項、書き先はその後）ので潰してよい。
+encb[208,0] <- 72
+encb[208,1] <- 153
+encb[208,2] <- 72
+encb[208,3] <- 247
+encb[208,4] <- 254
+encb[208,5] <- 72
+encb[208,6] <- 193
+encb[208,7] <- 250
+encb[208,8] <- 63
+encb[208,9] <- 72
+encb[208,10] <- 1
+encb[208,11] <- 208
+shp[208] <- 49152     # cqo ; idiv rsi ; sar rdx,63 ; add rax,rdx   （床の商）
+encb[209,0] <- 72
+encb[209,1] <- 153
+encb[209,2] <- 72
+encb[209,3] <- 247
+encb[209,4] <- 254
+encb[209,5] <- 72
+encb[209,6] <- 137
+encb[209,7] <- 208
+shp[209] <- 32768     # cqo ; idiv rsi ; mov rax,rdx               （切り捨ての余り）
+encb[210,0] <- 72
+encb[210,1] <- 193
+encb[210,2] <- 250
+encb[210,3] <- 63
+encb[210,4] <- 72
+encb[210,5] <- 33
+encb[210,6] <- 242
+encb[210,7] <- 72
+encb[210,8] <- 1
+encb[210,9] <- 208
+shp[210] <- 40960     # sar rdx,63 ; and rdx,rsi ; add rax,rdx    （床の余りへ寄せる）
+
 # **形の数は一箇所で言う。** 168 を三箇所に書いていたので、形を五つ足した日に
 # 長さも穴も ⊥ のままになり、**命令の並びがそこで途切れた**（黙って零が出る）。
 # 上限を数字で書くのは、上限を数えないことの言い換えである（気づき33 の再来）。
@@ -1250,12 +1289,12 @@ field nfm : max bound 1              # 形の番号の上限
 # **表から導く。** 前は 198 と書いてあった —— 形を足した日（199・200）、足した形の長さが
 # 無いまま命令の位置の鎖が途切れ、そこから後ろの符号が **全部 0 のまま**の実行ファイルを
 # 黙って出した（走らせると segfault）。形の番号の上限は、形の表が言う。
-nfm[z] <- f   for (f) in 0 .. 207 for (z) in 0 .. 0 if encb[f, 0] >= 0
-field shln : max bound 208           # 命令の長さ
+nfm[z] <- f   for (f) in 0 .. 255 for (z) in 0 .. 0 if encb[f, 0] >= 0
+field shln : max bound 256           # 命令の長さ
 shln[f] <- shp[f] / 4096            for (f) in 0 .. nfm[0]
-field shho : max bound 208           # 穴の位置
+field shho : max bound 256           # 穴の位置
 shho[f] <- shp[f] / 64 % 64         for (f) in 0 .. nfm[0]
-field shhk : max bound 208           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
+field shhk : max bound 256           # 穴の種（0 無し / 1 imm8 / 4 imm32 / 5 rel32）
 shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 
 # ── **倍率も穴である** ───────────────────────────────────────────
@@ -1270,24 +1309,24 @@ shhk[f] <- shp[f] % 64              for (f) in 0 .. nfm[0]
 #
 # SIB を持つかは表が言う —— modrm の下三ビットが 4 なら次のバイトが SIB
 # である（x86 の決まり）。位置は必ず穴の一つ手前。数えたら 17 形あった。
-field mrm : max bound 208            # 形 f の modrm（穴の二つ手前）
+field mrm : max bound 256            # 形 f の modrm（穴の二つ手前）
 mrm[f] <- encb[f, shho[f] - 2]      for (f) in 0 .. nfm[0] if shhk[f] == 4 if shho[f] >= 2
-field mrmr : max bound 208           # modrm の rm（下三ビット）
+field mrmr : max bound 256           # modrm の rm（下三ビット）
 mrmr[f] <- mrm[f] % 8               for (f) in 0 .. nfm[0]
-field mrmm : max bound 208           # modrm の mod（上二ビット）
+field mrmm : max bound 256           # modrm の mod（上二ビット）
 mrmm[f] <- mrm[f] / 64              for (f) in 0 .. nfm[0]
-field hassib : or bound 208          # 形 f は SIB を持つ
+field hassib : or bound 256          # 形 f は SIB を持つ
 # rm が 4 なら SIB が続く —— ただし mod が 00 のときは [SIB] の絶対番地で
 # 穴の一つ手前とは限らない。ずれ付き（mod 01/10）だけを見る。
 hassib[f] <- true                   for (f) in 0 .. nfm[0] if mrmr[f] == 4
       if mrmm[f] >= 1 if mrmm[f] <= 2
-field shsb : min bound 208           # SIB のバイト位置（63 = 持たない）
+field shsb : min bound 256           # SIB のバイト位置（63 = 持たない）
 shsb[f] <- 63                       for (f) in 0 .. nfm[0]
 shsb[f] <- shho[f] - 1              for (f) in 0 .. nfm[0] if hassib[f]
 # **表は書き換えない。** 倍率を抜いた SIB も、いまの倍率も、表から出る。
-field sibb : max bound 208           # 倍率を抜いた SIB（index と base だけ）
+field sibb : max bound 256           # 倍率を抜いた SIB（index と base だけ）
 sibb[f] <- encb[f, shsb[f]] % 64    for (f) in 0 .. nfm[0] if hassib[f]
-field fmsc : max bound 208           # 形がいま持っている倍率ビット（既定）
+field fmsc : max bound 256           # 形がいま持っている倍率ビット（既定）
 fmsc[f] <- encb[f, shsb[f]] - sibb[f]   for (f) in 0 .. nfm[0] if hassib[f]
 # 長さと、穴の位置・幅。kind 4 = imm32/d32 / 1 = imm8 / 5 = rel32
 # ── 配置 ─────────────────────────────────────────────────────────
@@ -1840,7 +1879,9 @@ tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 2
 tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 4
 tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 5
 tml0[gt] <- 2                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 6    # imul + jo
-tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7
+tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if ispw[gt]
+tml0[gt] <- 2                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if not ispw[gt]   # mov rsi,d + 割る
+tml0[gt] <- 3                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt]   # mov rsi,d + 余り二つ
 tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] <= 31
 tml0[gt] <- 2                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] >= 32  # shl + shr
 tml0[gt] <- 1                  for (gt) in 0 .. ngtz[0] if tmk[gt] == 11
@@ -2017,6 +2058,13 @@ form[17] <- 36                       # mov rsi, 読みの先端
 imm[17]  <- dbase[0] + bias[0]                  for (z) in 0 .. 0 if inpw[0] == 8
 imm[17]  <- rbuf[0] + bias[0]                   for (z) in 0 .. 0 if inpw[0] == 1
 form[18] <- 24                       # mov eax, 0   (sys_read)
+# **表を回さない本は読まない。** 表の行を回すループ（lpk 0）が一つも無ければ、読みを飛ばして
+# 表の終わり（40）へ —— rsi は読みの先端のままなので、表は空。前は端末で起こすと入力を待って
+# 止まった（配る本は、表を使わなくても `table ch = (0,32)` を一つ持つ —— 焼ける形がそれだけなので）。
+field tabrd : or bound 1                     # どこかのループが表の行を回す
+tabrd[z] <- true   for (gl) in 0 .. nglz[0] for (z) in 0 .. 0 if lpk[gl] == 0
+form[18] <- 78   for (z) in 0 .. 0 if not tabrd[z]   # jmp -> 表の終わり
+jt[18]   <- 40   for (z) in 0 .. 0 if not tabrd[z]
 imm[18]  <- 0 + bias[0]   for (z) in 0 .. 0
 form[19] <- 49                       # mov rdi, rbp （引数で開いた口／無ければ 0）
 form[20] <- 37                       # mov rdx, 置き場の終わり
@@ -2630,7 +2678,7 @@ shf[gt] <- k  for (gt) in 0 .. ngtz[0] for (k) in 0 .. 62
       if tmk[gt] == 7 if pw[k] == tmv[gt]
 shf[gt] <- k  for (gt) in 0 .. ngtz[0] for (k) in 0 .. 62
       if tmk[gt] == 8 if pw[k] == tmv[gt]
-form[tpos[gt]] <- 139  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7      # sar rax, k
+form[tpos[gt]] <- 139  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if ispw[gt]      # sar rax, k
 imm[tpos[gt]]  <- shf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 7
 form[tpos[gt]] <- 140  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] <= 31   # and rax, 2^k - 1
 imm[tpos[gt]]  <- tmv[gt] - 1 + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] <= 31
@@ -2638,7 +2686,16 @@ form[tpos[gt]] <- 197  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] >= 32
 imm[tpos[gt]]  <- 64 - shf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] >= 32
 form[tpos[gt] + 1] <- 198  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] >= 32   # shr rax, 64 - k
 imm[tpos[gt] + 1]  <- 64 - shf[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if shf[gt] >= 32
-# **二のべきでない除数は焼けない。** 右シフトと and に落とせないので、
+# 二のべきでない正の除数は idiv で割る（上の形 208–210）。
+form[tpos[gt]] <- 36   for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if not ispw[gt] if not dvbad[gt]   # mov rsi, d
+imm[tpos[gt]]  <- tmv[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if not ispw[gt] if not dvbad[gt]
+form[tpos[gt] + 1] <- 208  for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if not ispw[gt] if not dvbad[gt]
+form[tpos[gt]] <- 36   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt] if not dvbad[gt]   # mov rsi, d
+imm[tpos[gt]]  <- tmv[gt] + bias[0]   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt] if not dvbad[gt]
+form[tpos[gt] + 1] <- 209  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt] if not dvbad[gt]
+form[tpos[gt] + 2] <- 210  for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt] if not dvbad[gt]
+# **焼けないのは 0 と負と、即値に入らない除数だけ**（理由 5）。前は二のべきでない除数を
+# 全部断っていた —— 右シフトと and に落とせないので、
 # `c / 3` は寄せ量が ⊥ になって **割り算そのものが消えていた**（97 が 97 のまま）、
 # `c % 3` は `and rax,2` になって別の答えを出していた。黙って間違えるより言う。
 field ispw : or bound 8192                     # その定数は二のべきか
@@ -3573,13 +3630,14 @@ bad[z] <- true                      for (z) in 0 .. 0 if nokg[0] != ngg[0]
 bad[z] <- true                      for (z) in 0 .. 0 if nokc[0] != ngc[0]
 bad[z] <- true                      for (z) in 0 .. 0 if nokl[0] != ngl[0]
 bad[z] <- true                      for (z) in 0 .. 0 if inpw[0] == 0   # 表が二つ以上
-bad[z] <- true                      for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0
-      if tmk[gt] == 7 if not ispw[gt]                      # 二のべきでない除数
-bad[z] <- true                      for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0
-      if tmk[gt] == 8 if not ispw[gt]                      # 二のべきでない法
+field dvbad : or bound 8192                   # 焼けない除数（0・負・即値に入らない）
+dvbad[gt] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if tmv[gt] <= 0
+dvbad[gt] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if tmv[gt] <= 0
+dvbad[gt] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 7 if not ispw[gt] if tmv[gt] > 2147483647
+dvbad[gt] <- true   for (gt) in 0 .. ngtz[0] if tmk[gt] == 8 if not ispw[gt] if tmv[gt] > 2147483647
+bad[z] <- true                      for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0 if dvbad[gt]
 # ── **どこが悪いかを言う**（行は規則から、理由は条件から）───────────
-badk[z] <- rlin[tmr[gt]] * 16 + 5   for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0 if tmk[gt] == 7 if not ispw[gt]
-badk[z] <- rlin[tmr[gt]] * 16 + 5   for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0 if tmk[gt] == 8 if not ispw[gt]
+badk[z] <- rlin[tmr[gt]] * 16 + 5   for (gt) in 0 .. ngtz[0] for (z) in 0 .. 0 if dvbad[gt]
 # **`or` の場に true 以外を書くと、二つの答えが出ていた。** 解釈実行は
 # 値が `true` でなければ何も置かない（⊥ のまま）。焼いた符号は `or` の
 # join が値を見ないので、**規則が火を噴いた時点で 1 を置く**。
@@ -3638,7 +3696,7 @@ form[7] <- 158                       for (z) in 0 .. 0 if bad[0]   # syscall
 #   lattix: cannot bake - line 000042 reason 5
 #
 # 理由: 1 名前が 17 文字以上 / 2 入れ子が四重以上 / 3 項が九つ以上 /
-#       4 宣言の無い場を読んだ / 5 二のべきでない除数 / 6 表が無い・二つ以上 /
+#       4 宣言の無い場を読んだ / 5 焼けない除数（0・負・即値の外） / 6 表が無い・二つ以上 /
 #       7 成層できない（非単調な読みが閉路の中にある。以前の 7「足した後に
 #         掛ける形」は項の群で焼けるようになって空いていた） / 8 焼けない形（導けない要素）
 #       9 or の値は true か or の読み / A 同じ名前を二度宣言した / B 種の座標が宣言の広さの外
@@ -3719,11 +3777,11 @@ msg[60] <- 10
 
 # ── 実体化 ──────────────────────────────────────────────────────
 field total : max bound 1
-total[0] <- 1048576
+total[0] <- 2097152
 field tmax : max bound 1                      # total の一つ手前（区間の上端に書ける形）
 tmax[0] <- total[0] - 1   for (z) in 0 .. 0
 
-field out : max bound 1048576
+field out : max bound 2097152
 out[i] <- 0                         for (i) in 0 .. tmax[0]
 # コード面は 32 枚（131072 バイト）と **定数で宣言する**。末尾を定数キーで
 # 留めると、データを実行時に移しても密配列サイズが縮まない（runtime.py 用）。
@@ -3732,9 +3790,10 @@ out[i] <- 0                         for (i) in 0 .. tmax[0]
 # 131072 でも足りなくなった —— 形の導出が断片に入った日に、三度目。
 # 655360 も残り 8 KB になった —— 値の見張りと座標の濾しを足した日（2026-09-19）。
 # 1 MB にした。`rcap` も一緒に上げる（詰め直しの置き場は rcap + 65536。下の見張り）。
+# 2 MB にした（2026-09-23）—— ⊥ を 0 に置く形は升ごとに 4 バイト長く、attest.lx（1 MB の 98.9%）が溢れた。
 # **踏んだことは黙って起きる**ので、今度は言うようにした ——
 # 符号の長さを ELF ヘッダの空き（8..11 バイト目）に書く。読む側が確かめられる。
-out[1048575] <- 0
+out[2097151] <- 0
 out[8]  <- codelen[0] % 256   for (z) in 0 .. 0
 out[9]  <- codelen[0] / 256 % 256   for (z) in 0 .. 0
 out[10] <- codelen[0] / 65536 % 256   for (z) in 0 .. 0
@@ -3812,35 +3871,35 @@ out[107] <- msz[0] / 16777216 % 256   for (z) in 0 .. 0
 # **場の読みと計数器の和**になり、生成器が自分では焼けない形になる。
 # 向きを裏返す —— **バイトの位置を歩いて、どの命令の何バイト目かを鎖で出す**。
 # 番地は座標である（気づき17）を、書く側でも使うということ。
-# **符号の面は像の末尾 1024 バイトの手前まで**（1048576 - 1024）。末尾は知らせの置き場
+# **符号の面は像の末尾 1024 バイトの手前まで**（2097152 - 1024）。末尾は知らせの置き場
 # （⊥・⊤・値・はみ出しの知らせと、場の番号の枠）で、`out` は max で重ね書きするので、
 # 符号がそこへ届けば **命令と知らせが黙って混ざる**。符号の長さはここでは断れない
 # （下の見張りの註: 符号 → 長さ → 断り → 符号 の輪）が、面の広さなら断れる ——
 # 届いた所で面を超え、焼き手が終了コード 6 で止まる。
 field bpos : max bound 655360       # 命令 n の最初のバイトの位置
 bpos[n] <- off[n] + 120             for (n) in 0 .. ninz[0]
-field isst : or bound 1047552        # そのバイトは命令の頭
+field isst : or bound 2096128        # そのバイトは命令の頭
 isst[bpos[n]] <- true               for (n) in 0 .. ninz[0]
 field bmax : max bound 655360       # 符号面の最後のバイトの位置
 bmax[0] <- codelen[0] + 119   for (z) in 0 .. 0
-field bown : max bound 1047552       # バイト i を持つ命令
+field bown : max bound 2096128       # バイト i を持つ命令
 bown[bpos[n]] <- n                  for (n) in 0 .. ninz[0]
 bown[i] <- bown[i-1]                for (i) in 1 .. bmax[0] if not isst[i]
-field bofs : max bound 1047552       # 命令の中での位置（鎖）
+field bofs : max bound 2096128       # 命令の中での位置（鎖）
 bofs[i] <- 0                        for (i) in 0 .. bmax[0] if isst[i]
 bofs[i] <- bofs[i-1] + 1            for (i) in 1 .. bmax[0] if not isst[i]
-field bfm : max bound 1047552        # そのバイトの命令の形
+field bfm : max bound 2096128        # そのバイトの命令の形
 bfm[i] <- form[bown[i]]             for (i) in 0 .. bmax[0]
-field bho : max bound 1047552        # 穴の始まり
+field bho : max bound 2096128        # 穴の始まり
 bho[i] <- shho[bfm[i]]              for (i) in 0 .. bmax[0]
-field bhe : max bound 1047552        # 穴の終わり（開区間）
+field bhe : max bound 2096128        # 穴の終わり（開区間）
 bhe[i] <- shho[bfm[i]] + 1          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 1
 bhe[i] <- shho[bfm[i]] + 4          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 4
 bhe[i] <- shho[bfm[i]] + 4          for (i) in 0 .. bmax[0] if shhk[bfm[i]] == 5
-field ishole : or bound 1047552      # 穴の中のバイト
+field ishole : or bound 2096128      # 穴の中のバイト
 ishole[i] <- true                   for (i) in 0 .. bmax[0]
       if bofs[i] >= bho[i] if bofs[i] < bhe[i]
-field bhj : max bound 1047552        # 穴の中での位置（鎖）
+field bhj : max bound 2096128        # 穴の中での位置（鎖）
 bhj[i] <- 0                         for (i) in 0 .. bmax[0] if ishole[i] if isst[i]
 bhj[i] <- 0                         for (i) in 1 .. bmax[0] if ishole[i] if not ishole[i-1]
 bhj[i] <- bhj[i-1] + 1              for (i) in 1 .. bmax[0] if ishole[i] if ishole[i-1]
@@ -3863,7 +3922,7 @@ vb[n,3] <- rel[n] / 16777216 % 256  for (n) in 0 .. ninz[0] if shhk[form[n]] == 
 field scb : min bound 262144        # 命令 n の SIB の倍率ビット
 scb[n] <- fmsc[form[n]]             for (n) in 0 .. ninz[0]
 # 比較のガードを一枚置いて **閉じてから**使う（気づき38）
-field issib : or bound 1047552       # そのバイトは SIB
+field issib : or bound 2096128       # そのバイトは SIB
 issib[i] <- true                    for (i) in 0 .. bmax[0] if bofs[i] == shsb[bfm[i]]
 
 # 骨（形ごとの定数バイト）と穴（即値・相対・**倍率**）—— 座標はどちらも i だけ
@@ -3947,22 +4006,22 @@ rtx[4,12] <- 100
 rtx[4,13] <- 32
 rtx[4,14] <- 32
 rtx[4,15] <- 32
-# 5: divisor not 2^n
-rtx[5,0] <- 100
-rtx[5,1] <- 105
-rtx[5,2] <- 118
-rtx[5,3] <- 105
-rtx[5,4] <- 115
-rtx[5,5] <- 111
-rtx[5,6] <- 114
-rtx[5,7] <- 32
-rtx[5,8] <- 110
+# 5: bad divisor（0・負・即値に入らない。09-23 まで「divisor not 2^n」）
+rtx[5,0] <- 98
+rtx[5,1] <- 97
+rtx[5,2] <- 100
+rtx[5,3] <- 32
+rtx[5,4] <- 100
+rtx[5,5] <- 105
+rtx[5,6] <- 118
+rtx[5,7] <- 105
+rtx[5,8] <- 115
 rtx[5,9] <- 111
-rtx[5,10] <- 116
+rtx[5,10] <- 114
 rtx[5,11] <- 32
-rtx[5,12] <- 50
-rtx[5,13] <- 94
-rtx[5,14] <- 110
+rtx[5,12] <- 32
+rtx[5,13] <- 32
+rtx[5,14] <- 32
 rtx[5,15] <- 32
 # 6: need one table
 rtx[6,0] <- 110
@@ -4738,6 +4797,11 @@ badk[z] <- 0   for (z) in 0 .. 0 if nsd[0] > caps[0]
 # tiny な .lx でも segfault した。**註は見張りではない。**
 field pcap : max bound 1            # 詰め直しの置き場（`out` はこれを超えられない）
 pcap[z] <- rcap[0] + 65536   for (z) in 0 .. 0
+# **置き場は描く場の升数でも取る**（`pbsz` の二行目: 描く本の置き場は `fsz[描く場]` 以上）。
+# 焼き手自身の描く場は `out`（`total` 升）なので、焼き手の置き場は必ず `total` を容れる ——
+# `rcap` を像に合わせて上げる必要は無い（09-23: 像を 2 MB にしたとき、rcap まで上げたら
+# 生バイトの表（一文字 16 バイト）が 16 MB 太り、attest.lx の置き場が 2 GB を越えた）。
+pcap[z] <- total[0]   for (z) in 0 .. 0
 badk[z] <- 0   for (z) in 0 .. 0 if total[0] > pcap[0]
 
 #   **符号の長さだけは、ここでは言えない。** 断りは命令を書く（`form[0..7]`）

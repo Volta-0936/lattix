@@ -220,6 +220,7 @@ def answer(s, data, rows):
             if isinstance(v, dict):
                 if any(isinstance(x, L._Top) for x in v.values()): top = True; v = 2147483646
                 else: v = sum(v.values()) if lat == 'sum' else len(v)
+            if lat == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
             if not isinstance(v, int): v = 2147483646; top = True
             ref[(f,) + tuple(kk)] = v

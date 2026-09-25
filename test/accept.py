@@ -339,21 +339,38 @@ case("項 九つ（焼けない）", """table ch = (0,32)
 field a : max bound 16
 a[i] <- 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1   for (i,c) in ch
 """, data=b"ab", exit=7, why=(3,3))
-# **二のべきでない除数は焼けない。** `c / 3` は寄せ量が出ずに割り算が消え、
-# `c % 3` は `and rax,2` になって別の答えを出していた —— どちらも黙って。
+# **二のべきでない除数。** 前は `c / 3` は寄せ量が出ずに割り算が消え、`c % 3` は
+# `and rax,2` になって別の答えを出していた —— どちらも黙って。いまは idiv で割り、
+# 床（Python の `//` と `%`）に寄せる。焼けないのは 0・負・即値の外の除数だけ。
 case("割る・余り（二のべき）", """table ch = (0,32)
 field q : max bound 8
 q[i] <- c / 4   for (i,c) in ch
 field r : max bound 8
 r[i] <- c % 8   for (i,c) in ch
 """, data=b"ab")
-case("三で割る（焼けない）", """table ch = (0,32)
+case("三で割る（通る）", """table ch = (0,32)
 field q : max bound 8
 q[i] <- c / 3   for (i,c) in ch
-""", data=b"ab", exit=7, why=(3,5))
-case("三で割った余り（焼けない）", """table ch = (0,32)
+""", data=b"ab")
+case("三で割った余り（通る）", """table ch = (0,32)
 field r : max bound 8
 r[i] <- c % 3   for (i,c) in ch
+""", data=b"ab")
+case("負を割る・余り（床へ寄せる）", """table ch = (0,32)
+field q : max bound 8
+q[i] <- - c / 7   for (i,c) in ch
+field r : max bound 8
+r[i] <- - c % 7   for (i,c) in ch
+field s : max bound 8
+s[i] <- c * 1000003 / 10 % 10   for (i,c) in ch
+""", data=b"az!")
+case("零で割る（焼けない）", """table ch = (0,32)
+field q : max bound 8
+q[i] <- c / 0   for (i,c) in ch
+""", data=b"ab", exit=7, why=(3,5))
+case("零の法（焼けない）", """table ch = (0,32)
+field r : max bound 8
+r[i] <- c % 0   for (i,c) in ch
 """, data=b"ab", exit=7, why=(3,5))
 # **行と理由は対でなければ意味が無い。** 別々の min で選ぶと、行は一方の
 # 最小・理由は他方の最小になって、**指した行にその理由が無い**ことが起きる。
@@ -362,7 +379,7 @@ case("二つの誤り（先が出る）", """table ch = (0,32)
 field abcdefghijklmnopq : max bound 16
 abcdefghijklmnopq[i] <- 1 for (i,c) in ch
 field q : max bound 8
-q[i] <- c / 3   for (i,c) in ch
+q[i] <- c / 0   for (i,c) in ch
 """, data=b"ab", exit=7, why=(2,1))
 # **`or` の元は ⊥ と true しか無い。** 値を書くと解釈実行は何も置かず
 # （値が true でない）、焼いた符号は規則が火を噴いた時点で 1 を置く ——
@@ -387,7 +404,7 @@ g[i] <- 7   for (i) in 0 .. 5 if s[i] <= 3
 """, data=b"hello Ldx")
 case("二つの誤り（逆順）", """table ch = (0,32)
 field q : max bound 8
-q[i] <- c / 3   for (i,c) in ch
+q[i] <- c / 0   for (i,c) in ch
 field abcdefghijklmnopq : max bound 16
 abcdefghijklmnopq[i] <- 1 for (i,c) in ch
 """, data=b"ab", exit=7, why=(3,5))
@@ -1045,7 +1062,7 @@ case("二十桁の種（言う）", """table ch = (0,32)
 field a : max bound 2
 a[0] <- 99999999999999999999
 """, exit=7, why=(3, 12))
-case("2^63 - 1 で割る（二のべきでない。言う）", """table ch = (0,32)
+case("2^63 - 1 で割る（即値に入らない。言う）", """table ch = (0,32)
 field a : max bound 2
 field b : max bound 2
 a[0] <- 5
@@ -1442,6 +1459,7 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
             if v is False: continue
             if isinstance(v, dict):        # sum / count は寄与の袋で持っている
                 v = sum(v.values()) if latf=='sum' else len(v)
+                if latf == 'sum' and v == 0: continue   # SPEC: ⊥ が 0 の束では 0 は ⊥（打ち消し合った和も）
             if isinstance(v, (set, frozenset)): continue
             if not isinstance(v, int): v = 2147483646     # flat の ⊤
             ref[(f,)+tuple(kk)]=v
