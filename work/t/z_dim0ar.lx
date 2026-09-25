@@ -1,0 +1,7 @@
+# 二次元の出現の次元0 に算術（14c）: 次元の切れ目は深さ一の最初の `,`。前は `_g[…] <- i * 2, j` と壊れた塊を出した
+field f : max bound 8 2
+f[i * 2, j] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 1
+field h : max bound 8 2
+h[i, j * 1] <- i + j   for (i) in 0 .. 3 for (j) in 0 .. 1
+print f
+print h

@@ -1,0 +1,37 @@
+# 負の座標（14c）: 前置きの鎖の基を -1 に置く書き方。焼いた場は 0 から始まるので、下ろしが次元0 を
+# ずらす（全部の出現に + k、広さも + k）。数一つの座標は数を書き換え、ほかは持ち上げて ` + k`。
+table ch = (0,104), (1,105), (2,10), (3,97), (4,98), (5,10), (6,120)
+
+# 行番号の鎖（21_lex と同じ形）
+field ln : max
+ln[-1] <- 1
+ln[i] <- ln[i-1]       for (i,c) in ch
+ln[i] <- ln[i-1] + 1   for (i,c) in ch if c == 10
+field line : max bound 8
+line[i] <- ln[i]   for (i,c) in ch
+
+# 広さを書いた場・二つ下（-2）・数一つの種
+field acc : max bound 16
+acc[-2] <- 100
+acc[-1] <- 10
+acc[3] <- 7
+acc[i] <- acc[i-2] + c   for (i,c) in ch if i <= 2
+field show : max bound 16
+show[i] <- acc[i]   for (i) in 0 .. 3
+
+# 二次元の場の次元0
+field g : max bound 8 2
+g[-1, 0] <- 0
+g[-1, 1] <- 50
+g[i, j] <- g[i-1, j] + 1   for (i,c) in ch for (j) in 0 .. 1
+field gv : max bound 8 2
+gv[i, j] <- g[i, j]   for (i) in 0 .. 6 for (j) in 0 .. 1 if g[i, j] >= 3
+
+# 比較のガードの中で読む
+field nl : or bound 8
+nl[i] <- true   for (i,c) in ch if ln[i] > ln[i-1]
+
+print line
+print show
+print gv
+print nl
