@@ -502,9 +502,17 @@ isocc[t] <- true for (t,zc) in ch if kwrnd[prevw[t]] if tkind[t] == 1
 # `print x` の `x` も出現である —— 宣言が無ければ解釈実行は断る（理由 4 で言う）。
 # 焼く側は print を読まないので、宣言の無い名前を黙って通していた。
 isocc[t] <- true for (t,zc) in ch if kwprn[prevw[t]] if tkind[t] == 1
-field rndf : max bound 8               # `render` する場（0 起点）
-rndf[z] <- ofl[oseq[t]] - 1 for (t,zc) in ch for (z) in 0 .. 0
-      if kwrnd[prevw[t]] if tkind[t] == 1
+# **render は書いた順に全部描く**（解釈実行と同じ）。前は `rndf[0]` 一つで、二つ書くと
+# 場の番号の大きい方だけが残った。k 番目の render を文の鎖で数える（八つまで）。
+field srnd : or bound 8192             # 文 s は render
+srnd[snum[t]] <- true for (t,zc) in ch if sbrk[t] if kwrnd[t]
+field rdo : max bound 8192             # 文 s より前にある render の数
+rdo[s] <- 0                 for (s) in 0 .. nstz[0]
+rdo[s] <- rdo[s-1] + 1      for (s) in 1 .. nstz[0] if srnd[s-1]
+rdo[s] <- rdo[s-1]          for (s) in 1 .. nstz[0] if not srnd[s-1]
+field rndf : max bound 8               # k 番目の `render` が描く場（0 起点）
+rndf[rdo[snum[t]]] <- ofl[oseq[t]] - 1 for (t,zc) in ch
+      if kwrnd[prevw[t]] if tkind[t] == 1 if rdo[snum[t]] <= 7
 
 # 束の名前。**束が替えるのは join だけ** なので、ここは番号を付けるだけ
 field kwmin : or bound 589824

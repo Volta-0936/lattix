@@ -909,14 +909,40 @@ out[i] <- 0 - i   for (i) in 0 .. 3
 render out
 """, exit=2)
 
-case("render が二つ（言う）", """table ch = (0,32)
+# **render は書いた順に全部描く**（解釈実行と同じ）。前は二つ目を理由 8 で断っていた
+# （その前は場の番号の大きい方だけを黙って描いていた）。同じ場を二度描くのも、⊥ を 0 に
+# 置いた大きい場（xor で読む）も、並びの通りに出る。九つ目からは断る。
+case("render が二つ（書いた順）", """table ch = (0,32)
 field a : max bound 4
 field b : max bound 4
 a[i] <- 65   for (i) in 0 .. 1
 b[i] <- 66   for (i) in 0 .. 1
+render b
+render a
+""")
+case("render が三つ（同じ場を二度・大きい min）", """table ch = (0,32)
+field a : max bound 4
+field b : min bound 70000
+a[i] <- 65 + i   for (i) in 0 .. 3
+b[i] <- 120 - i  for (i) in 0 .. 2
+b[69999] <- 10
+render b
 render a
 render b
-""", exit=7, why=(7,8))
+""")
+case("render が九つ（言う）", """table ch = (0,32)
+field a : max bound 4
+a[0] <- 65
+render a
+render a
+render a
+render a
+render a
+render a
+render a
+render a
+render a
+""", exit=7, why=(12,8))
 
 # ══ 同じ升の種は join する（test/progs.py が撒いて出した）════════════════
 # 種は升に値を直に置くので、後の種が前の種を上書きしていた —— min の 7 と 9 が 9、
@@ -1424,7 +1450,7 @@ for k,(name,src,data,rows,xexit,known,why) in enumerate(CASES):
         tname=[t for t in p.tables][0]
         p.tables[tname]=[(i,c) for i,c in enumerate(inp)] if rows is None else list(rows)
         st,_,_=L.run(p, out=io.StringIO())
-        want=L.render_text(p, st, p.renders[0]).encode('latin-1','replace')
+        want=b''.join(L.render_text(p, st, f).encode('latin-1','replace') for f in p.renders)
         good = (r2.stdout == want)
         print(f"  {name:<26}{len(src):>6}{len(want):>6}   {'✓' if good else '✗'}")
         if not good: bad.append((name, f"出た {r2.stdout[:24]!r} / 待った {want[:24]!r}"))

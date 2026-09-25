@@ -504,9 +504,17 @@ isocc[t] <- true for (t,zc) in ch if kwrnd[prevw[t]] if tkind[t] == 1
 # `print x` の `x` も出現である —— 宣言が無ければ解釈実行は断る（理由 4 で言う）。
 # 焼く側は print を読まないので、宣言の無い名前を黙って通していた。
 isocc[t] <- true for (t,zc) in ch if kwprn[prevw[t]] if tkind[t] == 1
-field rndf : max bound 8               # `render` する場（0 起点）
-rndf[z] <- ofl[oseq[t]] - 1 for (t,zc) in ch for (z) in 0 .. 0
-      if kwrnd[prevw[t]] if tkind[t] == 1
+# **render は書いた順に全部描く**（解釈実行と同じ）。前は `rndf[0]` 一つで、二つ書くと
+# 場の番号の大きい方だけが残った。k 番目の render を文の鎖で数える（八つまで）。
+field srnd : or bound 8192             # 文 s は render
+srnd[snum[t]] <- true for (t,zc) in ch if sbrk[t] if kwrnd[t]
+field rdo : max bound 8192             # 文 s より前にある render の数
+rdo[s] <- 0                 for (s) in 0 .. nstz[0]
+rdo[s] <- rdo[s-1] + 1      for (s) in 1 .. nstz[0] if srnd[s-1]
+rdo[s] <- rdo[s-1]          for (s) in 1 .. nstz[0] if not srnd[s-1]
+field rndf : max bound 8               # k 番目の `render` が描く場（0 起点）
+rndf[rdo[snum[t]]] <- ofl[oseq[t]] - 1 for (t,zc) in ch
+      if kwrnd[prevw[t]] if tkind[t] == 1 if rdo[snum[t]] <= 7
 
 # 束の名前。**束が替えるのは join だけ** なので、ここは番号を付けるだけ
 field kwmin : or bound 589824
@@ -1621,12 +1629,10 @@ field sknown : or bound 8192                      # 文 s は断片が知って�
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwtbl[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwfld[t]
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwrnd[t]
-# **render は一つだけ**（理由 8）。二つ書くと、場の番号の大きい方だけを黙って描いていた
-# （解釈実行は両方を描く）。二つ目からの行で言う。
-field rnd1 : min bound 1                          # 最初の render の字句
-rnd1[z] <- t   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
+# **render は八つまで**（理由 8）。書いた順に全部描く（解釈実行と同じ）。前は一つだけで、
+# 二つ書くと場の番号の大きい方だけを黙って描いていた。九つ目からの行で言う。
 badk[z] <- tlin[t] * 16 + 8   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t] if kwrnd[t]
-      if t > rnd1[0]
+      if rdo[snum[t]] >= 8
 sknown[snum[t]] <- true  for (t,zc) in ch if sbrk[t] if kwprn[t]
 sknown[s] <- true        for (s) in 0 .. nstz[0] if arrowt[s] >= 0
 field sunk : or bound 8192                        # 知らない種類（否定は層を切る）
@@ -1959,6 +1965,11 @@ badk[z] <- tlin[t] * 16 + 7   for (t,zc) in ch for (z) in 0 .. 0 if sbrk[t]
       if lvl[snum[t], 127]
 field outf : max bound 1                       # 出す場（`render f`）
 outf[z] <- rndf[z]                   for (z) in 0 .. 0 for (z) in 0 .. 0
+field orf : max bound 8                        # k 番目に描く場
+orf[k] <- rndf[k]                    for (k) in 0 .. 7
+field nrf : max bound 1                        # 描く場の数
+nrf[0] <- 0
+nrf[z] <- k + 1                      for (k) in 0 .. 7 for (z) in 0 .. 0 if rndf[k] >= 0
 field outw : min bound 1                       # 1 ならバイトで出す
 outw[0] <- 8
 outw[z] <- 1                         for (z) in 0 .. 0 for (z) in 0 .. 0 if rndf[z] >= 0
@@ -4639,7 +4650,11 @@ tdang[gdf[gg]] <- true   for (gg) in 0 .. nggz[0] if gdk[gg] >= 3 if gdk[gg] <= 
 tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] >= 2 if cdsr[gc] <= 3
 tdang[cdcf[gc]] <- true  for (gc) in 0 .. ngcz[0] if cdsr[gc] == 5
 tdang[lpbf[gl]] <- true  for (gl) in 0 .. nglz[0] if lpk[gl] == 2
-tdang[outf[z]] <- true   for (z) in 0 .. 0 if outw[z] == 1   # 定数で引いた書き座標は焼けない
+field nrfz : max bound 1                    # 描く場の数の一つ手前（区間の上端に書ける形）
+nrfz[0] <- nrf[0] - 1   for (z) in 0 .. 0
+field orz : max bound 8                     # k 番目に描く場（計数器で引ける形）
+orz[k] <- orf[k]        for (k) in 0 .. nrfz[0]
+tdang[orz[k]] <- true   for (k) in 0 .. nrfz[0] if outw[0] == 1
 field frdr : or bound 8192                  # 規則 r の書き先の ⊤ は誤読される
 frdr[r] <- true        for (r) in 0 .. nrlz[0] if tdang[rrwf[r]]
 form[jb[r]] <- fjr[rrwf[r]]      for (r) in 0 .. nrlz[0] if rrlt[r] == 6
@@ -4907,7 +4922,7 @@ field ebyte : or bound 1                    # バイトで書く場があるか
 ebyte[z] <- true                     for (z) in 0 .. 0 for (z) in 0 .. 0 if outw[0] == 1
 field pklen : max bound 1                   # 詰め直しの長さ
 pklen[0] <- 0
-pklen[z] <- 12                       for (z) in 0 .. 0 for (z) in 0 .. 0 if outw[0] == 1
+pklen[z] <- nrf[0] * 12 + 1          for (z) in 0 .. 0 if outw[0] == 1   # 頭一つ + 描く場ごとに十二
 field pbuf : max bound 1                    # 詰め直しの置き場（生の後ろ）
 pbuf[0] <- rbuf[0] + rcap[0]   for (z) in 0 .. 0
 
@@ -4915,33 +4930,40 @@ pbuf[0] <- rbuf[0] + rcap[0]   for (z) in 0 .. 0
 # **⊥ の升は飛ばす**（解釈実行の render と同じ —— 座標が並びを決め、
 # 「無い」升は文字を持たない）。だから長さは走ってみないと分からない ——
 # 詰め終わった位置から置き場を引けば、それがそのまま長さである。
-form[ebz[z]] <- 3        for (z) in 0 .. 0 if outw[0] == 1   # mov rcx, 0
-imm[ebz[z]]  <- 0 + bias[0]        for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 1] <- 37   for (z) in 0 .. 0 if outw[0] == 1   # mov rdx, PBUF
-imm[ebz[z] + 1]  <- pbuf[0] + bias[0]   for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 2] <- fer[ofz[z]]  for (z) in 0 .. 0 if outw[0] == 1   # mov rax,[rbx+rcx*8+foff]
-imm[ebz[z] + 2]  <- foff[ofz[z]] + bias[0] for (z) in 0 .. 0 if outw[0] == 1
-scb[ebz[z] + 2]  <- fscb[ofz[z]] for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 3] <- 12   for (z) in 0 .. 0 if outw[0] == 1   # cmp rax, ⊥
-imm[ebz[z] + 3]  <- fbot[ofz[z]]   for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 4] <- 13   for (z) in 0 .. 0 if outw[0] == 1   # je -> 次の升へ
-jt[ebz[z] + 4]   <- ebase[0] + 9   for (z) in 0 .. 0 if outw[0] == 1
+# **描く場は書いた順に並べる**（解釈実行の render と同じ）。rdx は場をまたいで進むので
+# 頭で一度だけ置く。描く場ごとに十二命令: 場の番号を r15 に置いておく（周回はもう終わって
+# いるので r15 は空いている）—— バイトでない値の出口がどの場かを言えるように。
+form[ebz[z]] <- 37   for (z) in 0 .. 0 if outw[0] == 1   # mov rdx, PBUF
+imm[ebz[z]]  <- pbuf[0] + bias[0]   for (z) in 0 .. 0 if outw[0] == 1
+field epk : max bound 8                     # k 番目の描く場の十二命令の頭
+epk[k] <- ebase[0] + k * 12 + 1   for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k]] <- 3        for (k) in 0 .. nrfz[0] if outw[0] == 1   # mov rcx, 0
+imm[epk[k]]  <- 0 + bias[0]        for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 1] <- 162  for (k) in 0 .. nrfz[0] if outw[0] == 1   # mov r15d, 描く場
+imm[epk[k] + 1]  <- orz[k] + bias[0]    for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 2] <- fer[orz[k]]  for (k) in 0 .. nrfz[0] if outw[0] == 1   # mov rax,[rbx+rcx*8+foff]
+imm[epk[k] + 2]  <- foff[orz[k]] + bias[0] for (k) in 0 .. nrfz[0] if outw[0] == 1
+scb[epk[k] + 2]  <- fscb[orz[k]] for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 3] <- 12   for (k) in 0 .. nrfz[0] if outw[0] == 1   # cmp rax, ⊥
+imm[epk[k] + 3]  <- fbot[orz[k]]   for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 4] <- 13   for (k) in 0 .. nrfz[0] if outw[0] == 1   # je -> 次の升へ
+jt[epk[k] + 4]   <- epk[k] + 9     for (k) in 0 .. nrfz[0] if outw[0] == 1
 # **バイトでない値は描けない。** 前は下位の八ビットだけを書いた —— 300 が 44 に、
 # -1 が 255 になった（解釈実行は 300 を文字として持ち、負は飛ばす）。0..255 の外で止まる
-# （終了コード 2）。符号なしの ja なので負も捕まる。
-form[ebz[z] + 5] <- 12   for (z) in 0 .. 0 if outw[0] == 1   # cmp rax, 255
-imm[ebz[z] + 5]  <- 255 + bias[0]  for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 6] <- 194  for (z) in 0 .. 0 if outw[0] == 1   # ja -> 描画の出口
-jt[ebz[z] + 6]   <- rpx[0]         for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 7] <- 126  for (z) in 0 .. 0 if outw[0] == 1   # mov [rdx], al
-form[ebz[z] + 8] <- 127  for (z) in 0 .. 0 if outw[0] == 1   # add rdx, 1
-imm[ebz[z] + 8]  <- 1 + bias[0]    for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 9] <- 5    for (z) in 0 .. 0 if outw[0] == 1   # add rcx, 1
-imm[ebz[z] + 9]  <- 1 + bias[0]    for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 10] <- 20   for (z) in 0 .. 0 if outw[0] == 1   # cmp rcx, 升数
-imm[ebz[z] + 10]  <- fsz[ofz[z]] + bias[0]  for (z) in 0 .. 0 if outw[0] == 1
-form[ebz[z] + 11] <- 7    for (z) in 0 .. 0 if outw[0] == 1   # jb -> 詰め直しの頭
-jt[ebz[z] + 11]   <- ebase[0] + 2  for (z) in 0 .. 0 if outw[0] == 1
+# （終了コード 2）。符号なしの ja なので負も捕まる。出口の一命令目（場の番号）は飛ばす。
+form[epk[k] + 5] <- 12   for (k) in 0 .. nrfz[0] if outw[0] == 1   # cmp rax, 255
+imm[epk[k] + 5]  <- 255 + bias[0]  for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 6] <- 194  for (k) in 0 .. nrfz[0] if outw[0] == 1   # ja -> 描画の出口（二命令目）
+jt[epk[k] + 6]   <- rpx[0] + 1     for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 7] <- 126  for (k) in 0 .. nrfz[0] if outw[0] == 1   # mov [rdx], al
+form[epk[k] + 8] <- 127  for (k) in 0 .. nrfz[0] if outw[0] == 1   # add rdx, 1
+imm[epk[k] + 8]  <- 1 + bias[0]    for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 9] <- 5    for (k) in 0 .. nrfz[0] if outw[0] == 1   # add rcx, 1
+imm[epk[k] + 9]  <- 1 + bias[0]    for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 10] <- 20   for (k) in 0 .. nrfz[0] if outw[0] == 1   # cmp rcx, 升数
+imm[epk[k] + 10]  <- fsz[orz[k]] + bias[0]  for (k) in 0 .. nrfz[0] if outw[0] == 1
+form[epk[k] + 11] <- 7    for (k) in 0 .. nrfz[0] if outw[0] == 1   # jb -> 詰め直しの頭
+jt[epk[k] + 11]   <- epk[k] + 2  for (k) in 0 .. nrfz[0] if outw[0] == 1
 
 # ── 書き出し。**部分書き込みに耐える**（パイプは一度で全部受け取らない）
 # 読みが回るなら書きも回る —— 同じ形を二度書かない理由は無い。
@@ -5172,7 +5194,8 @@ imm[opz[z] + 12]  <- 3 + bias[0]   for (z) in 0 .. 0
 form[opz[z] + 13] <- 25   for (z) in 0 .. 0
 
 # ── 描く値がバイトでないときの出口（十五命令、終了コード 2）───────────────
-#   描く場は一つなので、場の番号は定数で置ける（踏み台が要らない）
+#   描く場の番号は詰め直しが r15 に置いてあるので、詰め直しからは二命令目へ飛ぶ
+#   （一命令目は描く本でない道の番兵のまま）
 field rpx : max bound 1                     # 描画の出口
 rpx[0] <- wb[0] + 98   for (z) in 0 .. 0
 field rpz : max bound 1
@@ -5634,7 +5657,10 @@ msz[z] <- total[0] + 65536           for (z) in 0 .. 0   # p_memsz は像より�
 # それより升の多い場を render すると置き場の外へ詰めて segfault した（二百万升で測った）。
 field pbsz : max bound 1                    # 詰め直しの置き場の広さ
 pbsz[0] <- rcap[0] + 65536   for (z) in 0 .. 0
-pbsz[z] <- fsz[ofz[z]]       for (z) in 0 .. 0 if outw[0] == 1
+field psz : max bound 8                     # 描く場の升数の和（前置きの鎖）
+psz[k] <- fsz[orz[k]]                for (k) in 0 .. 0 if outw[0] == 1
+psz[k] <- psz[k-1] + fsz[orz[k]]     for (k) in 1 .. nrfz[0] if outw[0] == 1
+pbsz[z] <- psz[k]            for (k) in 0 .. nrfz[0] for (z) in 0 .. 0 if outw[0] == 1
 msz[0] <- fbase[0] - 4194304 + ftot2[0] + ft2[0] + rcap[0] + pbsz[0]   for (z) in 0 .. 0
 # **場の置き場は 2 GB の手前まで**（理由 E）。番地は符号つき 32 ビットの即値で焼き、
 # p_memsz も四バイトしか書かないので、それを超える置き場は番地が折り返して **別の場か
