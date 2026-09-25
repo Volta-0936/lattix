@@ -1,0 +1,11 @@
+# 切り口の中の単調な輪: 毎日、道を伝って届く町（その日の中で到達を回す）。翌日は前日に届かなかった町から始める
+table road = (0,1),(1,2),(2,3),(3,1),(4,0),(2,4)
+field start : or bound 6 5
+field reach : or bound 6 5
+start[0, 0] <- true
+reach[t, v] <- true   for (t) in 0 .. 5 for (v) in 0 .. 4 if start[t, v]
+reach[t, b] <- true   for (t) in 0 .. 5 for (a,b) in road if reach[t, a]
+start[t, v] <- true   for (t) in 1 .. 5 for (v) in 0 .. 4 if not reach[t - 1, v] if v == t % 5
+field cnt : count bound 6
+cnt[t] <- v   for (t) in 0 .. 5 for (v) in 0 .. 4 if reach[t, v]
+print cnt

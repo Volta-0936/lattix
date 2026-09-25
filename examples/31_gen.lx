@@ -127,6 +127,7 @@ field rax : or bound 16384          # 規則 r は軸に沿って成層した規
 field raxf : max bound 16384        # その軸の群
 field raxb : max bound 2048         # 場 f の軸の群
 field raxd : or bound 16384         # 規則 r は降りる軸の群
+field raxc : or bound 16384         # 規則 r は切り口の中に単調な輪を持つ群
 field ngg : max                    # ガードの総数（規則をまたぐ通し番号）
 ngg[z] <- gg + 1                    for (gg,r,g,kd,f,c1,gv,ok,ov,oo) in grd for (z) in 0 .. 0
 field gdr : max
@@ -1984,14 +1985,30 @@ field gnl4 : max bound 16384                    # ループの前置き（頭は
 # 頭（一段八命令）は群の先頭に、進め（一段三命令）は群の末尾に在る。前は頭と進めが同じ
 # 三命令だったので `gnlh * 2` と書けた —— 頭が伸びた日に、それは「たまたま同じ」だった。
 gnl4[r] <- 0                        for (r) in 0 .. nrlz[0]
-gnl4[r] <- gnlh[r] + gnl3[r]        for (r) in 0 .. nrlz[0] if nofus[r]
+gnl4[r] <- gnlh[r] + gnl3[r] + cpre[r]   for (r) in 0 .. nrlz[0] if nofus[r]
+# **切り口を動かなくなるまで回す**（14q。33_self の sxcy）。群の頭の段0 の頭のすぐ後ろに前置き六命令、群の尻尾の
+# 段0 の進めのすぐ前に後置き九命令を置く:
+#   前置き  mov rax, 0 / test r8, r8 / je +1 / mov rax, 1 / mov [升], rax     （外の「動いた」を升に写す）
+#   again:  xor r8, r8                                                          （この切り口の一周）
+#   …群の規則（内の段ごと）…
+#   後置き  test r8, r8 / je done / mov rax, 1 / mov [升], rax / jmp again      （動いたらもう一周）
+#   done:   mov rax, [升] / test rax, rax / je +1 / mov r8d, 1                   （外へ「動いた」を返す）
+# 升は場の下の余白の `[rbx-192]`（-184 は下端の升）。r8 は周回の「動いた」旗なので、切り口の中で借りたら返す
+field cpre : max bound 16384                    # 群の頭の前置き（六命令）
+cpre[r] <- 0                        for (r) in 0 .. nrlz[0]
+cpre[r] <- 6                        for (r) in 0 .. nrlz[0] if nofus[r] if raxc[r]
+field csuf : max bound 16384                    # 群の尻尾の後置き（九命令）
+csuf[r] <- 0                        for (r) in 0 .. nrlz[0]
+csuf[r] <- 9                        for (r) in 0 .. nrlz[0] if nofus[r+1] if raxc[r]
+field cslt : max bound 1                        # その升の即値（bias 込み）
+cslt[z] <- bias[0] - 192            for (z) in 0 .. 0
 gnl4[r] <- gnl3[r]                  for (r) in 0 .. nrlz[0] if not nofus[r]
 gnl4[r] <- gnlh[r] - lph0[r] + gnl3[r]   for (r) in 0 .. nrlz[0] if not nofus[r] if gnl[r] >= 2   # 内の頭だけ（14n）
 field lph0 : max bound 16384                    # 段0 の頭の命令数（群の中の規則は段0 の頭を持たない —— 14n）
 lph0[lpr[gl]] <- lph[gl]            for (gl) in 0 .. nglz[0] if lpi[gl] == 0
 field gnl3 : max bound 16384                    # 進めの分だけ（群の末尾にだけ在る）
 gnl3[r] <- 0                        for (r) in 0 .. nrlz[0]
-gnl3[r] <- gnl[r] * 3 + gnlx[r]     for (r) in 0 .. nrlz[0] if nofus[r+1]
+gnl3[r] <- gnl[r] * 3 + gnlx[r] + csuf[r]   for (r) in 0 .. nrlz[0] if nofus[r+1]
 gnl3[r] <- gnl[r] * 3 - 3 + gnlx[r]   for (r) in 0 .. nrlz[0] if not nofus[r+1] if gnl[r] >= 2   # 内の進めだけ（14n）
 field lrng : or bound 16384                     # 番号 l のループは区間か
 lrng[gl] <- true                   for (gl) in 0 .. nglz[0] if lpk[gl] == 1
@@ -2277,7 +2294,7 @@ field rend : max bound 16384
 rend[r] <- rb[r] + blen[r]         for (r) in 0 .. nrlz[0]
 av[r] <- rend[r] - gnl3[r]   for (r) in 0 .. nrlz[0]
 field bb : max bound 16384                      # 本体の始まり（ループの頭のあと）
-bb[r] <- rb[r] + gnlh[r]             for (r) in 0 .. nrlz[0] if nofus[r]
+bb[r] <- rb[r] + gnlh[r] + cpre[r]   for (r) in 0 .. nrlz[0] if nofus[r]
 bb[r] <- rb[r]                       for (r) in 0 .. nrlz[0] if not nofus[r]
 bb[r] <- rb[r] + gnlh[r] - lph0[r]   for (r) in 0 .. nrlz[0] if not nofus[r] if gnl[r] >= 2
 field gend : max bound 16384                    # 群の終わり（飛ばすときの行き先）
@@ -2592,7 +2609,7 @@ field lcm : max bound 8
 lcm[l] <- l * 8 + 40                for (l) in 3 .. 7
 field lce : max bound 8                         # その升の即値（bias 込み）
 lce[l] <- bias[0] - lcm[l]          for (l) in 3 .. 7
-lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl]]
+lhp[gl] <- lhead[lpr[gl]] + lpi8[gl] + cpre[lpr[gl]]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl]] if lpi[gl] >= 1
 lhp[gl] <- lhead[lpr[gl]] + lpi8[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] == 0
 # 群の中の規則の内側の段は、自分の持ち場に頭を持つ（段0 の頭のぶんを引く —— 14n）
 lhp[gl] <- rb[lpr[gl]] + lpi8[gl] - lph0[lpr[gl]]   for (gl) in 0 .. nglz[0] if not nofus[lpr[gl]] if lpi[gl] >= 1
@@ -2600,7 +2617,8 @@ lhp[gl] <- rb[lpr[gl]] + lpi8[gl] - lph0[lpr[gl]]   for (gl) in 0 .. nglz[0] if 
 # 自分の終わりから数える（段0 の進め三命令が無いぶん後ろへ —— 14n）
 field lskp : max bound 16384
 lskp[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if lpi[gl] == 0
-lskp[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
+lskp[gl] <- gend[lpr[gl]] - lpi3[gl] + lpa[gl] - csuf[lpr[gl]]   for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
+      if lpi[gl] >= 1
 lskp[gl] <- rend[lpr[gl]] - lpi3[gl] + lpa[gl] + 3   for (gl) in 0 .. nglz[0] if lpi[gl] >= 1
       if not nofus[lpr[gl] + 1]
 field lht : max bound 16384                     # 頭の尻尾（初期化と比べ）の基（種3 は前置きが四命令長い）
@@ -3595,6 +3613,8 @@ sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lpk[gl] >= 2 if fwr[lpbf[gl]
 sagr[lpr[gl]] <- true   for (gl) in 0 .. nglz[0] if lplk[gl] >= 1 if lplk[gl] <= 2 if fwr[lplf[gl]] if fwst[lplf[gl]] >= rrst[lpr[gl]]
 # 軸の群の集約は、群が一度だけ回る（14o）ので二周目が無い —— 群の場を読んでも断らない
 badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if sagr[r] if not rax[r]
+# 切り口を回し直す群（14q）では、印を持たない二重ループの集約は同じ切り口で二度数える —— 断る
+badk[z] <- rlin[r] * 16 + 8   for (r) in 0 .. nrlz[0] for (z) in 0 .. 0 if amul[r] if raxc[r]
 field ajc : max bound 16384                     # count の mov rax,1 の位置（印の後ろ）
 ajc[r] <- jb[r] + 3 + amx[r]        for (r) in 0 .. nrlz[0] if rrlt[r] == 9
 form[ajc[r]] <- 2   for (r) in 0 .. nrlz[0] if rrlt[r] == 9
@@ -3656,7 +3676,40 @@ field lpx2 : max bound 16384
 lpx2[gl] <- 0                       for (gl) in 0 .. nglz[0] if lpi[gl] <= 2
 lpx2[gl] <- lpi[gl] - 2             for (gl) in 0 .. nglz[0] if lpi[gl] >= 3
 lpi3[gl] <- lpi[gl] * 3 + 3 + lpx2[gl]   for (gl) in 0 .. nglz[0]
-ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1]
+ap[gl] <- rend[lpr[gl]] - lpi3[gl]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1] if lpi[gl] == 0
+ap[gl] <- rend[lpr[gl]] - lpi3[gl] - csuf[lpr[gl]]  for (gl) in 0 .. nglz[0] if nofus[lpr[gl] + 1] if lpi[gl] >= 1
+# 切り口の回し直し（14q）: 前置きは群の頭の段0 の頭の後ろ、後置きは群の尻尾の段0 の進めの前
+field cpp : max bound 16384                     # 前置きの位置
+cpp[r] <- lhead[r] + lph0[r]        for (r) in 0 .. nrlz[0] if nofus[r] if raxc[r]
+field csp : max bound 16384                     # 後置きの位置
+csp[r] <- rend[r] - 3 - 9           for (r) in 0 .. nrlz[0] if nofus[r+1] if raxc[r]
+field cag : max bound 16384                     # again（前置きの xor の位置）
+cag[r] <- lhead[r] + lph0[r] + 5    for (r) in 0 .. nrlz[0] if nofus[r+1] if raxc[r]
+form[cpp[r]]     <- 2    for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # mov rax, 0
+imm[cpp[r]]      <- bias[0]         for (r) in 0 .. nrlz[0] if cpp[r] >= 0
+form[cpp[r] + 1] <- 21   for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # test r8, r8
+form[cpp[r] + 2] <- 13   for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # je → mov [升], rax
+jt[cpp[r] + 2]   <- cpp[r] + 4      for (r) in 0 .. nrlz[0] if cpp[r] >= 0
+form[cpp[r] + 3] <- 2    for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # mov rax, 1
+imm[cpp[r] + 3]  <- 1 + bias[0]     for (r) in 0 .. nrlz[0] if cpp[r] >= 0
+form[cpp[r] + 4] <- 51   for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # mov [升], rax
+imm[cpp[r] + 4]  <- cslt[0]         for (r) in 0 .. nrlz[0] if cpp[r] >= 0
+form[cpp[r] + 5] <- 9    for (r) in 0 .. nrlz[0] if cpp[r] >= 0      # again: xor r8, r8
+form[csp[r]]     <- 21   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # test r8, r8
+form[csp[r] + 1] <- 13   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # je → done
+jt[csp[r] + 1]   <- csp[r] + 5      for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 2] <- 2    for (r) in 0 .. nrlz[0] if csp[r] >= 0      # mov rax, 1
+imm[csp[r] + 2]  <- 1 + bias[0]     for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 3] <- 51   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # mov [升], rax
+imm[csp[r] + 3]  <- cslt[0]         for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 4] <- 78   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # jmp → again
+jt[csp[r] + 4]   <- cag[r]          for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 5] <- 185  for (r) in 0 .. nrlz[0] if csp[r] >= 0      # done: mov rax, [升]
+imm[csp[r] + 5]  <- cslt[0]         for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 6] <- 26   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # test rax, rax
+form[csp[r] + 7] <- 13   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # je → 段0 の進め
+jt[csp[r] + 7]   <- csp[r] + 9      for (r) in 0 .. nrlz[0] if csp[r] >= 0
+form[csp[r] + 8] <- 19   for (r) in 0 .. nrlz[0] if csp[r] >= 0      # mov r8d, 1
 ap[gl] <- rend[lpr[gl]] - lpi3[gl] + 3   for (gl) in 0 .. nglz[0] if lpi[gl] >= 1 if not nofus[lpr[gl] + 1]   # 14n
 form[ap[gl]] <- 5        for (gl) in 0 .. nglz[0] if lpk[gl] == 0            # add rcx, 8*次数
 imm[ap[gl]]  <- lpar[gl] * 8 + bias[0]   for (gl) in 0 .. nglz[0] if lpk[gl] == 0

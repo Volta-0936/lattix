@@ -596,8 +596,16 @@ wsl[hfz[s], k] <- true for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if sax1[s] if b
 bsl[osn[o], k + 1] <- true for (o) in 0 .. nocz[0] for (k) in 0 .. 6 if oxc0[o] if obid[o] if wsl[ofzx[o], k]
 field ssl : max bound 16384              # 文 s の切り口の中の段
 ssl[s] <- k for (s) in 0 .. nstz[0] for (k) in 0 .. 7 if bsl[s, k]
-field bxor : or bound 2048               # 切り口の中に輪がある
-bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
+# **切り口の中の単調な輪は、切り口ごとに動かなくなるまで回す**（14q）。同じ切り口 n の二つの場が互いを単調に
+# 読む（`b[n] <- c[n]`・`c[n] <- … if b[n] >= 1`）なら、切り口 n の中は単調な再帰で、源の順の一周では足りない。
+# 群の段0 の中に「この切り口で何か動いたらもう一周」を入れる（31_gen の raxc）。切り口の中に非単調な読みが
+# あって、しかも輪があるなら、途中の値を読むので断る
+field bcy : or bound 2048                # 群の切り口の中に輪がある
+bcy[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7]
+field bnm0 : or bound 2048               # 群の中に、同じ切り口の非単調な読みがある
+bnm0[oxbk[o]] <- true for (o) in 0 .. nocz[0] if oxc0[o] if obid[o] if onm[o]
+field bxor : or bound 2048               # 切り口の中に、非単調な読みを含む輪がある
+bxor[sbid[s]] <- true for (s) in 0 .. nstz[0] if sax1[s] if bsl[s, 7] if bnm0[sbid[s]]
 field bxfs : min bound 2048              # 群 b の最初の文
 bxfs[sbid[s]] <- s for (s) in 0 .. nstz[0] if sax1[s]
 field sbfs : max bound 16384             # 文 s の群の最初の文
@@ -643,6 +651,8 @@ field oax : or bound 32768               # 出現 o は軸で安全（非単調�
 oax[o] <- true for (o) in 0 .. nocz[0] if oxc1[o] if ofb[o] if sax[osn[o]]
 oax[o] <- true for (o) in 0 .. nocz[0] if oxc0[o] if ofb[o] if sax[osn[o]]
 oax[o] <- true for (o) in 0 .. nocz[0] if oxc2[o] if ofb[o] if sax[osn[o]]
+field sxcy : or bound 16384              # 文 s は切り口の中に単調な輪を持つ群の規則（切り口ごとに回し直す）
+sxcy[s] <- true for (s) in 0 .. nstz[0] if sax[s] if bax[sbid[s]] if bcy[sbid[s]]
 field sxdn : or bound 16384              # 文 s は降りる軸の群の規則（段0 を上から回す）
 sxdn[s] <- true for (s) in 0 .. nstz[0] if sax[s] if bax[sbid[s]] if bdn[sbid[s]]
 # **軸の群の入口は、群より前の層で閉じていなければならない**（h01 で見つけた SILENT）。融合した一周が

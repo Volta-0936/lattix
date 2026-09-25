@@ -922,6 +922,16 @@ w[0] <- 0
 w[11] <- 0
 w[n] <- 1   for (n) in 1 .. 10 if w[n - 1] == 0 if w[n + 1] == 0
 """, data=b"a", exit=7, why=(5,7))
+# **切り口の中の単調な輪**（14q）: 同じ切り口の中で到達を回す。群の段0 の中で「動いたらもう一周」
+case("切り口の中の単調な輪（通る）", """table ch = (0,32)
+field start : or bound 6 5
+field reach : or bound 6 5
+reach[0, 0] <- true
+reach[0, 1] <- true
+reach[t, v] <- true   for (t) in 1 .. 5 for (v) in 0 .. 4 if start[t, v]
+reach[t, v + 1] <- true   for (t) in 1 .. 5 for (v) in 0 .. 3 if reach[t, v]
+start[t, v] <- true   for (t) in 1 .. 5 for (v) in 0 .. 4 if not reach[t - 1, v] if v >= t
+""", data=b"a")
 case("土台が同じ層で育つ場を読む（通る）", """table ch = (0,32)
 field x : max bound 16
 x[n] <- n   for (n) in 0 .. 15

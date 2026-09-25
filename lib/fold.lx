@@ -93,6 +93,8 @@ field rax : or bound 16384              # 規則 r は軸に沿って成層し�
 rax[rno[s]] <- true for (s) in 0 .. nstz[0] if sax[s]
 field raxf : max bound 16384            # その軸の群
 raxf[rno[s]] <- sfb[s] for (s) in 0 .. nstz[0] if sax[s]      # 群の名（14o。一つの場の群なら場）
+field raxc : or bound 16384             # 規則 r は切り口の中に単調な輪を持つ群（切り口ごとに回し直す —— 14q）
+raxc[rno[s]] <- true for (s) in 0 .. nstz[0] if sxcy[s]
 field raxd : or bound 16384             # 規則 r は降りる軸の群（段0 を上から回す —— 14p）
 raxd[rno[s]] <- true for (s) in 0 .. nstz[0] if sxdn[s]
 field raxb : max bound 2048             # 場 f の軸の群（14o。群の中の読みは周回の入口で見ない）
