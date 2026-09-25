@@ -104,6 +104,23 @@ field _knm : max bound 64 16                 # 構成子 k の名
 field _knl : max bound 64                    # その長さ
 field _sn : flat bound 16384                 # 場所 g の引数の数
 _sn[g] <- _kn[_sk[g]]   for (g) in 0 .. _Sz[0]
+# 構成子 k の種: 名のバイトを折り込み、引数の数 + 1 を足して法で折る（`ctor_id` の最初の二行）
+field _kf1 : flat bound 64 17
+field _kg1 : flat bound 64 16
+_kf1[k, 0] <- 0   for (k) in 0 .. 63 if _knl[k] >= 1
+_kg1[k, j] <- _kf1[k, j] * 1000003 + _knm[k, j] + 1   for (k) in 0 .. 63 for (j) in 0 .. 15
+_kf1[k, j + 1] <- _kg1[k, j] % 268435399   for (k) in 0 .. 63 for (j) in 0 .. 15
+field _kc1 : max bound 64
+_kc1[k] <- _kf1[k, _knl[k]] * 1000003 + _kn[k] + 1   for (k) in 0 .. 63
+_kb1[k] <- _kc1[k] % 268435399   for (k) in 0 .. 63
+field _kf2 : flat bound 64 17
+field _kg2 : flat bound 64 16
+_kf2[k, 0] <- 0   for (k) in 0 .. 63 if _knl[k] >= 1
+_kg2[k, j] <- _kf2[k, j] * 1000033 + _knm[k, j] + 1   for (k) in 0 .. 63 for (j) in 0 .. 15
+_kf2[k, j + 1] <- _kg2[k, j] % 268435367   for (k) in 0 .. 63 for (j) in 0 .. 15
+field _kc2 : max bound 64
+_kc2[k] <- _kf2[k, _knl[k]] * 1000033 + _kn[k] + 1   for (k) in 0 .. 63
+_kb2[k] <- _kc2[k] % 268435367   for (k) in 0 .. 63
 # 原子の綴りの折り込み（`_enc(str) = 3·fold(綴り) + 1`）
 field _anl : max bound 1024
 _anl[a] <- j + 1   for (a) in 0 .. 1023 for (j) in 0 .. 23 if _an[a, j] >= 1

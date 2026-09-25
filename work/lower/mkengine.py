@@ -136,6 +136,16 @@ field _knm : max bound 64 16                 # 構成子 k の名
 field _knl : max bound 64                    # その長さ
 field _sn : flat bound 16384                 # 場所 g の引数の数""")
 L.append(f"_sn[g] <- _kn[_sk[g]]   {G}")
+L.append("# 構成子 k の種: 名のバイトを折り込み、引数の数 + 1 を足して法で折る（`ctor_id` の最初の二行）")
+for ln, (m, k) in enumerate([(M1, K1), (M2, K2)], 1):
+    L.append(f"field _kf{ln} : flat bound 64 17")
+    L.append(f"field _kg{ln} : flat bound 64 16")
+    L.append(f"_kf{ln}[k, 0] <- 0   for (k) in 0 .. 63 if _knl[k] >= 1")
+    L.append(f"_kg{ln}[k, j] <- _kf{ln}[k, j] * {k} + _knm[k, j] + 1   for (k) in 0 .. 63 for (j) in 0 .. 15")
+    L.append(f"_kf{ln}[k, j + 1] <- _kg{ln}[k, j] % {m}   for (k) in 0 .. 63 for (j) in 0 .. 15")
+    L.append(f"field _kc{ln} : max bound 64")
+    L.append(f"_kc{ln}[k] <- _kf{ln}[k, _knl[k]] * {k} + _kn[k] + 1   for (k) in 0 .. 63")
+    L.append(f"_kb{ln}[k] <- _kc{ln}[k] % {m}   for (k) in 0 .. 63")
 L.append("""# 原子の綴りの折り込み（`_enc(str) = 3·fold(綴り) + 1`）
 field _anl : max bound 1024
 _anl[a] <- j + 1   for (a) in 0 .. 1023 for (j) in 0 .. 23 if _an[a, j] >= 1""")
