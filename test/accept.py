@@ -2007,6 +2007,10 @@ case("途中で切れている（言う）", """table ch = (0,32)
 field f : max bound 8
 f[i] <- c for (i,c) in
 """, exit=7, why=(3,8))
+# **場の見張りは箱と同じ広さに**（14u）: 場ごとの配列は 2,048 に上がっていたのに、見張り（capf）だけ 1,024 の
+# まま残り、下ろし（lower.lx）の場が 1,025 本になった日に箱に入る本を断った。宣言の番号は 1 起点なので 2,047 まで
+case("場 2,047 本（通る）", "table ch = (0,32)\n" + "".join(f"field f{i} : max bound 2\n" for i in range(2047))
+     + "f0[i] <- i   for (i) in 0 .. 1\nf2046[i] <- f0[i] + 1   for (i) in 0 .. 1\n", data=b"a")
 case("宣言の無い場を読む（言う）", """table ch = (0,32)
 field f : max bound 8
 f[i] <- g[i] for (i,c) in ch

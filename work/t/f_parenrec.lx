@@ -1,0 +1,11 @@
+# 最短路の値を丸括弧で包む（14u）: 丸括弧の塊は書き先の束（min）になり、d が下がるたびに塊も下がる。
+# 前は flat の塊で、焼き手が「flat を育つ場から書く」と読んで輪を断っていた（定義は答える）
+table e = (0,1,5), (0,2,1), (2,1,1), (1,3,1), (2,3,7)
+field d : min bound 4
+field best : max bound 4
+d[0] <- 0
+d[v] <- (d[u] + w)   for (u, v, w) in e
+best[v] <- (best[u] + (w * 2))   for (u, v, w) in e if u < v
+best[0] <- 1
+print d
+print best

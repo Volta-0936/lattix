@@ -1,0 +1,11 @@
+# 広さを書いた集合（14u）: `set bound W` は鍵の広さ W、要素の広さは下ろしが推す（`or bound W E`）
+table g = (0,3), (1,2), (2,0), (3,3), (0,1)
+field nb : set bound 4
+field hop : set bound 5
+field tag : set bound 4
+nb[u] <- {v}   for (u, v) in g
+hop[i] <- {j}   for (i) in 0 .. 3 for (j) in 1 .. 4 if j > i
+tag[v] <- {7}   for (u, v) in g if u != v
+print nb
+print hop
+print tag

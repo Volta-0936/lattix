@@ -1,0 +1,22 @@
+# min / max の関数をいろいろな所に（14u）: 書き先の座標・値の再帰（max の場の max）・ガード・区間の上端・
+# 入れ子（丸括弧を持つ引数の中の関数）・sum の書き先・count の座標
+table e = (0,3), (1,2), (2,0), (3,1)
+field a : max bound 6
+field b : min bound 6 6
+field c : or bound 6
+field n : max bound 1
+field s : sum bound 6
+field k : count bound 6
+n[0] <- 4
+a[i] <- i * 3 % 5   for (i) in 0 .. 5
+a[max(u, v)] <- max(a[u], a[v] * 2) - 10   for (u, v) in e
+b[i, j] <- max(a[i] - a[j], min(i, j) * (2 + j))   for (i) in 0 .. 5 for (j) in 0 .. 5
+c[i] <- true   for (i) in 0 .. 5 if min(a[i], 7) >= 3
+c[i] <- true   for (i) in 0 .. min(n[0], 2)
+s[i] <- max(max(i, 2), min(a[i], (i + 1) * 2))   for (i) in 0 .. 5
+k[min(u, 2)] <- v   for (u, v) in e
+print a
+print b
+print c
+print s
+print k
