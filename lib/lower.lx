@@ -5579,6 +5579,12 @@ lnw[d, 5] <- 48 + d % 10           for (d) in 0 .. ndcz[0] if llg[d] if d >= 100
 field lnt : max bound 262144                # 付け替える名のトークン → 宣言（1 起点）
 lnt[t] <- dseq[t]                  for (t,zc) in ch if isdcl[t] if llg[dseq[t]]
 lnt[t] <- ofl[oseq[t]]             for (t,zc) in ch if isocc[t] if llg[ofl[oseq[t]]] if not lpo[t]
+# `budget depth <= N for f` の f も付け替える（14z）。名指す語は出現ではない（出現にすると、場ごとに全部の出現の形を
+# 見る判断を `[` の無い語が崩す）ので、ここで宣言の鍵と比べる —— 十六文字目まで同じ名は前段と同じく同じ場と読む
+field lbst : max bound 8192                 # 文 s の名指す語
+lbst[snum[t]] <- t                 for (t,zc) in ch if bdsn[t]
+lnt[lbst[s]] <- d                  for (s) in 0 .. nstz[0] for (d) in 0 .. ndcz[0] if bdsc[s] if llg[d]
+      if tlen[lbst[s]] >= 17 if dkey[d] == tkey[lbst[s]] if dkey2[d] == bsk2[s]
 
 # ── 構成子 ─────────────────────────────────────────────────────────────
 # `constructor c(f1, …) bound N` は消して、print の機械の種（`_kn` 引数の数 / `_knm` 名 / `_knl` 名の長さ）に。
@@ -6960,7 +6966,7 @@ lnk[s] <- 1                        for (s) in 0 .. nstz[0] if lsx[s]
 field ltd : or bound 262144                 # 消すトークン
 # 表のループの for 節（`for` の後ろから表の名まで）
 ltd[t] <- true      for (t,zc) in ch if lz[t] >= 0 if lz[t] <= 7
-      if t > lft[snum[t], lz[t]] if t <= lit[snum[t], lz[t]]
+      if t > lft[snum[t], lz[t]] if t <= lit[snum[t], lz[t]] if not lfarl[snum[t], lz[t]]
 # 表のループの変数の出現（束縛そのものは for 節と一緒に消える）
 field lvt : max bound 262144                # 変数の出現 t のループが回す表
 lvt[t] <- ltk[snum[t], vlpz[t]]    for (t,zc) in ch if tkind[t] == 1 if vbnd[t] >= 0
@@ -7087,11 +7093,21 @@ lfk0[t] <- ltk[snum[t], lz[t]]     for (t,zc) in ch if kwfor[t] if lz[t] >= 0 if
       if lkd[snum[t], lz[t]] == 0
 field lfk : max bound 262144                # そのうち行を持つ表（range でない）
 lfk[t] <- lfk0[t]                  for (t,zc) in ch if lfk0[t] >= 0 if not ltr[lfk0[t]]
-iti[lin[t], 0] <- 0                for (t,zc) in ch if lfk[t] >= 0
-irw[lin[t], 0] <- lrw[lte[t]]           for (t,zc) in ch if lfk[t] >= 0
-ibd[lin[t], 0] <- true           for (t,zc) in ch if lfk[t] >= 0
-ih0[lin[t], 0] <- lz[t]            for (t,zc) in ch if lfk[t] >= 0
-ih1[lin[t], 0] <- nrw[lfk[t]] - 1  for (t,zc) in ch if lfk[t] >= 0
+# **組の束縛が表の列より少ない for 節は下ろさない**（14z。04 から）: 定義は断る（`table 'g' has arity 3, pattern
+# binds 1`）。下ろしは束縛した列だけを読み、残りの列を黙って捨てて答えていた（黙って違う答え —— 部品を撒いて出た）。
+# その for 節は字を残す（型紙 0 を差さず、`for` の後ろも消さない）—— 下ろした本に表は無いので、焼き手が断る。
+# 束縛が多い形は、無い列の場（`_t<k>c<j>`）を読んで焼き手が理由 4 で断る
+field lbvn : max bound 8192 8               # 文 s の for 節 L の束縛の最後の列（0 起点）
+lbvn[snum[t], lz[t]] <- colc[t]    for (t,zc) in ch if isbind[t] if lz[t] >= 0 if lz[t] <= 7
+field ltar1 : max bound 16                  # 表 k の最後の列
+ltar1[k] <- ltar[k] - 1            for (k) in 0 .. ntbz[0]
+field lfarl : or bound 8192 8               # 文 s の for 節 L は束縛が列より少ない
+lfarl[snum[t], lz[t]] <- true      for (t,zc) in ch if lfk[t] >= 0 if lbvn[snum[t], lz[t]] < ltar1[lfk[t]]
+iti[lin[t], 0] <- 0                for (t,zc) in ch if lfk[t] >= 0 if not lfarl[snum[t], lz[t]]
+irw[lin[t], 0] <- lrw[lte[t]]           for (t,zc) in ch if lfk[t] >= 0 if not lfarl[snum[t], lz[t]]
+ibd[lin[t], 0] <- true           for (t,zc) in ch if lfk[t] >= 0 if not lfarl[snum[t], lz[t]]
+ih0[lin[t], 0] <- lz[t]            for (t,zc) in ch if lfk[t] >= 0 if not lfarl[snum[t], lz[t]]
+ih1[lin[t], 0] <- nrw[lfk[t]] - 1  for (t,zc) in ch if lfk[t] >= 0 if not lfarl[snum[t], lz[t]]
 #   重なった行を持つ表: 型紙 0 に「一列目が在る」のガードを続けた型紙 199（14t。同じ語の実例は一つの行に
 #   重なるので、別の実例にせず一つの型紙にする —— iti は max なので 199 が 0 に勝つ）
 iti[lin[t], 0] <- 199              for (t,zc) in ch if lfk[t] >= 0 if ltdk[lfk[t]]
@@ -7171,6 +7187,22 @@ lbtpf[t] <- true   for (t,zc) in ch if isdcl[t] if kwmax[latt[t]] if kwfld[prevw
 lbtpf[t] <- true   for (t,zc) in ch if isdcl[t] if kwsum[latt[t]] if kwfld[prevw[t]] if lhflt[0]
 field lb3f : or bound 1                     # 三次元の ⊤ を数える場がある
 lb3f[z] <- true    for (t,zc) in ch for (z) in 0 .. 0 if lbtpf[t] if farr[fdno[t]] >= 3
+# **名が `_` で始まる利用者の場と `budget depth`**（14z）: 焼き手は `_` で始まる場を下ろしの機械と見て、budget depth の
+# 数えから外す（lib/fold.lx の uscr —— 機械の層は定義の本に無い）。利用者がそう名付けた場の層も数えられず、定義が
+# 断る本に答えていた（黙って違う答え。14t から）。どれが利用者の場かを知っているのは下ろしだけなので、ここで断る:
+# その本では（場を名指さない）`budget depth` の `depth` の語を消す —— 焼き手が知らない文として断る（理由 8）
+field lbus : or bound 1                     # 利用者の場に名が `_` で始まるものがある
+lbus[z] <- true    for (t,zc) in ch for (z) in 0 .. 0 if isdcl[t] if tch[t,0] == 95
+field lbdp : or bound 262144                # 場を名指さない `budget depth` の `depth` の語
+lbdp[nextw[t]] <- true for (t,zc) in ch if sbrk[t] if lbgt[t] if kwdep[nextw[t]] if not bdsc[snum[t]]
+ldl[i] <- true      for (i,c) in ch if lbdp[tnum[i]] if lbus[0]
+# **外界との往復の層も焼き手には見えない**（14z。14t から）: 定義は emit の層より真に後ろでしか、そのチャネルの source を
+# 読ませない（層が一つ増える）。下ろした本では source は書き手の無い場、emit は誰も読まない場なので、その辺が無い ——
+# `emit "c" <- 1` / `source r from "c"` / `y[0] <- r[0]` / `budget depth <= 1` に答えていた（定義は深さ 2 で断る）。
+# source のある本では、場を名指すものも含めて `budget depth` の `depth` の語を消す（焼き手が断る）
+field lbdq : or bound 262144                # `budget depth` の `depth` の語
+lbdq[nextw[t]] <- true for (t,zc) in ch if sbrk[t] if lbgt[t] if kwdep[nextw[t]]
+ldl[i] <- true      for (i,c) in ch if lbdq[tnum[i]] if lbsrc[0]
 field lbiow : or bound 8192                 # 文 s は消してよい `budget io <= N`
 lbiow[snum[t]] <- true for (t,zc) in ch if sbrk[t] if lbgt[t] if tlen[nextw[t]] == 2
       if tch[nextw[t], 0] == 105 if tch[nextw[t], 1] == 111 if not lbsrc[0]

@@ -413,6 +413,7 @@ class Program:
         self.certificates = {}
         self.io = 0
         self.budgets = []      # (kind, limit, lineno)
+        self.scoped = []       # (field, limit, lineno) —— `budget depth <= N for f`
 
 
 class Component:
@@ -591,7 +592,19 @@ def parse(text, base=None):
             if kind not in ('depth', 'io', 'top'):
                 raise LattixError(f"line {lineno}: budget must be `depth`, `io` "
                                   f"or `top`")
-            p.eat('SYM', '<='); prog.budgets.append((kind, p.eat('INT'), lineno))
+            p.eat('SYM', '<='); lim = p.eat('INT')
+            # **場ごとの深さ**（14z）: `budget depth <= N for f` は「f を書く規則の層 + 1 が N 以下」——
+            # f を求めるのに要る逐次の段の数。部品の深さの署名はこれと同じ判断である（部品の場は
+            # 部品の中でしか読み書きされないので、部品だけで成層した深さ = その場の層の最大 + 1）。
+            # 前は `<= N` の後ろの語を黙って読み捨てていた —— 残りがあれば断る
+            if p.at('KW', 'for'):
+                if kind != 'depth':
+                    raise LattixError(f"line {lineno}: only `budget depth` can name a field")
+                p.eat(); prog.scoped.append((p.eat('ID'), lim, lineno))
+            else:
+                prog.budgets.append((kind, lim, lineno))
+            if not p.done():
+                raise LattixError(f"line {lineno}: unexpected {p.peek()[1]!r} after the budget")
             continue
 
         if k == 'KW' and v == 'source':
@@ -885,13 +898,16 @@ def _instantiate(prog, use):
         check(sub); c.depth = stratify(sub); c.io = io_rounds(sub)
     except LattixError as e:
         raise LattixError(f"line {lineno}: component {name!r} does not stratify: {e}")
-    if c.decl_io is not None and c.io != c.decl_io:
+    # **署名は上限である**（14z）。「宣伝より多くの順序を押し付けてはいけない」—— 宣言より浅いのは
+    # 約束を守っている。前は等号で比べていたので、実装を速くした部品が署名と食い違って断られ、
+    # 焼く側（層は定義より深いことはあっても浅いことは無い）は等号を確かめる手段を持たなかった
+    if c.decl_io is not None and c.io > c.decl_io:
         raise LattixError(
             f"line {c.lineno}: component {name!r} declares io {c.decl_io} but its "
             f"rules block on the world {c.io} time(s).\n"
             f"    Round-trip count is part of the interface: a library may not "
             f"silently cost its caller more latency than it advertised.")
-    if c.decl_depth is not None and c.depth != c.decl_depth:
+    if c.decl_depth is not None and c.depth > c.decl_depth:
         raise LattixError(
             f"line {c.lineno}: component {name!r} declares depth {c.decl_depth} "
             f"but its rules stratify to depth {c.depth}.\n"
@@ -950,7 +966,10 @@ def _clone(r, fmap, tmap, vmap, newid):
     n = Rule(fmap.get(r.target, r.target),
              [_subst(x, fmap, vm) for x in r.keys],
              _subst(r.value, fmap, vm),
-             [(vs, tmap.get(src, src) if isinstance(src, str) else src)
+             # 区間の端の値の引数も差し替える（14z）。前は差し替えずに残し、束縛されない変数を
+             # 評価しようとして落ちていた（Python の KeyError）
+             [(vs, tmap.get(src, src) if isinstance(src, str)
+               else ('..', _subst(src[1], fmap, vm), _subst(src[2], fmap, vm)))
               for vs, src in r.sources],
              [_subst(g, fmap, vm) for g in r.guards],
              r.lineno)
@@ -1444,6 +1463,18 @@ def check(prog, conservative=False, optimistic=False):
         if free:
             raise LattixError(f"line {r.lineno}: unbound variable(s) "
                               f"{', '.join(sorted(free))} — add a `for` clause")
+        # **区間の端は左から、それまでに束縛された変数の下で評価する**（bindings）。端の変数は
+        # 左の節が束縛していなければならない（14z）。前は見ていなかったので、`for (i) in 0 .. n` は
+        # 断られずに評価の途中で落ちていた（Python の KeyError）
+        seen = set()
+        for vs, src in r.sources:
+            if isinstance(src, tuple) and src[0] == '..':
+                ev_ = set(); _vars_of(src[1], ev_); _vars_of(src[2], ev_)
+                if ev_ - seen:
+                    raise LattixError(f"line {r.lineno}: unbound variable(s) "
+                                      f"{', '.join(sorted(ev_ - seen))} in the range of "
+                                      f"`for ({', '.join(vs)})` — bind them in an earlier `for`")
+            seen |= set(vs)
     for f in prog.prints:
         if f not in prog.fields:
             raise LattixError(f"print: undeclared field {f!r}")
@@ -1867,6 +1898,16 @@ def io_rounds(prog):
 
 
 def check_budgets(prog, depth):
+    for f, limit, lineno in prog.scoped:
+        if f not in prog.fields:
+            raise LattixError(f"line {lineno}: budget names undeclared field {f!r}")
+        got = max([r.stratum + 1 for r in prog.rules if r.target == f], default=0)
+        if got > limit:
+            raise LattixError(
+                f"line {lineno}: budget depth <= {limit} for {f} exceeded: "
+                f"computing {f} costs {got}.\n"
+                f"    A cost budget is an interface, like a type. Widen it "
+                f"deliberately or remove the dependency that caused it.")
     for kind, limit, lineno in prog.budgets:
         got = depth if kind == 'depth' else prog.io
         if got > limit:

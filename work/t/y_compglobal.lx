@@ -1,0 +1,8 @@
+# 部品の中身が外の場を読む（14z）: 定義は断る（部品だけで成層できない）。開く段は開かず、焼き手が use を断る
+field h : max
+h[0] <- 5
+component rf() -> out : max
+  out[0] <- h[0]
+end
+use rf() as a
+print a_out

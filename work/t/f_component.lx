@@ -1,0 +1,29 @@
+# 部品を開く（14z）: use が部品より前・同じ部品を二度・値の引数が区間の端と書き先と値に・表の引数・local・
+# 署名は上限（宣言より浅い部品は通る）
+table g = (0,1,2), (1,2,3), (0,2,9), (2,3,1)
+table pts = (0), (1), (2), (3), (4)
+
+use near(g, 0, 4) as a
+use near(g, 2, 3) as b
+use ramp(4) as r
+
+component near(edges, src, lim) -> d : min, far : or  depth 3
+  local seen : or
+  d[src] <- 0
+  d[j] <- d[i] + w        for (i,j,w) in edges if w <= lim
+  seen[j] <- true         for (i,j,w) in edges
+  far[v] <- true          for (v) in pts if not seen[v]
+end
+
+component ramp(n) -> sq : max  depth 2
+  sq[i] <- i * i + n      for (i) in 0 .. n
+end
+
+field both : min
+both[v] <- a_d[v] + b_d[v]   for (v) in pts
+
+print a_d
+print b_d
+print a_far
+print r_sq
+print both

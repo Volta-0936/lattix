@@ -1,0 +1,12 @@
+# 名が _ で始まる利用者の場と budget depth（14z。14t からの SILENT —— 焼き手は _ の場を機械と見て数えから外していた）: 両方が断る
+field x : min
+field _a : or
+field _b : or
+field _c : or
+x[0] <- 3
+x[i] <- x[i-1] + 1 for (i) in 1 .. 2
+_a[i] <- true for (i) in 0 .. 3 if not x[i]
+_b[i] <- true for (i) in 0 .. 3 if not _a[i]
+_c[i] <- true for (i) in 0 .. 3 if not _b[i]
+budget depth <= 2
+print _c

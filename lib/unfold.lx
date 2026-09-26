@@ -1,0 +1,571 @@
+# ══ 部品を開く（unfold）—— `use` を部品の中身に開いた .lx を書く（14z）══════════════════════════════
+#
+# 定義（lattix.py の `_instantiate`）が構文解析のあとでしていることを、字の書き換えとしてする。
+#   `use c(a1, …) as P` の一つごとに、部品 c の中身の規則を写す。写すとき
+#     部品の場（出力 `-> f : 束` と `local f : 束`）の名 f は `P_f` に（名の前に `P_` を差す）
+#     表の引数（引数が名）は `in p` の p を引数の名に、値の引数（引数が数）は p を数に差し替える
+#   部品の場の宣言は `field P_f : 束`、深さの署名 `depth N` は場ごとの `budget depth <= N for P_f` に開く ——
+#   部品の場は部品の中でしか読み書きされない（中身が外の場を読めば定義が断る）ので、部品だけで成層した深さと、
+#   開いた本の中のその場の層は同じである。署名は上限（14z で定義を「宣言以下」に直した）
+#   部品の塊と use の文は、改行だけ残して消す —— 残りの行は元の行番号のまま。写した中身は末尾に足す
+#   （Lattix の答えは文の順に依らない）。
+#
+# **開けないなら何も書き換えない。** 定義が断る形（頭の形・end の対・引数の数・知らない部品・中身が外の場を読む…）
+# と、まだ開かない形（emit / source・文字列・引数の役が定義と食い違いうる所）が一つでもあれば、源をそのまま出す ——
+# 焼き手が `component` / `use` を知らない文として断る（黙らない）。部分だけ開くことはしない。
+#
+# 前段は 33_self（字句・文の切れ目・語の綴り）。出力は三つの render: 元の本 `uo`・写した中身 `ux`・宣言 `uh`。
+
+# ── 語の下ごしらえ ──────────────────────────────────────────────────
+field sgt : or bound 589824              # 意味のあるトークン（空白でも注釈でもない）
+sgt[t] <- true for (t,zc) in ch if tkind[t] != 3 if not tcom[t]
+field psg : max bound 589824             # t の前の意味のあるトークン
+psg[t] <- lsig[t-1] for (t,zc) in ch if t >= 1
+# 次の意味のあるトークンは **前の鎖を裏返して** 出す（意味のあるトークン t が、前の意味のあるトークンの「次」）。
+# 後ろ向きの鎖（`f[t] <- f[t+1]`）で注釈を跨ぐと、注釈の字（非 ASCII は一バイトずつトークン）の数だけ周回が要った ——
+# 31_gen を開くのに 260 秒。前向きの鎖 lsig は一周で済むので、それを引く
+field nsg : max bound 589824             # 意味のあるトークン t の次の意味のあるトークン（文を跨ぐ）
+nsg[psg[t]] <- t for (t,zc) in ch if sgt[t]
+field sy : max bound 589824              # 記号トークンの字
+sy[t] <- tch[t,0] for (t,zc) in ch if tkind[t] == 4 if not tcom[t]
+field lpar : or bound 589824             # `(`
+lpar[t] <- true for (t,zc) in ch if sy[t] == 40
+field rpar : or bound 589824             # `)`
+rpar[t] <- true for (t,zc) in ch if sy[t] == 41
+field cma : or bound 589824              # `,`
+cma[t] <- true for (t,zc) in ch if sy[t] == 44
+field col : or bound 589824              # `:`
+col[t] <- true for (t,zc) in ch if sy[t] == 58
+field lbk : or bound 589824              # `[`
+lbk[t] <- true for (t,zc) in ch if sy[t] == 91
+field ck2 : max bound 589824             # 字 i までの語の鍵（9〜16 文字目）
+ck2[i] <- c for (i,c) in ch if cpos[i] == 8
+ck2[i] <- ck2[i-1] * 128 + c for (i,c) in ch if i >= 1 if cpos[i] >= 9 if cpos[i] <= 15
+field tk2 : max bound 589824             # トークン t の鍵（9〜16 文字目。無ければ 0）
+tk2[t] <- 0 for (t,zc) in ch
+tk2[tnum[i]] <- ck2[i] for (i,c) in ch if cpos[i] >= 8 if cpos[i] <= 15
+
+# ── 予約語・束の名・頭の語（定義の KEYWORDS / LATTICES）──
+field iskw : or bound 589824             # 予約語（定義の KEYWORDS）
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 97 if tch[t,1] == 115
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 98 if tch[t,1] == 111
+      if tch[t,2] == 117 if tch[t,3] == 110 if tch[t,4] == 100
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t] if tch[t,0] == 98 if tch[t,1] == 117
+      if tch[t,2] == 100 if tch[t,3] == 103 if tch[t,4] == 101 if tch[t,5] == 116
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 9 if not tcom[t] if tch[t,0] == 99 if tch[t,1] == 111
+      if tch[t,2] == 109 if tch[t,3] == 112 if tch[t,4] == 111 if tch[t,5] == 110
+      if tch[t,6] == 101 if tch[t,7] == 110 if tk2[t] == 116
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 11 if not tcom[t] if tch[t,0] == 99 if tch[t,1] == 111
+      if tch[t,2] == 110 if tch[t,3] == 115 if tch[t,4] == 116 if tch[t,5] == 114
+      if tch[t,6] == 117 if tch[t,7] == 99 if tk2[t] == 1914866
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 100 if tch[t,1] == 101
+      if tch[t,2] == 112 if tch[t,3] == 116 if tch[t,4] == 104
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 4 if not tcom[t] if tch[t,0] == 101 if tch[t,1] == 109
+      if tch[t,2] == 105 if tch[t,3] == 116
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 101 if tch[t,1] == 110
+      if tch[t,2] == 100
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 97
+      if tch[t,2] == 108 if tch[t,3] == 115 if tch[t,4] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 105
+      if tch[t,2] == 101 if tch[t,3] == 108 if tch[t,4] == 100
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 111
+      if tch[t,2] == 114
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 4 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 114
+      if tch[t,2] == 111 if tch[t,3] == 109
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 102
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 110
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 7 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 110
+      if tch[t,2] == 99 if tch[t,3] == 108 if tch[t,4] == 117 if tch[t,5] == 100
+      if tch[t,6] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 111
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 115
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 108 if tch[t,1] == 111
+      if tch[t,2] == 99 if tch[t,3] == 97 if tch[t,4] == 108
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 109 if tch[t,1] == 97
+      if tch[t,2] == 120
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 109 if tch[t,1] == 105
+      if tch[t,2] == 110
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 110 if tch[t,1] == 111
+      if tch[t,2] == 116
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 112 if tch[t,1] == 114
+      if tch[t,2] == 105 if tch[t,3] == 110 if tch[t,4] == 116
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 114 if tch[t,1] == 97
+      if tch[t,2] == 110 if tch[t,3] == 103 if tch[t,4] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t] if tch[t,0] == 114 if tch[t,1] == 101
+      if tch[t,2] == 110 if tch[t,3] == 100 if tch[t,4] == 101 if tch[t,5] == 114
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 4 if not tcom[t] if tch[t,0] == 115 if tch[t,1] == 101
+      if tch[t,2] == 97 if tch[t,3] == 108
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 6 if not tcom[t] if tch[t,0] == 115 if tch[t,1] == 111
+      if tch[t,2] == 117 if tch[t,3] == 114 if tch[t,4] == 99 if tch[t,5] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 116 if tch[t,1] == 97
+      if tch[t,2] == 98 if tch[t,3] == 108 if tch[t,4] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 4 if not tcom[t] if tch[t,0] == 116 if tch[t,1] == 114
+      if tch[t,2] == 117 if tch[t,3] == 101
+iskw[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 117 if tch[t,1] == 115
+      if tch[t,2] == 101
+field islat : or bound 589824            # 束の名（定義の LATTICES）
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 97 if tch[t,1] == 110
+      if tch[t,2] == 100
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 98 if tch[t,1] == 97
+      if tch[t,2] == 103
+islat[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 99 if tch[t,1] == 111
+      if tch[t,2] == 117 if tch[t,3] == 110 if tch[t,4] == 116
+islat[t] <- true for (t,zc) in ch if tlen[t] == 4 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 108
+      if tch[t,2] == 97 if tch[t,3] == 116
+islat[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 102 if tch[t,1] == 111
+      if tch[t,2] == 117 if tch[t,3] == 114 if tch[t,4] == 118
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 109 if tch[t,1] == 97
+      if tch[t,2] == 120
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 109 if tch[t,1] == 105
+      if tch[t,2] == 110
+islat[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 111 if tch[t,1] == 114
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 115 if tch[t,1] == 101
+      if tch[t,2] == 116
+islat[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 115 if tch[t,1] == 117
+      if tch[t,2] == 109
+field kcmp : or bound 589824          # `component`
+kcmp[t] <- true for (t,zc) in ch if tlen[t] == 9 if not tcom[t] if tch[t,0] == 99 if tch[t,1] == 111
+      if tch[t,2] == 109 if tch[t,3] == 112 if tch[t,4] == 111 if tch[t,5] == 110
+      if tch[t,6] == 101 if tch[t,7] == 110 if tk2[t] == 116
+field kend : or bound 589824          # `end`
+kend[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 101 if tch[t,1] == 110
+      if tch[t,2] == 100
+field kuse : or bound 589824          # `use`
+kuse[t] <- true for (t,zc) in ch if tlen[t] == 3 if not tcom[t] if tch[t,0] == 117 if tch[t,1] == 115
+      if tch[t,2] == 101
+field kloc : or bound 589824          # `local`
+kloc[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 108 if tch[t,1] == 111
+      if tch[t,2] == 99 if tch[t,3] == 97 if tch[t,4] == 108
+field kas : or bound 589824           # `as`
+kas[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 97 if tch[t,1] == 115
+field kdep : or bound 589824          # `depth`
+kdep[t] <- true for (t,zc) in ch if tlen[t] == 5 if not tcom[t] if tch[t,0] == 100 if tch[t,1] == 101
+      if tch[t,2] == 112 if tch[t,3] == 116 if tch[t,4] == 104
+field kio : or bound 589824           # `io`
+kio[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 111
+field kin : or bound 589824           # `in`
+kin[t] <- true for (t,zc) in ch if tlen[t] == 2 if not tcom[t] if tch[t,0] == 105 if tch[t,1] == 110
+
+
+field tnd : or bound 589824              # 語 t に数字でない字がある
+tnd[tnum[i]] <- true for (i,c) in ch if cls[i] == 1 if not digit[i]
+field isnt : or bound 589824             # 数（字が全部数字の語）
+isnt[t] <- true for (t,zc) in ch if tkind[t] == 1 if not tcom[t] if not tnd[t]
+field isnm : or bound 589824             # 名（数字で始まらない語。予約語を除く —— 定義の ID）
+isnm[t] <- true for (t,zc) in ch if tkind[t] == 1 if not tcom[t] if tch[t,0] >= 58 if not iskw[t]
+field lsgs : max bound 16384             # 文 s の最後の意味のあるトークン
+lsgs[snum[t]] <- t for (t,zc) in ch if sgt[t]
+
+# ── 文の種類。頭の語は定義と同じく「行の最初の語」（`raw.split()[:1]` —— 後ろで語が切れること）──
+field shd : max bound 16384              # 文 s の頭のトークン
+shd[snum[t]] <- t for (t,zc) in ch if sbrk[t]
+field ntk : max bound 1                  # 最後のトークン
+ntk[z] <- tnum[i] for (i,c) in ch for (z) in 0 .. 0
+field hsp : or bound 589824              # 語 t の後ろで語が切れる（空白・注釈・入力の終わり）
+hsp[t] <- true for (t,zc) in ch if tkind[t+1] == 3
+hsp[t] <- true for (t,zc) in ch if tcom[t+1]
+hsp[t] <- true for (t,zc) in ch if t == ntk[0]
+field scp : or bound 16384               # 文 s は部品の頭（`component`）
+scp[s] <- true for (s) in 0 .. nstz[0] if kcmp[shd[s]] if hsp[shd[s]]
+field sen : or bound 16384               # `end`
+sen[s] <- true for (s) in 0 .. nstz[0] if kend[shd[s]] if hsp[shd[s]]
+field sus : or bound 16384               # `use`
+sus[s] <- true for (s) in 0 .. nstz[0] if kuse[shd[s]] if hsp[shd[s]]
+
+# ── 部品の塊（頭から end まで）。定義は頭の次の行から end までを、何であれ中身として集める ──
+field cb : flat bound 16384              # 文 s を含む塊の頭の文
+cb[s] <- s for (s) in 0 .. nstz[0] if scp[s]
+cb[s] <- cb[s-1] for (s) in 1 .. nstz[0] if not scp[s] if not sen[s-1]
+field cbo : or bound 16384               # 文 s は塊の中（頭・中身・end）
+cbo[s] <- true for (s) in 0 .. nstz[0] if cb[s] >= 0
+field ubad : or bound 1                  # 開けない —— 源をそのまま出す
+ubad[z] <- true for (s) in 1 .. nstz[0] for (z) in 0 .. 0 if scp[s] if cbo[s-1] if not sen[s-1]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if sen[s] if not cbo[s]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if s == nstz[0] if cbo[s] if not sen[s]
+field tcb : flat bound 589824            # トークン t の塊の頭の文
+tcb[t] <- cb[snum[t]] for (t,zc) in ch if cbo[snum[t]]
+
+# ── 部品の頭: `component 名 ( 引数, … ) -> 場 : 束, … depth N io M`（定義の形だけ。ほかは開かない）──
+field chd : or bound 589824              # トークン t は部品の頭の文の意味のある語
+chd[t] <- true for (t,zc) in ch if scp[snum[t]] if sgt[t]
+field cnm : max bound 16384              # 部品の名
+cnm[s] <- nsg[shd[s]] for (s) in 0 .. nstz[0] if scp[s]
+field clp : max bound 16384              # `(`
+clp[s] <- nsg[cnm[s]] for (s) in 0 .. nstz[0] if scp[s]
+field crp : min bound 16384              # 最初の `)`
+crp[snum[t]] <- t for (t,zc) in ch if chd[t] if rpar[t]
+field crh : or bound 16384
+crh[snum[t]] <- true for (t,zc) in ch if chd[t] if rpar[t]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if scp[s] if not isnm[cnm[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if scp[s] if not lpar[clp[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if scp[s] if not crh[s]
+field tpr : or bound 589824              # 引数の並びの中
+tpr[t] <- true for (t,zc) in ch if chd[t] if t > clp[snum[t]] if t < crp[snum[t]]
+field prm : or bound 589824              # 引数の名
+prm[t] <- true for (t,zc) in ch if tpr[t] if isnm[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tpr[t] if not isnm[t] if not cma[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if prm[t] if not lpar[psg[t]] if not cma[psg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if prm[t] if not cma[nsg[t]] if not rpar[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tpr[t] if cma[t] if not prm[psg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tpr[t] if cma[t] if not prm[nsg[t]]
+field tpo : or bound 589824              # `)` の後ろ
+tpo[t] <- true for (t,zc) in ch if chd[t] if t > crp[snum[t]]
+field ra1 : or bound 589824              # `->` の `-`
+ra1[t] <- true for (t,zc) in ch if tpo[t] if sy[t] == 45 if rpar[psg[t]]
+field ra2 : or bound 589824              # `->` の `>`
+ra2[t] <- true for (t,zc) in ch if tpo[t] if sy[t] == 62 if ra1[psg[t]]
+field roc : or bound 589824              # 出力の間の `,`
+field rlat : or bound 589824              # 出力の束
+field ron : or bound 589824              # 出力の場の名
+ron[t] <- true for (t,zc) in ch if tpo[t] if isnm[t] if ra2[psg[t]] if col[nsg[t]]
+ron[t] <- true for (t,zc) in ch if tpo[t] if isnm[t] if roc[psg[t]] if col[nsg[t]]
+field rcl : or bound 589824              # 出力の `:`
+rcl[t] <- true for (t,zc) in ch if tpo[t] if col[t] if ron[psg[t]]
+rlat[t] <- true for (t,zc) in ch if tpo[t] if islat[t] if rcl[psg[t]]
+roc[t] <- true for (t,zc) in ch if tpo[t] if cma[t] if rlat[psg[t]]
+field rkd : or bound 589824              # `depth`
+field rnm : or bound 589824              # その数
+rkd[t] <- true for (t,zc) in ch if tpo[t] if kdep[t] if rpar[psg[t]]
+rkd[t] <- true for (t,zc) in ch if tpo[t] if kdep[t] if rlat[psg[t]]
+rkd[t] <- true for (t,zc) in ch if tpo[t] if kdep[t] if rnm[psg[t]]
+field rki : or bound 589824              # `io`
+rki[t] <- true for (t,zc) in ch if tpo[t] if kio[t] if rpar[psg[t]]
+rki[t] <- true for (t,zc) in ch if tpo[t] if kio[t] if rlat[psg[t]]
+rki[t] <- true for (t,zc) in ch if tpo[t] if kio[t] if rnm[psg[t]]
+rnm[t] <- true for (t,zc) in ch if tpo[t] if isnt[t] if rkd[psg[t]]
+rnm[t] <- true for (t,zc) in ch if tpo[t] if isnt[t] if rki[psg[t]]
+field rok : or bound 589824              # 役がある
+rok[t] <- true for (t,zc) in ch if ra1[t]
+rok[t] <- true for (t,zc) in ch if ra2[t]
+rok[t] <- true for (t,zc) in ch if ron[t]
+rok[t] <- true for (t,zc) in ch if rcl[t]
+rok[t] <- true for (t,zc) in ch if rlat[t]
+rok[t] <- true for (t,zc) in ch if roc[t]
+rok[t] <- true for (t,zc) in ch if rkd[t]
+rok[t] <- true for (t,zc) in ch if rki[t]
+rok[t] <- true for (t,zc) in ch if rnm[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tpo[t] if not rok[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if ra1[t] if not ra2[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if ra2[t] if not ron[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if rcl[t] if not rlat[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if roc[t] if not ron[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if rkd[t] if not rnm[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if rki[t] if not rnm[nsg[t]]
+# 深さは一度だけ（二度書けば定義は後ろを取る —— 開かない）。数は八桁まで（宣言の行に写す）
+field ndp : count bound 16384
+ndp[snum[t]] <- 1 for (t,zc) in ch if rkd[t]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if ndp[s] >= 2
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if rnm[t] if rkd[psg[t]] if tlen[t] >= 9
+field cdd : or bound 16384               # 部品 c は深さを宣言する
+cdd[snum[t]] <- true for (t,zc) in ch if rkd[t]
+field udn : or bound 589824              # 深さの数
+udn[t] <- true for (t,zc) in ch if rnm[t] if rkd[psg[t]]
+field csn : max bound 589824             # 字 i の文
+csn[i] <- snum[tnum[i]] for (i,c) in ch
+field cdc : max bound 16384 8            # 部品 c の深さの数の k 字目
+cdc[csn[i], cpos[i]] <- c for (i,c) in ch if udn[tnum[i]]
+
+# ── 部品の中身: 宣言（`local` / `field` 名 : 束 —— 後ろは定義も読み捨てる）と規則だけ ──
+field sbd : or bound 16384               # 文 s は中身（頭でも end でもない）
+sbd[s] <- true for (s) in 0 .. nstz[0] if cbo[s] if not scp[s] if not sen[s]
+field sdc : or bound 16384               # 中身の宣言
+sdc[s] <- true for (s) in 0 .. nstz[0] if sbd[s] if kloc[shd[s]]
+sdc[s] <- true for (s) in 0 .. nstz[0] if sbd[s] if kwfld[shd[s]]
+field srl : or bound 16384               # 中身の規則（頭が名）
+srl[s] <- true for (s) in 0 .. nstz[0] if sbd[s] if isnm[shd[s]]
+field cbd : or bound 16384               # 部品 c は開けない（使われれば、本ごと開かない）
+cbd[cb[s]] <- true for (s) in 0 .. nstz[0] if sbd[s] if not sdc[s] if not srl[s]
+cbd[cb[s]] <- true for (s) in 0 .. nstz[0] if srl[s] if not lbk[nsg[shd[s]]]
+field sdm : max bound 16384              # 宣言の名
+sdm[s] <- nsg[shd[s]] for (s) in 0 .. nstz[0] if sdc[s]
+# 部品の場を宣言する語（出力の名・中身の宣言の名）と、その通し番号 q
+field ubn : or bound 589824
+ubn[t] <- true for (t,zc) in ch if ron[t]
+ubn[sdm[s]] <- true for (s) in 0 .. nstz[0] if sdc[s]
+field n2 : max bound 589824              # その束の語（名 `:` 束）
+n2[t] <- nsg[nsg[t]] for (t,zc) in ch if ubn[t]
+cbd[tcb[t]] <- true for (t,zc) in ch if ubn[t] if not isnm[t]
+cbd[tcb[t]] <- true for (t,zc) in ch if ubn[t] if tlen[t] >= 17
+cbd[tcb[t]] <- true for (t,zc) in ch if ubn[t] if not col[nsg[t]]
+cbd[tcb[t]] <- true for (t,zc) in ch if ubn[t] if not islat[n2[t]]
+field bq : max bound 589824              # 通し番号（鎖。1 から）
+bq[0] <- 0
+bq[t] <- bq[t-1] for (t,zc) in ch if t >= 1 if not ubn[t]
+bq[t] <- bq[t-1] + 1 for (t,zc) in ch if t >= 1 if ubn[t]
+field nq : max bound 1
+nq[z] <- bq[t] for (t,zc) in ch for (z) in 0 .. 0
+field qcm : flat bound 4096              # 場 q の部品
+qcm[bq[t]] <- tcb[t] for (t,zc) in ch if ubn[t]
+field qky : max bound 4096
+qky[bq[t]] <- tkey[t] for (t,zc) in ch if ubn[t]
+field qk2 : max bound 4096
+qk2[bq[t]] <- tk2[t] for (t,zc) in ch if ubn[t]
+cbd[qcm[q]] <- true for (q) in 1 .. nq[0] for (r) in 1 .. nq[0] if q < r if qcm[q] == qcm[r]
+      if qky[q] == qky[r] if qk2[q] == qk2[r]
+field q0 : min bound 16384               # 部品 c の最初の q
+q0[qcm[q]] <- q for (q) in 1 .. nq[0]
+field qm : flat bound 4096               # 部品の中の番号
+qm[q] <- q - q0[qcm[q]] for (q) in 1 .. nq[0]
+field cqq : max bound 589824             # 字 i の q
+cqq[i] <- bq[tnum[i]] for (i,c) in ch if ubn[tnum[i]]
+field qch : max bound 4096 16            # 場 q の名の k 字目
+qch[cqq[i], cpos[i]] <- c for (i,c) in ch if ubn[tnum[i]] if cpos[i] <= 15
+field lq : max bound 589824              # 束の語 → q
+lq[n2[t]] <- bq[t] for (t,zc) in ch if ubn[t]
+field lqd : or bound 589824
+lqd[n2[t]] <- true for (t,zc) in ch if ubn[t]
+field clq : max bound 589824
+clq[i] <- lq[tnum[i]] for (i,c) in ch if lqd[tnum[i]]
+field qlc : max bound 4096 8             # 場 q の束の k 字目
+qlc[clq[i], cpos[i]] <- c for (i,c) in ch if lqd[tnum[i]] if cpos[i] <= 7
+
+# ── 引数の名と番号 ──
+field ppp : max bound 589824             # 引数の前の引数（`,` を跨ぐ）
+ppp[t] <- psg[psg[t]] for (t,zc) in ch if prm[t] if cma[psg[t]]
+field pjt : max bound 589824             # 引数の番号（0 から）
+pjt[t] <- 0 for (t,zc) in ch if prm[t] if lpar[psg[t]]
+pjt[t] <- pjt[ppp[t]] + 1 for (t,zc) in ch if prm[t] if cma[psg[t]]
+field cnp : max bound 16384              # 部品 c の引数の数
+cnp[s] <- 0 for (s) in 0 .. nstz[0] if scp[s]
+cnp[snum[t]] <- pjt[t] + 1 for (t,zc) in ch if prm[t]
+field pq : max bound 589824              # 引数の通し番号（鎖）
+pq[0] <- 0
+pq[t] <- pq[t-1] for (t,zc) in ch if t >= 1 if not prm[t]
+pq[t] <- pq[t-1] + 1 for (t,zc) in ch if t >= 1 if prm[t]
+field np : max bound 1
+np[z] <- pq[t] for (t,zc) in ch for (z) in 0 .. 0
+field pcm : flat bound 4096
+pcm[pq[t]] <- snum[t] for (t,zc) in ch if prm[t]
+field pky : max bound 4096
+pky[pq[t]] <- tkey[t] for (t,zc) in ch if prm[t]
+field pk2 : max bound 4096
+pk2[pq[t]] <- tk2[t] for (t,zc) in ch if prm[t]
+field ppj : max bound 4096
+ppj[pq[t]] <- pjt[t] for (t,zc) in ch if prm[t]
+cbd[pcm[p]] <- true for (p) in 1 .. np[0] for (r) in 1 .. np[0] if p < r if pcm[p] == pcm[r]
+      if pky[p] == pky[r] if pk2[p] == pk2[r]
+cbd[snum[t]] <- true for (t,zc) in ch if prm[t] if tlen[t] >= 17
+
+# ── 中身の規則の語 ──
+field tbr : or bound 589824              # トークン t は中身の規則の中
+tbr[t] <- true for (t,zc) in ch if srl[snum[t]]
+field inb : or bound 589824              # 部品の場の名（`P_` を差す）
+inb[t] <- true for (t,zc) in ch for (q) in 1 .. nq[0] if tbr[t] if isnm[t] if tlen[t] <= 16
+      if qcm[q] == tcb[t] if qky[q] == tkey[t] if qk2[q] == tk2[t]
+field tpj : max bound 589824             # 部品の j 番目の引数の名
+tpj[t] <- ppj[p] for (t,zc) in ch for (p) in 1 .. np[0] if tbr[t] if isnm[t] if tlen[t] <= 16
+      if pcm[p] == tcb[t] if pky[p] == tkey[t] if pk2[p] == tk2[t]
+field tsub : or bound 589824             # 差し替える語
+tsub[t] <- true for (t,zc) in ch if tpj[t] >= 0
+# 定義と同じ形だけ: `f[` の f は部品の場・部品の場の名は `[` を伴う・`名(` は無い（構成子は部品の中で読めない）・文字列は開かない
+cbd[tcb[t]] <- true for (t,zc) in ch if tbr[t] if isnm[t] if lbk[nsg[t]] if not inb[t]
+cbd[tcb[t]] <- true for (t,zc) in ch if tbr[t] if inb[t] if not lbk[nsg[t]]
+cbd[tcb[t]] <- true for (t,zc) in ch if tbr[t] if isnm[t] if lpar[nsg[t]]
+cbd[tcb[t]] <- true for (t,zc) in ch if tbr[t] if sy[t] == 34
+# 引数の役: 表の位置（`in p`、後ろが `..` でない）と、束縛の並び（`for (…)` の中）
+field dotn : or bound 589824
+dotn[t] <- true for (t,zc) in ch if sy[nsg[t]] == 46
+field tbl : or bound 589824              # 表の位置
+tbl[t] <- true for (t,zc) in ch if kin[psg[t]] if not dotn[t]
+field fpo : or bound 589824              # `for (` の `(`
+fpo[t] <- true for (t,zc) in ch if lpar[t] if kwfor[psg[t]]
+field fbl : or bound 589824              # 束縛の並びの中
+fbl[t] <- true for (t,zc) in ch if sgt[t] if fpo[psg[t]] if not rpar[t]
+fbl[t] <- true for (t,zc) in ch if sgt[t] if fbl[psg[t]] if not rpar[t]
+
+# ── use: `use 名 ( 引数, … ) as P`（引数は数か名一つずつ）──
+field tus : or bound 16384               # 文 s は（塊の外の）use
+tus[s] <- true for (s) in 0 .. nstz[0] if sus[s] if not cbo[s]
+field ucn : max bound 16384              # 部品の名
+ucn[s] <- nsg[shd[s]] for (s) in 0 .. nstz[0] if tus[s]
+field ulp : max bound 16384
+ulp[s] <- nsg[ucn[s]] for (s) in 0 .. nstz[0] if tus[s]
+field urp : min bound 16384
+urp[snum[t]] <- t for (t,zc) in ch if tus[snum[t]] if rpar[t]
+field urh : or bound 16384
+urh[snum[t]] <- true for (t,zc) in ch if tus[snum[t]] if rpar[t]
+field uas : max bound 16384
+uas[s] <- nsg[urp[s]] for (s) in 0 .. nstz[0] if tus[s]
+field upf : max bound 16384              # 接頭辞
+upf[s] <- nsg[uas[s]] for (s) in 0 .. nstz[0] if tus[s]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if not isnm[ucn[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if not lpar[ulp[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if not urh[s]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if not kas[uas[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if not isnm[upf[s]]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if upf[s] != lsgs[s]
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if tlen[upf[s]] >= 17
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if tch[upf[s], 0] == 95
+ubad[z] <- true for (s) in 0 .. nstz[0] for (z) in 0 .. 0 if tus[s] if tlen[ucn[s]] >= 17
+field tar : or bound 589824              # 引数の並びの中
+tar[t] <- true for (t,zc) in ch if tus[snum[t]] if sgt[t] if t > ulp[snum[t]] if t < urp[snum[t]]
+field targ : or bound 589824             # 引数
+targ[t] <- true for (t,zc) in ch if tar[t] if isnm[t]
+targ[t] <- true for (t,zc) in ch if tar[t] if isnt[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tar[t] if not targ[t] if not cma[t]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if targ[t] if not lpar[psg[t]] if not cma[psg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if targ[t] if not cma[nsg[t]] if not rpar[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tar[t] if cma[t] if not targ[psg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if tar[t] if cma[t] if not targ[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (z) in 0 .. 0 if targ[t] if tlen[t] >= 17
+field apa : max bound 589824             # 引数の前の引数
+apa[t] <- psg[psg[t]] for (t,zc) in ch if targ[t] if cma[psg[t]]
+field ajt : max bound 589824             # 引数の番号
+ajt[t] <- 0 for (t,zc) in ch if targ[t] if lpar[psg[t]]
+ajt[t] <- ajt[apa[t]] + 1 for (t,zc) in ch if targ[t] if cma[psg[t]]
+field una : max bound 16384              # use s の引数の数
+una[s] <- 0 for (s) in 0 .. nstz[0] if tus[s]
+una[snum[t]] <- ajt[t] + 1 for (t,zc) in ch if targ[t]
+# use の通し番号 u（1 から）
+field uno : max bound 16384
+uno[z] <- 0 for (z) in 0 .. 0
+uno[z] <- 1 for (z) in 0 .. 0 if tus[0]
+uno[s] <- uno[s-1] for (s) in 1 .. nstz[0] if not tus[s]
+uno[s] <- uno[s-1] + 1 for (s) in 1 .. nstz[0] if tus[s]
+field nu : max bound 1
+nu[z] <- uno[s] for (s) in 0 .. nstz[0] for (z) in 0 .. 0
+field ust : max bound 64                 # use u の文
+ust[uno[s]] <- s for (s) in 0 .. nstz[0] if tus[s]
+field uct : max bound 64                 # use u の部品の名の語
+uct[u] <- ucn[ust[u]] for (u) in 1 .. nu[0]
+field uky : max bound 64
+uky[u] <- tkey[uct[u]] for (u) in 1 .. nu[0]
+field uk2 : max bound 64
+uk2[u] <- tk2[uct[u]] for (u) in 1 .. nu[0]
+field cky : max bound 16384
+cky[s] <- tkey[cnm[s]] for (s) in 0 .. nstz[0] if scp[s]
+field ck2c : max bound 16384
+ck2c[s] <- tk2[cnm[s]] for (s) in 0 .. nstz[0] if scp[s]
+field ucp : max bound 64                 # use u の部品（頭の文。同じ名が二つあれば定義と同じく後ろ）
+ucp[u] <- s for (u) in 1 .. nu[0] for (s) in 0 .. nstz[0] if scp[s] if cky[s] == uky[u] if ck2c[s] == uk2[u]
+field uhc : or bound 64
+uhc[u] <- true for (u) in 1 .. nu[0] if ucp[u] >= 0
+ubad[z] <- true for (u) in 1 .. nu[0] for (z) in 0 .. 0 if not uhc[u]
+ubad[z] <- true for (u) in 1 .. nu[0] for (z) in 0 .. 0 if cbd[ucp[u]]
+field unn : max bound 64                 # use u の引数の数
+unn[u] <- una[ust[u]] for (u) in 1 .. nu[0]
+ubad[z] <- true for (u) in 1 .. nu[0] for (z) in 0 .. 0 if unn[u] != cnp[ucp[u]]
+field tuu : max bound 589824             # トークン t の use
+tuu[t] <- uno[snum[t]] for (t,zc) in ch if tus[snum[t]]
+field uak : max bound 64 16              # use u の j 番目の引数の種（1 名 = 表 / 2 数）
+uak[tuu[t], ajt[t]] <- 1 for (t,zc) in ch if targ[t] if isnm[t]
+uak[tuu[t], ajt[t]] <- 2 for (t,zc) in ch if targ[t] if isnt[t]
+field cuu : max bound 589824
+cuu[i] <- tuu[tnum[i]] for (i,c) in ch if tus[csn[i]]
+field caj : max bound 589824
+caj[i] <- ajt[tnum[i]] for (i,c) in ch if targ[tnum[i]]
+field uac : max bound 64 16 16           # use u の j 番目の引数の k 字目
+uac[cuu[i], caj[i], cpos[i]] <- c for (i,c) in ch if targ[tnum[i]] if cpos[i] <= 15
+field tpfx : or bound 589824
+tpfx[upf[s]] <- true for (s) in 0 .. nstz[0] if tus[s]
+field upc : max bound 64 16              # use u の接頭辞の k 字目
+upc[cuu[i], cpos[i]] <- c for (i,c) in ch if tpfx[tnum[i]] if cpos[i] <= 15
+# 引数の役が定義と食い違いうる所では開かない: 表の引数は表の位置だけ・数の引数は表の位置でも束縛でも `[` `(` の前でもない
+field uax : max bound 64 16
+uax[u, j] <- uak[u, j] for (u) in 1 .. nu[0] for (j) in 0 .. 15
+ubad[z] <- true for (t,zc) in ch for (u) in 1 .. nu[0] for (z) in 0 .. 0 if tsub[t] if tcb[t] == ucp[u]
+      if uax[u, tpj[t]] == 1 if not tbl[t]
+ubad[z] <- true for (t,zc) in ch for (u) in 1 .. nu[0] for (z) in 0 .. 0 if tsub[t] if tcb[t] == ucp[u]
+      if uax[u, tpj[t]] == 2 if tbl[t]
+ubad[z] <- true for (t,zc) in ch for (u) in 1 .. nu[0] for (z) in 0 .. 0 if tsub[t] if tcb[t] == ucp[u]
+      if uax[u, tpj[t]] == 2 if fbl[t]
+ubad[z] <- true for (t,zc) in ch for (u) in 1 .. nu[0] for (z) in 0 .. 0 if tsub[t] if tcb[t] == ucp[u]
+      if uax[u, tpj[t]] == 2 if lbk[nsg[t]]
+ubad[z] <- true for (t,zc) in ch for (u) in 1 .. nu[0] for (z) in 0 .. 0 if tsub[t] if tcb[t] == ucp[u]
+      if uax[u, tpj[t]] == 2 if lpar[nsg[t]]
+
+# ══ 書く ══════════════════════════════════════════════════════════
+# 元の本: 塊と use の文は改行だけ残す（開けないなら全部そのまま）
+field tbk : or bound 589824
+tbk[t] <- true for (t,zc) in ch if cbo[snum[t]]
+tbk[t] <- true for (t,zc) in ch if tus[snum[t]]
+field uo : max bound 589824
+uo[i] <- c for (i,c) in ch if ubad[0]
+uo[i] <- c for (i,c) in ch if not ubad[0] if not tbk[tnum[i]]
+uo[i] <- c for (i,c) in ch if not ubad[0] if tbk[tnum[i]] if c == 10
+# 写した中身: use u ごとに、塊の頭からの位置 j の行。升 0..15 は `P`、16 は `_`、17.. は字（差し替えなら引数の字）
+field ccb : flat bound 589824            # 字 i の塊の頭の文
+ccb[i] <- tcb[tnum[i]] for (i,c) in ch if cbo[csn[i]]
+field sfc : min bound 16384              # 塊の頭の最初の字
+sfc[s] <- tstart[shd[s]] for (s) in 0 .. nstz[0] if scp[s]
+field cfs : flat bound 589824
+cfs[i] <- sfc[ccb[i]] for (i,c) in ch if cbo[csn[i]]
+field boff : flat bound 589824           # 字 i の、塊の頭からの位置
+boff[i] <- i - cfs[i] for (i,c) in ch if cbo[csn[i]]
+field cpj : max bound 589824
+cpj[i] <- tpj[tnum[i]] for (i,c) in ch if tsub[tnum[i]]
+field ux : max bound 64 4096 34
+ux[u, z, z] <- 10 for (u) in 1 .. nu[0] for (z) in 0 .. 0 if not ubad[0]
+ux[u, boff[i], 17] <- c for (i,c) in ch for (u) in 1 .. nu[0] if not ubad[0] if ucp[u] == ccb[i]
+      if tbr[tnum[i]] if not tsub[tnum[i]]
+ux[u, boff[i], k] <- upc[u, k] for (i,c) in ch for (u) in 1 .. nu[0] for (k) in 0 .. 15 if not ubad[0]
+      if ucp[u] == ccb[i] if inb[tnum[i]] if cpos[i] == 0
+ux[u, boff[i], 16] <- 95 for (i,c) in ch for (u) in 1 .. nu[0] if not ubad[0]
+      if ucp[u] == ccb[i] if inb[tnum[i]] if cpos[i] == 0
+ux[u, boff[i], k + 17] <- uac[u, cpj[i], k] for (i,c) in ch for (u) in 1 .. nu[0] for (k) in 0 .. 15
+      if not ubad[0] if ucp[u] == ccb[i] if tsub[tnum[i]] if cpos[i] == 0
+# 宣言: use u ごとに、部品の場 q ごとの行 —— `\nfield P_f : 束` と、深さの署名があれば `\nbudget depth <= N for P_f`
+field kfs : max bound 8                  # "\nfield "
+kfs[0] <- 10
+kfs[1] <- 102
+kfs[2] <- 105
+kfs[3] <- 101
+kfs[4] <- 108
+kfs[5] <- 100
+kfs[6] <- 32
+field kcl : max bound 3                  # " : "
+kcl[0] <- 32
+kcl[1] <- 58
+kcl[2] <- 32
+field kbs : max bound 17                 # "\nbudget depth <= "
+kbs[0] <- 10
+kbs[1] <- 98
+kbs[2] <- 117
+kbs[3] <- 100
+kbs[4] <- 103
+kbs[5] <- 101
+kbs[6] <- 116
+kbs[7] <- 32
+kbs[8] <- 100
+kbs[9] <- 101
+kbs[10] <- 112
+kbs[11] <- 116
+kbs[12] <- 104
+kbs[13] <- 32
+kbs[14] <- 60
+kbs[15] <- 61
+kbs[16] <- 32
+field kfo : max bound 5                  # " for "
+kfo[0] <- 32
+kfo[1] <- 102
+kfo[2] <- 111
+kfo[3] <- 114
+kfo[4] <- 32
+field uh : max bound 64 64 112
+uh[u, qm[q], k] <- kfs[k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 6
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], k + 7] <- upc[u, k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 15
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], 23] <- 95 for (u) in 1 .. nu[0] for (q) in 1 .. nq[0]
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], k + 24] <- qch[q, k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 15
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], k + 40] <- kcl[k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 2
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], k + 43] <- qlc[q, k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 4
+      if not ubad[0] if qcm[q] == ucp[u]
+uh[u, qm[q], k + 48] <- kbs[k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 16
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+uh[u, qm[q], k + 65] <- cdc[ucp[u], k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 7
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+uh[u, qm[q], k + 73] <- kfo[k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 4
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+uh[u, qm[q], k + 78] <- upc[u, k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 15
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+uh[u, qm[q], 94] <- 95 for (u) in 1 .. nu[0] for (q) in 1 .. nq[0]
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+uh[u, qm[q], k + 95] <- qch[q, k] for (u) in 1 .. nu[0] for (q) in 1 .. nq[0] for (k) in 0 .. 15
+      if not ubad[0] if qcm[q] == ucp[u] if cdd[ucp[u]]
+render uo
+render ux
+render uh

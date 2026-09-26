@@ -965,6 +965,33 @@ b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
 c[i] <- true   for (i) in 0 .. 3 if not b[i]
 budget depth <= 2
 """, data=b"a", exit=7, why=(8,7))
+# **場ごとの深さ `budget depth <= N for f`**（14z）: f を書く文の層 + 1 が N 以下。部品の深さの署名は、部品を開く段
+# （unfold）がこの形に開く。場の名は宣言の鍵と直に比べる（十六文字まで）。名指す場が無ければ言う
+case("budget depth を場ごとに（通る）", """table ch = (0,32)
+field a : max bound 4
+field b : or bound 4
+field c : or bound 4
+a[i] <- i   for (i) in 0 .. 3
+b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
+c[i] <- true   for (i) in 0 .. 3 if not b[i]
+budget depth <= 2 for b
+budget depth <= 1 for a
+budget depth <= 3 for c
+""", data=b"a")
+case("budget depth を場ごとに越える（言う）", """table ch = (0,32)
+field a : max bound 4
+field b : or bound 4
+field c : or bound 4
+a[i] <- i   for (i) in 0 .. 3
+b[i] <- true   for (i) in 0 .. 3 if a[i] == 2
+c[i] <- true   for (i) in 0 .. 3 if not b[i]
+budget depth <= 2 for c
+""", data=b"a", exit=7, why=(8,7))
+case("budget depth が名指す場が無い（言う）", """table ch = (0,32)
+field a : max bound 4
+a[i] <- i   for (i) in 0 .. 3
+budget depth <= 2 for q
+""", data=b"a", exit=7, why=(4,4))
 case("土台が同じ層で育つ場を読む（通る）", """table ch = (0,32)
 field x : max bound 16
 x[n] <- n   for (n) in 0 .. 15

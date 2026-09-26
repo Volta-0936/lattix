@@ -9,6 +9,9 @@ lattix       **焼いた処理系**（静的 ELF 524,288バイト）。`lattix.l
              手で作るものではない —— `test/g4d.py` が焼いて置き、バイト一致を確かめる
 lattix.lx    その源。三行の include（14y）: examples/33_self.lx + lib/fold.lx + lib/gen.lx
              （lib/gen.lx は examples/31_gen.lx の畳み目から下）。焼き手の口が開く
+unfold.lx    部品を開く段（14z）。include: 33_self + lib/unfold.lx
+lower.lx     下ろし。include: 33_self + lib/fold.lx + lib/lower.lx（14z から Python で組まない。
+             型紙を変えたときだけ work/mklower.py が lib/lower.lx の種を書き直す）
 run.lx       **走らせる物。配る一枚**。寄与の関係（`eg`/`cd`/`ix` の三つの表）を
              閉じる。プログラムごとに変わるのは表だけで、この一枚は変わらない。
              `work/mkrun.py` が形の一覧から書き出す（手で書かない）

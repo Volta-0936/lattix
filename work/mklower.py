@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""**下ろしを組む。** —— `lower.lx` = 33_self（前段）+ lib/lower.lx（下ろしの規則）。
+"""**型紙を種に起こす。** —— 型紙・print の機械・塊の帯を種にして lib/lower.lx の印の間に書く。
 
-    python3 work/mklower.py          # 型紙を種に起こして lib/lower.lx に書き、lower.lx を組む
-    ./lattix lower.lx lower          # 焼く
+    python3 work/mklower.py          # 型紙を変えたときだけ（lib/lower.lx の種が源として残る）
+    ./lattix lower.lx lower          # 焼く —— lower.lx は三行の include（33_self・fold・lower）。Python は要らない
     ./lower prog.lx > prog.low.lx    # 下ろす
     ./lattix prog.low.lx prog        # 焼く
 
@@ -457,30 +457,8 @@ if __name__ == '__main__':
     low = splice(low, 'rows', rows_rules())
     low = splice(low, 'blocks', block_strip())
     open(lp, 'w', encoding='utf-8').write(low)
-    front = open(os.path.join(ROOT, 'examples', '33_self.lx'), encoding='utf-8').read()
-    front = "\n".join(l for l in front.splitlines() if not l.startswith('print '))
-    # 下ろす源は 262,144 バイトまで（焼き手の 589,824 は焼き手自身を読むための広さ）。
-    # 狭くするのは置き場のため —— 前段の面は百九十枚あり、2 GB の手前に収めたい。
-    # 文・出現・宣言の面も、下ろす源の広さに戻す（焼き手は **下ろした後の** 本を読むので 16,384 文 /
-    # 32,768 出現 / 2,048 宣言が要るが、下ろしの前段が読むのは利用者の書いた源で、その半分で足りる）。
-    # 置き場は 2 GB の手前までで、下ろしはその縁に居る —— 前段の面を倍にした日に塊の帯が入らなくなった
-    SRC_DIM0 = {'16384': '8192', '32768': '16384', '2048': '1024'}
-
-    def narrow(text):
-        text = text.replace('bound 589824', 'bound 262144')
-        return re.sub(r'(?m)^(field \w+ : \w+ bound )(\d+)',
-                      lambda m: m.group(1) + SRC_DIM0.get(m.group(2), m.group(2)), text)
-    front = narrow(front)
-    # 焼き手の写し（lib/fold.lx）も入れる —— 「座標の語として読めたか」（crdok）は焼き手の判断で、
-    # 下ろしはそれを見て持ち上げる（同じ判断を二度書かない）
-    glue = open(os.path.join(ROOT, 'lib', 'fold.lx'), encoding='utf-8').read()
-    front += "\n" + narrow(glue)
-    head = ("# **下ろす（lower.lx）** —— 自由に書かれた .lx を、焼ける形（SPEC §12）の .lx に書き換える。\n"
-            "# 中身は examples/33_self.lx（前段）と lib/fold.lx（焼き手の写し）と lib/lower.lx（下ろしの規則）を繋いだもの。\n"
-            "# work/mklower.py が組む。**手で直さない。**\n\n")
-    out = head + front + "\n" + low
-    names = re.findall(r'(?m)^field (\w+)', out)
-    dup = sorted({n for n in names if names.count(n) > 1})
-    assert not dup, f"場の名前がぶつかっている: {dup}"
-    open(os.path.join(ROOT, 'lower.lx'), 'w', encoding='utf-8').write(out)
-    print('lower.lx', len(out.encode()), 'バイト')
+    # **lower.lx は組まない**（14z）。前は前段（33_self）と焼き手の写し（fold）の広さを狭めて（589,824 → 262,144 ほか）
+    # 繋いでいた —— 置き場が全部で 2 GB の縁に居た頃の工夫である。14 で置き場が面ごとに 2 GB になったので、狭めずに
+    # 取り込んでも入る（焼いて確かめた。下ろした字は examples と work/t の 208 本でバイトまで同じ、手間も同じ）。
+    # だから lower.lx は三行の include で、焼き手が口で開く（lattix.lx と同じ）
+    print('lib/lower.lx', len(low.encode()), 'バイト')

@@ -47,7 +47,7 @@ for gen, lx, args in [('mkfront.py', 'front.lx', []), ('mkeval.py', 'attest.lx',
 # ── 焼く ──────────────────────────────────────────────────────────────
 FRONT, EV = os.path.join(tmp, 'attest-front'), os.path.join(tmp, 'attest')
 for lx, exe in [('front.lx', FRONT), ('attest.lx', EV)]:
-    r = subprocess.run([LATTIX, os.path.join(ROOT, 'attest', lx), exe], capture_output=True)
+    r = subprocess.run([LATTIX, os.path.join(ROOT, 'attest', lx), exe], cwd=ROOT, capture_output=True)
     os.chmod(exe, 0o755)
     probe = subprocess.run([exe], input=b'', capture_output=True)
     ok = r.returncode == 0 and b'cannot bake' not in probe.stderr

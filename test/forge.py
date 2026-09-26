@@ -30,7 +30,7 @@ LATTIX = os.environ.get('LATTIX_EXE', os.path.join(ROOT, 'lattix'))
 tmp = tempfile.mkdtemp(); atexit.register(shutil.rmtree, tmp, True)
 FRONT = os.path.join(tmp, 'attest-front'); EV = os.path.join(tmp, 'attest')
 for lx, exe in [('front.lx', FRONT), ('attest.lx', EV)]:
-    subprocess.run([LATTIX, os.path.join(ROOT, 'attest', lx), exe], check=True, capture_output=True)
+    subprocess.run([LATTIX, os.path.join(ROOT, 'attest', lx), exe], cwd=ROOT, check=True, capture_output=True)
     os.chmod(exe, 0o755)
 
 LATS = ['max', 'min', 'flat', 'flat', 'or', 'sum', 'count']

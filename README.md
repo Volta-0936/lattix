@@ -44,6 +44,18 @@ sh -c 'exec 3>witness.bin; exec ./lattix f.lx foo'
 
 標準エラーに出るのは **焼けなかったときの一行だけ**である（下記）。
 
+**自由に書いた本は、開いて下ろしてから焼く。** `lattix` が直に焼くのは断片（SPEC §12）の形だけで、
+表・print・集合・構成子・部品などは二つの段が断片の形に書き換える。どちらも焼いた Lattix で、Python は居ない:
+
+```bash
+./lattix unfold.lx unfold && ./lattix lower.lx lower   # 道具を焼く（一度だけ。リポジトリの根で）
+./unfold f.lx f.u.lx        # 部品（component / use）を開く。部品が無ければ同じ字を出す
+./lower f.u.lx > f.low.lx   # 断片の形に下ろす（表 → 場、print → 印字の機械、…）
+./lattix f.low.lx f && ./f  # 焼いて走らせる —— 答えは python3 lattix.py f.lx と同じ
+```
+
+どの段も、書き換えられない形は書き換えずに残し、焼き手が行と理由を言って断る（黙って違う答えにはしない）。
+
 **焼けなかったときは、どこを直すかを言う。** `lattix` は常に ELF を出す ——
 形が導けたかは、その ELF が起動時に言う（標準エラーに一行、終了コード 7）:
 
@@ -193,6 +205,8 @@ Lattix の字句解析器と構文解析器**）。`lib/` は Lattix で書い�
 ```
 lattix       **焼いた処理系**（1 MB の静的 ELF。依存なし。lattix.lx から作られる）
 lattix.lx    その源（三行の include: examples/33_self.lx + lib/fold.lx + lib/gen.lx。焼き手の口が開く）
+unfold.lx    部品を開く段の源（include: examples/33_self.lx + lib/unfold.lx）
+lower.lx     下ろしの源（include: examples/33_self.lx + lib/fold.lx + lib/lower.lx）
 lattix.py    処理系（構文解析・成層・極性解析・証明書・解釈実行）
 native.py    C バックエンド（単相化・索引導出・スケジューラ選択・領域実行）
 runtime.py   C バックエンド（プログラムだけを焼く。データは実行時。**Python から離れる道**）

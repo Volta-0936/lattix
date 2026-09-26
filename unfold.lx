@@ -1,0 +1,4 @@
+# **部品を開く段**（14z）—— `./unfold f.lx f.u.lx` で `use` を部品の中身に開いた本を書く。
+# 前段は焼き手と同じ 33_self（字句・文の切れ目）。規則は lib/unfold.lx
+include "examples/33_self.lx"
+include "lib/unfold.lx"

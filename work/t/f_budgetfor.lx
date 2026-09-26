@@ -1,0 +1,11 @@
+# 場ごとの深さ `budget depth <= N for f`（14z）
+field x : max
+field y : or
+field z : or
+x[i] <- i        for (i) in 0 .. 3
+y[i] <- true     for (i) in 0 .. 3 if x[i] >= 2
+z[i] <- true     for (i) in 0 .. 3 if not y[i]
+budget depth <= 3 for z
+budget depth <= 2 for y
+budget depth <= 1 for x
+print z

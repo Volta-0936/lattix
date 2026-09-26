@@ -1,0 +1,7 @@
+# 外界との往復と budget depth（14z。14t からの SILENT —— emit から source への辺が焼き手に見えない）: 両方が断る
+field y : max
+source r : max from "c"
+emit "c" <- 1
+y[0] <- r[0]
+budget depth <= 1
+print y
