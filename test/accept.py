@@ -1867,6 +1867,20 @@ b[0] <- 1
 x[1] <- true
 c[n] <- 5   for (n) in 0 .. 3 %s
 """ % _g, exit=7, why=(7, 8))
+# ══ 取り込み（14y）: 焼き手の口が `include` を定義と同じに開く ═══════════════════════════
+# 入れ子（sq.lx が tail.lx を取り込む）は取り込んだ本の居場所から探す。印の注釈の行が入るので、後ろの行の番号は
+# 定義と同じに動く（断る行の番号も定義の行で言う）
+case("取り込み（通る —— 入れ子は居場所から）", """table ch = (0,32)
+field sq : max bound 16
+field tw : max bound 16
+include "work/t/inc/sq.lx"
+""")
+case("取り込みの後ろの行で断る（行は開いた字の番号）", """table ch = (0,32)
+field sq : max bound 16
+field tw : max bound 16
+include "work/t/inc/sq.lx"
+field bad : set
+""", exit=7, why=(10, 8))
 # ══ for 節・頭・種の語を数える（理由 8）══════════════════════════════════
 for _nm, _f in [("後ろに数", "for (n) in 0 .. 3 4"), ("区間が二つ", "for (n) in 0 .. 3 .. 5"),
                 ("区間に変数二つ", "for (n, m) in 0 .. 3"), ("下端が読み", "for (n) in b[0] .. 3"),

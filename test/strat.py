@@ -100,6 +100,9 @@ AXR = [0]                                   # 軸で守る読み（場の粒度�
 
 def check(path):
     raw = open(path, 'rb').read()
+    # 取り込み（14y）: 源の字を定義と同じに開いてから、探針にも定義にも同じ字を渡す（行の番号を揃える）
+    if b'include ' in raw:
+        raw = L._expand_includes(raw.decode('utf-8'), None).encode('utf-8')
     r = subprocess.run([probe], input=raw, capture_output=True)
     if r.returncode:
         return None, f"探針が止まった rc={r.returncode}"

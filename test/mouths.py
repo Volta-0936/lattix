@@ -90,6 +90,33 @@ src2048 = "table ch = (0,32)\n" + "".join(f"field f{i} : max bound 2\n" for i in
 r = subprocess.run([LATTIX], input=src2048.encode(), capture_output=True)
 nm = r.stderr.split(b'\n')[1].split() if r.stderr.count(b'\n') >= 2 else []
 case('焼き手の箱を越えた本は箱の名を言う（6）', (r.returncode, nm[:1], len(nm)), (6, [b'field'], 3))
+# **口の取り込み**（14y）: `_include` の場を持つ本（焼き手・下ろし —— 33_self.lx が宣言する）の口は、読んだ源の
+# `include "path"` をファイルの中身に差し替えてから表に開く（定義の _expand_includes と同じ規則）
+inc = os.path.join(tmp, 'inc'); os.makedirs(os.path.join(inc, 'sub'))
+open(os.path.join(inc, 'sq.lx'), 'w').write("sq[i] <- i * i   for (i) in 0 .. 9\n")
+open(os.path.join(inc, 'sub', 'a.lx'), 'w').write("include \"b.lx\"\n")            # 入れ子は取り込んだ本の居場所から
+open(os.path.join(inc, 'sub', 'b.lx'), 'w').write("sq[i] <- i + 100   for (i) in 0 .. 3")   # 改行で終わらない中身
+open(os.path.join(inc, 'self.lx'), 'w').write("include \"%s\"\n" % os.path.join(inc, 'self.lx'))
+def bake_rc(src):
+    r = subprocess.run([LATTIX], input=src.encode(), capture_output=True)
+    if r.returncode or r.stdout[:4] != b'\x7fELF': return r.returncode, None, r.stderr
+    exe = os.path.join(tmp, 'inc%d' % len(cases)); open(exe, 'wb').write(r.stdout); os.chmod(exe, 0o755)
+    r2 = subprocess.run([exe], input=b'', capture_output=True)
+    return r2.returncode, r2.stdout, r2.stderr
+HEAD = "table ch = (0,32)\nfield sq : max bound 16\n"
+rc, out, _ = bake_rc(HEAD + 'include "%s"\n' % os.path.join(inc, 'sq.lx'))
+case('焼き手の口が取り込みを開く（答える）', (rc, n0(out[8*9:]) if out else None), (0, 81))
+rc, out, _ = bake_rc(HEAD + '   include  "%s"  \n' % os.path.join(inc, 'sub', 'a.lx'))
+case('入れ子は取り込んだ本の居場所から（答える）', (rc, n0(out[8*3:]) if out else None), (0, 103))
+rc, out, err = bake_rc(HEAD + 'include "%s"\n' % os.path.join(inc, 'nope.lx'))
+case('開けない取り込みは名で言う（8）', (rc, err.split(b' include ')[-1].strip().endswith(b'nope.lx')), (8, True))
+rc, out, err = bake_rc(HEAD + 'include "%s"\n' % os.path.join(inc, 'self.lx'))
+case('自分を取り込む本は深すぎると言う（8）', (rc, b'too deep' in err or b'> 32' in err), (8, True))
+rc, out = run(CNT, b'include "nope.lx"\n'); case('普通の本は取り込みを開かない（答える）', (rc, n0(out)), (0, 18))
+INC = bake('incl', "table ch = (0,32)\nfield n : count bound 4\nfield _include : or bound 1\nn[0] <- 1   for (i,c) in ch\n")   # n を先に（升の並びは宣言の順）
+rc, out = run(INC, ('include "%s"\n' % os.path.join(inc, 'sq.lx')).encode())
+want = len(('# --- included from %s ---\n' % os.path.join(inc, 'sq.lx')).encode()) + len(open(os.path.join(inc, 'sq.lx'), 'rb').read())
+case('`_include` を持つ本の口は開く（答える）', (rc, n0(out)), (0, want))
 p = subprocess.Popen([BIG], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 p.stdout.read(1); p.stdout.close(); rc = p.wait()
 case('読み手が先に閉じた大きい答え（0 以外）', rc != 0, True)

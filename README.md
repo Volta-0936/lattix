@@ -192,7 +192,7 @@ Lattix の字句解析器と構文解析器**）。`lib/` は Lattix で書い�
 
 ```
 lattix       **焼いた処理系**（1 MB の静的 ELF。依存なし。lattix.lx から作られる）
-lattix.lx    その源（6,126行。33_self + lib/fold + 31_gen を一枚に畳んだもの）
+lattix.lx    その源（三行の include: examples/33_self.lx + lib/fold.lx + lib/gen.lx。焼き手の口が開く）
 lattix.py    処理系（構文解析・成層・極性解析・証明書・解釈実行）
 native.py    C バックエンド（単相化・索引導出・スケジューラ選択・領域実行）
 runtime.py   C バックエンド（プログラムだけを焼く。データは実行時。**Python から離れる道**）
@@ -209,30 +209,26 @@ demo/        表現力の実演
 
 ### 作り直す
 
-**`lattix.lx` は手で書かない。** `test/fold.py` が三つの源を繋いで書き出す:
+`lattix.lx` は **三行の include** である（14y）。繋ぐのは焼き手自身の口 —— `examples/33_self.lx` が
+`_include` の場を持つので、焼いた焼き手は読んだ源の `include` の行をファイルの中身に替えてから表に開く:
 
 ```
 examples/33_self.lx   バイト → 語 → 文 → 規則の形（構成子は使わない）
 lib/fold.lx           形を生成器の入力の形に写す（判断は持たない）
-examples/31_gen.lx    形 → 機械語（「ここから下は表を一つも読まない」の行から下）
-                      ↓  test/fold.py
-lattix.lx             ↓  test/g4d.py（起動用 → L1 → L2、バイト一致を確かめる）
-lattix
+lib/gen.lx            形 → 機械語（examples/31_gen.lx の下半分 —— 表を一つも読まない側）
+                      ↓  焼き手の口が include を開く
+lattix.lx → lattix
 ```
+
+リポジトリの根で（取り込みは今の場所から探す）、**C も Python も要らない**:
 
 ```bash
-python3 test/fold.py    # 三つの源 → lattix.lx（＋ 三段と同じ答えかを確かめる）
-python3 test/g4d.py     # lattix.lx → lattix、そして自分で焼き直してバイト一致
-./check                 # 全部
+./lattix lattix.lx lattix.new && cmp lattix lattix.new   # 差は出ない
 ```
 
-直すのは三つの源の方で、`lattix.lx` と `lattix` は**その像**である。
-
-`lattix` が既に手元にあるなら、焼き直しに C も Python も要らない:
-
-```bash
-./lattix < lattix.lx > lattix.new && cmp lattix lattix.new   # 差は出ない
-```
+直すのは三つの源の方で、`lattix` は **その像**である。口を持たない古い焼き手から跨ぐときだけ、定義の
+`_expand_includes` で開いた字から一度焼き、その焼き手にもう一度開いた字を焼かせる（口は焼いた側の生成器が付ける）。
+`test/g4d.py` は C で焼いた起動用から輪を閉じる（起動用には口が無いので、開いた字を渡す）。
 
 C と Python が要るのは **一度だけ**（`lattix` を持っていないときの起動）。
 そのときは `python3 test/g4d.py` が `runtime.py` + gcc で起動用を作り、

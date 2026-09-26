@@ -7,8 +7,8 @@
 ```
 lattix       **焼いた処理系**（静的 ELF 524,288バイト）。`lattix.lx` の像であって、
              手で作るものではない —— `test/g4d.py` が焼いて置き、バイト一致を確かめる
-lattix.lx    その源。`test/fold.py` が三つの源から書き出す（手で書かない）:
-             examples/33_self.lx + lib/fold.lx + examples/31_gen.lx（畳み目の行から下）
+lattix.lx    その源。三行の include（14y）: examples/33_self.lx + lib/fold.lx + lib/gen.lx
+             （lib/gen.lx は examples/31_gen.lx の畳み目から下）。焼き手の口が開く
 run.lx       **走らせる物。配る一枚**。寄与の関係（`eg`/`cd`/`ix` の三つの表）を
              閉じる。プログラムごとに変わるのは表だけで、この一枚は変わらない。
              `work/mkrun.py` が形の一覧から書き出す（手で書かない）
@@ -46,8 +46,10 @@ parse → check → stratify → io_rounds → check_budgets → certify → run
 10. **焼いた側は「無い」を *値* で見分ける。** だから ⊥ と同じ値を場に置いてはいけない。
    置く必要のある場（⊥ の定数そのものを運ぶ `fbot` / `imm`）は 2^32 だけ持ち上げる
    —— 下げてはいけない（`max` の場は自分の ⊥ より小さい値を join で撥ねる）
-11. **`lattix.lx` を直接編集しない。** 直すのは三つの源で、`test/fold.py` で作り直し、
-   `test/g4d.py` でバイト一致を確かめる。像を直しても次の `fold` で消える
+11. **直すのは三つの源**（`lattix.lx` は三行の include）。`./lattix lattix.lx lattix.new` で焼き直し、
+   もう一度焼いてバイト一致を確かめる。生成器を直すのは `lib/gen.lx`（`examples/31_gen.lx` は表を読む
+   上半分と `include "lib/gen.lx"` だけ）。口の取り込みの機械語は `work/inc/expand.s`（`work/inc/mkrows.py` が
+   種 `xv` に起こす —— 貼るのは lib/gen.lx）
 
 ## 過去の事故
 

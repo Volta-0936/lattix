@@ -30,36 +30,15 @@ MARK = 'ここから下は表を一つも読まない'
 
 
 def assemble():
-    """三つの断片を一枚にする。**切れ目は源が言う**（畳み目の一行）。"""
-    front = open(os.path.join(EX, '33_self.lx'), encoding='utf-8').read()
-    # `print` は標準出力を汚す —— 畳んだものが書くのは **ELF だけ** である
-    front = "\n".join(l for l in front.splitlines()
-                      if not l.startswith('print '))
-    glue = open(os.path.join(ROOT, 'lib', 'fold.lx'), encoding='utf-8').read()
-    back = open(os.path.join(EX, '31_gen.lx'), encoding='utf-8').read()
-    i = back.index(MARK)
-    back = back[back.rindex('\n', 0, i) + 1:]
-    head = """# **Lattix 一枚。** —— 源のバイトを入れると、静的 ELF が出る。
-#
-#   標準入力 : `.lx` の生バイト（`table ch` が (位置, 文字) に開く）
-#   標準出力 : 静的 ELF（`render out`）
-#
-# 中身は三つの断片をそのまま繋いだものである ——
-#
-#   examples/33_self.lx  バイト → 語 → 文 → **規則の形**（構成子は使わない）
-#   lib/fold.lx          形を生成器の入力の形に写す（判断は持たない）
-#   examples/31_gen.lx   形 → 機械語（番地も飛び先も前置きの鎖が付ける）
-#
-# 繋ぎ目は `test/fold.py` が張る。**間に Python は一度も現れない。**
-# この一枚が自分自身を焼いてバイト一致したとき、C も Python も要らなくなる。
-
-"""
-    return head + front + "\n" + glue + "\n" + back
+    """三つの断片を一枚にした字。**14y から lattix.lx は三行の include** で、繋ぐのは焼き手自身の口である
+    （33_self.lx の `_include`）。ここでは定義の _expand_includes で同じ字を開いて返すだけ（lattix.lx は書かない ——
+    源である）。前はここが三つを繋いで lattix.lx を書いていた（`print` の行を落とし、31_gen.lx を畳む境目で切って）。
+    焼き手は `print` を焼かないので、落とさなくても像はバイトまで同じ（14y で測った）"""
+    import lattix as L
+    return L._expand_includes(open(os.path.join(ROOT, 'lattix.lx'), encoding='utf-8').read(), ROOT + os.sep)
 
 
 SRC = assemble()
-OUT = os.path.join(ROOT, 'lattix.lx')
-open(OUT, 'w', encoding='utf-8').write(SRC)
 
 # **名前がぶつかっていないか。** 三つの断片は別々に書かれたので、
 # 同じ綴りが別のものを指していたら、黙って混ざる（過去に一度やった）。

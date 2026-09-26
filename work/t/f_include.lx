@@ -1,0 +1,6 @@
+# 取り込み（14y）: 下ろしと焼き手の口が include を定義と同じに開く（入れ子は取り込んだ本の居場所から）
+field sq : max
+field tw : max
+include "work/t/inc/sq.lx"
+print sq
+print tw

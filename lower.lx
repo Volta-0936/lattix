@@ -21,6 +21,11 @@
 # **自分の源を読めなくなる 226 バイト手前**まで来ていた。数えて言う（気づき35）。
 # `test/accept.py` の「宣言の内側」の組が、この二つが同じであることを測る。
 table ch = (0,32)
+# **入力は Lattix の源である**（14y）。この場を持つ本を焼くと、口が `include "path"` の行をファイルの中身に
+# 差し替えてから表に開く（定義が構文解析の前にすることと同じ。`_exit` と同じく、名が `_` で始まる場は
+# 焼く道のもの）。焼き手・下ろし・attest の前段はこの前段を使うので、どれも取り込みを開く。定義で走らせる
+# ときは、渡す字を `lattix._expand_includes` で開いてから渡す（試験の側）。場そのものには何も書かない
+field _include : or bound 1
 
 # ── 文字の種類 ──────────────────────────────────────────────────────
 field alpha : or bound 262144
@@ -2181,6 +2186,15 @@ field fexz : max bound 1                          # その場（0 起点。無�
 field exk : max bound 1                           # その鍵 25715160308（即値に入らないので掛けて作る —— 理由 C）
 exk[z] <- 1569528 * 16384 + 13556 for (z) in 0 .. 0
 fexz[z] <- d - 1 for (d) in 0 .. ndcz[0] for (z) in 0 .. 0 if din[d] if dkey[d] == exk[0] if dkey2[d] == 0
+# **口が include を開く本**（14y。31_gen の finc）: 名の鍵が `_include`（95,105,110,99,108,117,100,101 を 128 進で
+# 畳む —— 53945846833443429 は即値に入らないので掛けて作る）の宣言を持つ本。自分の入力が Lattix の源である本
+# （焼き手・下ろし・attest の前段 —— 33_self.lx が宣言する）だけが、口で `include` の行を開く
+field finc : max bound 1                          # その場（0 起点。無ければ ⊥）
+field ink1 : max bound 1
+ink1[z] <- 12560246 * 65536 + 15773 for (z) in 0 .. 0
+field ink : max bound 1
+ink[z] <- ink1[0] * 65536 + 29285 for (z) in 0 .. 0
+finc[z] <- d - 1 for (d) in 0 .. ndcz[0] for (z) in 0 .. 0 if din[d] if dkey[d] == ink[0] if dkey2[d] == 0
 # **場の名**（14w。31_gen の fnm）: 宣言の綴りの 1〜16 文字目（焼ける名は十六文字まで —— 十七文字は理由 1）。
 # 出口が「どの場の箱を越えたか」を名で言うのに使う
 field fnm : max bound 1024 16                     # 場 f の名の k 文字目

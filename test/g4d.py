@@ -17,10 +17,12 @@ import hashlib, os, stat, subprocess, sys, tempfile, time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 import runtime as RT
+import lattix as L
 
 W = 78
-SRC = open(os.path.join(ROOT, 'lattix.lx'), encoding='utf-8').read()
-RAW = open(os.path.join(ROOT, 'lattix.lx'), 'rb').read()
+# lattix.lx は三行の include（14y）。C で焼く起動用には口が無いので、定義と同じに開いた字を渡す
+SRC = L._expand_includes(open(os.path.join(ROOT, 'lattix.lx'), encoding='utf-8').read(), ROOT + os.sep)
+RAW = SRC.encode('utf-8')
 A = """table ch = (0,32)
 field big : or bound 256
 big[i] <- true for (i,c) in ch if c >= 97
